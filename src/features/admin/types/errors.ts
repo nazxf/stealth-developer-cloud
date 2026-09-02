@@ -1,29 +1,37 @@
-export type ErrorStatus = "unresolved" | "resolved";
-
-/** One representative occurrence inside an error group. */
-export interface ErrorEvent {
-  id: string;
+/** A failed Function execution read from the durable execution table. */
+export interface FunctionFailure {
+  executionId: string;
+  organizationId: string;
+  organizationName: string;
+  projectId: string;
+  projectName: string;
+  functionId: string;
+  functionName: string;
+  runtime: string;
+  status: "failed";
+  trigger: string;
   message: string;
-  /** Stack trace lines, rendered top to bottom. */
-  stack: string[];
-  timestamp: string;
-  environment: string;
-  requestId: string;
-  traceId: string;
+  responseStatus?: number;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
 }
 
-/** A grouped error signature (name + service) tracked over time. */
-export interface ErrorGroup {
+/** Exact-message failures grouped within one organization/project/function. */
+export interface FunctionErrorGroup {
   id: string;
-  name: string;
-  service: string;
-  events: number;
-  users: number;
-  status: ErrorStatus;
-  lastSeen: string;
+  organizationId: string;
+  organizationName: string;
+  projectId: string;
+  projectName: string;
+  functionId: string;
+  functionName: string;
+  runtime: string;
+  status: "failed";
+  count: number;
   firstSeen: string;
-  /** Per-hour event counts for the mini trend. */
-  trend: number[];
+  lastSeen: string;
   message: string;
-  sample: ErrorEvent;
+  latestExecutionId: string;
+  occurrences: FunctionFailure[];
 }

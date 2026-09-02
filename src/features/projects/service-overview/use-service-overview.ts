@@ -33,18 +33,18 @@ import {
 export function useServiceOverview(projectId: string) {
   const projectServiceStorageKey = serviceStorageKey(projectId);
   const projectWorkflowStorageKey = workflowStorageKey(projectId);
-  const [services, setServices] = useState<ServiceNode[]>(() => projectId === "app_ig" ? cloneDefaultServices() : []);
+  const [services, setServices] = useState<ServiceNode[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabLabel>(() => projectId === "app_ig" ? "Overview" : "Deployments");
+  const [activeTab, setActiveTab] = useState<TabLabel>("Deployments");
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
   const [logsServiceId, setLogsServiceId] = useState<string | undefined>(undefined);
   const [deployProgress, setDeployProgress] = useState<{ progress: number; label: string } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>(() => projectId === "app_ig" ? "overview" : "source");
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>("source");
   const [selectedSource, setSelectedSource] = useState<DeploymentSourceId | null>(null);
   const [deploymentConfig, setDeploymentConfig] = useState<DeploymentConfig>(() => cloneDeploymentConfig());
   const [preDeployStatus, setPreDeployStatus] = useState<DeploymentStatus>("Queued");
@@ -56,7 +56,7 @@ export function useServiceOverview(projectId: string) {
 
   useEffect(() => {
     const stored = parseStoredServices(window.localStorage.getItem(projectServiceStorageKey));
-    setServices(stored ?? (projectId === "app_ig" ? cloneDefaultServices() : []));
+    setServices(stored ?? []);
     storageReadyRef.current = true;
     setStorageReady(true);
   }, [projectId, projectServiceStorageKey]);
@@ -97,7 +97,7 @@ export function useServiceOverview(projectId: string) {
       setDeploymentConfig(stored.config);
       setPreDeployStatus(stored.status);
     } else {
-      setWorkflowMode(projectId === "app_ig" ? "overview" : "source");
+      setWorkflowMode("source");
       setSelectedSource(null);
       setDeploymentConfig(cloneDeploymentConfig());
       setPreDeployStatus("Queued");

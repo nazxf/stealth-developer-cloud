@@ -6,7 +6,7 @@ import { formatLastActive } from "../data";
 import type { Agent } from "../types";
 import { AgentStatusDot } from "./agent-status";
 
-function AgentRowMenu({ agent, onDelete }: { agent: Agent; onDelete: (id: string) => void }) {
+function AgentRowMenu({ agent, onDelete }: { agent: Agent; onDelete: (id: string) => void | Promise<void> }) {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ function AgentRowMenu({ agent, onDelete }: { agent: Agent; onDelete: (id: string
   );
 }
 
-function AgentRow({ agent, onDelete }: { agent: Agent; onDelete: (id: string) => void }) {
+function AgentRow({ agent, onDelete }: { agent: Agent; onDelete: (id: string) => void | Promise<void> }) {
   return (
     <article className="group relative flex flex-col gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--projects-control)] lg:grid lg:grid-cols-[minmax(0,2.3fr)_110px_minmax(0,1.7fr)_170px_auto] lg:items-center lg:gap-5">
       <Link
@@ -161,7 +161,7 @@ export function AgentList({
   onDelete,
 }: {
   agents: Agent[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<void>;
 }) {
   return (
     <div className="mt-5 overflow-hidden rounded-md border border-[var(--projects-border)] bg-[var(--projects-card-bg)]">

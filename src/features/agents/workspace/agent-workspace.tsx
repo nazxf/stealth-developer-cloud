@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Activity,
@@ -14,8 +16,8 @@ import {
   Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Agent, FileChange, WorkspaceMessage, WorkspaceTab } from "../types";
-import { buildRunChanges, buildRunSteps, buildSeedMessages, nowTime } from "../data";
+import { agentRunFromRecord } from "../agent-api";
+import type { Agent, AgentRun, AgentRunRecord, WorkspaceMessage, WorkspaceTab } from "../types";
 import { AgentStatusDot } from "../components/agent-status";
 import { AgentChat } from "./agent-chat";
 import { AgentComposer } from "./agent-composer";
@@ -32,25 +34,102 @@ const TABS: Array<{ id: WorkspaceTab; label: string; Icon: typeof MessageSquare 
   { id: "settings", label: "Settings", Icon: Settings2 },
 ];
 
+type ErrorPayload = { error?: { message?: string } };
+
+function formatRunTime(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function runMessage(run: AgentRun) {
+  if (run.status === "queued") return "Run accepted and waiting for an execution worker.";
+  if (run.status === "running") return "The execution worker is working on this request.";
+  if (run.status === "failed") return run.errorMessage ?? "The run failed before producing a result.";
+  if (run.status === "cancelled") return "This run was cancelled.";
+  return run.outputText ?? "Run completed without a text response.";
+}
+
+function messagesFromRuns(runs: AgentRun[]): WorkspaceMessage[] {
+  return [...runs].reverse().flatMap<WorkspaceMessage>((run) => [
+    {
+      id: `prompt-${run.id}`,
+      role: "user",
+      text: run.prompt,
+      time: formatRunTime(run.createdAt),
+    },
+    {
+      id: `run-${run.id}`,
+      runId: run.id,
+      role: "agent",
+      text: runMessage(run),
+      time: formatRunTime(run.updatedAt),
+      status: run.status,
+      steps: run.steps,
+      changes: run.changes,
+      errorMessage: run.errorMessage,
+    },
+  ]);
+}
+
+function isActiveRun(run: AgentRun) {
+  return run.status === "queued" || run.status === "running";
+}
+
+async function readRunResponse(response: Response) {
+  const payload = (await response.json().catch(() => null)) as { run?: AgentRunRecord } & ErrorPayload;
+  if (!response.ok || !payload.run) {
+    throw new Error(payload.error?.message ?? "The agent run request could not be completed.");
+  }
+  return payload.run;
+}
+
 export function AgentWorkspace({
   agent,
+  initialRuns,
   onAgentChange,
 }: {
   agent: Agent;
-  onAgentChange: (agent: Agent) => void;
+  initialRuns: AgentRun[];
+  onAgentChange: (agent: Agent) => void | Promise<void>;
 }) {
   const [tab, setTab] = useState<WorkspaceTab>("chat");
-  const [messages, setMessages] = useState<WorkspaceMessage[]>(() => buildSeedMessages());
-  const [runningId, setRunningId] = useState<string | null>(null);
+  const [runs, setRuns] = useState<AgentRun[]>(initialRuns);
+  const [submitting, setSubmitting] = useState(false);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const timersRef = useRef<number[]>([]);
-  const runningRef = useRef(false);
 
   useEffect(() => {
-    const timers = timersRef.current;
-    return () => timers.forEach((timer) => window.clearTimeout(timer));
-  }, []);
+    setRuns(initialRuns);
+  }, [initialRuns]);
+
+  const refreshRuns = useCallback(async () => {
+    const response = await fetch(`/api/stealth/agents/${encodeURIComponent(agent.id)}/runs?limit=50`, {
+      credentials: "include",
+      headers: { accept: "application/json" },
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as { runs?: AgentRunRecord[] } & ErrorPayload;
+    if (!response.ok || !payload.runs) {
+      throw new Error(payload.error?.message ?? "The agent runs could not be loaded.");
+    }
+    setRuns(payload.runs.map(agentRunFromRecord));
+  }, [agent.id]);
+
+  const hasActiveRuns = runs.some(isActiveRun);
+  useEffect(() => {
+    if (!hasActiveRuns) return;
+    const timer = window.setInterval(() => {
+      void refreshRuns().catch((reason) => {
+        setError(reason instanceof Error ? reason.message : "The agent run status could not be refreshed.");
+      });
+    }, 4_000);
+    return () => window.clearInterval(timer);
+  }, [hasActiveRuns, refreshRuns]);
+
+  const messages = useMemo(() => messagesFromRuns(runs), [runs]);
 
   const scrollToBottom = useCallback(() => {
     const container = scrollRef.current;
@@ -61,79 +140,63 @@ export function AgentWorkspace({
     if (tab === "chat") scrollToBottom();
   }, [messages, tab, scrollToBottom]);
 
-  const startRun = useCallback((prompt: string) => {
-    if (runningRef.current) return;
-    runningRef.current = true;
-
-    const steps = buildRunSteps();
-    const runId = `msg-${Date.now()}`;
-    setMessages((prev) => [
-      ...prev,
-      { id: `msg-${Date.now()}-u`, role: "user", text: prompt, time: nowTime() },
-      { id: runId, role: "agent", text: "On it — I'll inspect the relevant files and make the change.", time: nowTime(), status: "running", steps },
-    ]);
-    setRunningId(runId);
-
-    let delay = 650;
-    steps.forEach((_, index) => {
-      timersRef.current.push(
-        window.setTimeout(() => {
-          setMessages((prev) =>
-            prev.map((message) => {
-              if (message.id !== runId || message.role !== "agent") return message;
-              return {
-                ...message,
-                steps: message.steps.map((step, stepIndex) =>
-                  stepIndex === index ? { ...step, status: "done" } : step,
-                ),
-              };
-            }),
-          );
-        }, delay),
-      );
-      delay += 850;
-    });
-
-    timersRef.current.push(
-      window.setTimeout(() => {
-        setMessages((prev) =>
-          prev.map((message) => {
-            if (message.id !== runId || message.role !== "agent") return message;
-            const changes: FileChange[] = buildRunChanges();
-            return { ...message, status: "completed", changes } satisfies WorkspaceMessage;
-          }),
-        );
-        setRunningId(null);
-        runningRef.current = false;
-      }, delay + 350),
-    );
-  }, []);
+  const startRun = useCallback(
+    async (prompt: string) => {
+      if (submitting || runs.some(isActiveRun)) return;
+      setSubmitting(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/stealth/agents/${encodeURIComponent(agent.id)}/runs`, {
+          method: "POST",
+          credentials: "include",
+          headers: { accept: "application/json", "content-type": "application/json" },
+          body: JSON.stringify({ prompt }),
+        });
+        const record = await readRunResponse(response);
+        setRuns((previous) => [agentRunFromRecord(record), ...previous.filter((run) => run.id !== record.id)]);
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "The agent run could not be created.");
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [agent.id, runs, submitting],
+  );
 
   const handleSend = (text: string) => {
-    startRun(text);
+    void startRun(text);
   };
 
   const handleRunAgent = () => {
-    startRun(agent.currentTask ? `Run the current task: ${agent.currentTask}` : "Inspect the project and suggest improvements.");
+    void startRun(agent.currentTask ? `Run the current task: ${agent.currentTask}` : "Inspect the project and suggest improvements.");
   };
 
-  const handleDiscard = (messageId: string) => {
-    setMessages((prev) =>
-      prev.map((message) => (message.id === messageId && message.role === "agent" ? { ...message, changes: undefined } : message)),
-    );
-  };
-
-  const latestChanges = (() => {
-    for (let index = messages.length - 1; index >= 0; index -= 1) {
-      const message = messages[index];
-      if (message.role === "agent" && message.changes && message.changes.length > 0) {
-        return { changes: message.changes, messageId: message.id };
+  const cancelRun = useCallback(
+    async (runId: string) => {
+      if (cancellingId) return;
+      setCancellingId(runId);
+      setError(null);
+      try {
+        const response = await fetch(`/api/stealth/agents/${encodeURIComponent(agent.id)}/runs/${encodeURIComponent(runId)}/cancel`, {
+          method: "POST",
+          credentials: "include",
+          headers: { accept: "application/json" },
+        });
+        const record = await readRunResponse(response);
+        setRuns((previous) => previous.map((run) => (run.id === record.id ? agentRunFromRecord(record) : run)));
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : "The agent run could not be cancelled.");
+      } finally {
+        setCancellingId(null);
       }
-    }
-    return null;
-  })();
+    },
+    [agent.id, cancellingId],
+  );
 
-  const isRunning = runningId !== null;
+  const latestChanges = runs.find((run) => run.changes && run.changes.length > 0);
+  const activeRun = runs.find(isActiveRun);
+  const isRunning = submitting || activeRun !== undefined;
+  const runButtonLabel = submitting ? "Submitting…" : activeRun?.status === "queued" ? "Queued…" : isRunning ? "Running…" : "Run Agent";
 
   return (
     <div className="flex h-dvh flex-col bg-[var(--projects-bg)] text-[var(--projects-text)]">
@@ -171,12 +234,8 @@ export function AgentWorkspace({
               disabled={isRunning}
               className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-3.5 text-[13px] font-semibold leading-none text-white transition-colors hover:bg-[var(--projects-accent-hover)] disabled:cursor-default disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--projects-accent)]/70 lg:w-auto"
             >
-              {isRunning ? (
-                <LoaderCircle size={14} strokeWidth={2} className="animate-spin" aria-hidden="true" />
-              ) : (
-                <Play size={14} strokeWidth={1.8} aria-hidden="true" />
-              )}
-              {isRunning ? "Running…" : "Run Agent"}
+              {isRunning ? <LoaderCircle size={14} strokeWidth={2} className="animate-spin" aria-hidden="true" /> : <Play size={14} strokeWidth={1.8} aria-hidden="true" />}
+              {runButtonLabel}
             </button>
 
             <div className="relative" data-workspace-menu>
@@ -212,6 +271,12 @@ export function AgentWorkspace({
           </div>
         </div>
 
+        {error && (
+          <div role="alert" className="mb-3 rounded-md border border-[var(--projects-danger)]/30 bg-[var(--projects-danger)]/10 px-3 py-2 text-[12.5px] text-[var(--projects-danger)]">
+            {error}
+          </div>
+        )}
+
         <div className="flex gap-1 overflow-x-auto border-b border-[var(--projects-divider)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TABS.map(({ id, label, Icon }) => {
             const active = tab === id;
@@ -229,9 +294,7 @@ export function AgentWorkspace({
               >
                 <Icon size={14} strokeWidth={1.8} aria-hidden="true" />
                 {label}
-                {active && (
-                  <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--projects-accent)]" aria-hidden="true" />
-                )}
+                {active && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-[var(--projects-accent)]" aria-hidden="true" />}
               </button>
             );
           })}
@@ -239,39 +302,29 @@ export function AgentWorkspace({
       </div>
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto">
-        {tab === "chat" && (
-          <AgentChat
-            agent={agent}
-            messages={messages}
-            onReview={() => setTab("changes")}
-            onDiscard={handleDiscard}
-          />
-        )}
-        {tab === "tasks" && <AgentTasks agent={agent} />}
+        {tab === "chat" && <AgentChat agent={agent} messages={messages} onReview={() => setTab("changes")} onCancel={cancelRun} />}
+        {tab === "tasks" && <AgentTasks runs={runs} />}
         {tab === "changes" && (
           <div className="mx-auto w-full max-w-[760px] px-4 py-5 sm:px-6">
             {latestChanges ? (
               <>
                 <ChangesSummary
-                  changes={latestChanges.changes}
+                  changes={latestChanges.changes ?? []}
                   onReview={() => {
                     setTab("chat");
                     requestAnimationFrame(scrollToBottom);
                   }}
-                  onDiscard={() => handleDiscard(latestChanges.messageId)}
                 />
                 <p className="m-0 mt-3 text-[12px] leading-4 text-[var(--projects-muted)]">
-                  Mock changes from the latest run — nothing is written to disk.
+                  Changes recorded by the execution worker for run {latestChanges.id.slice(0, 8)}.
                 </p>
               </>
             ) : (
-              <p className="m-0 text-[13.5px] text-[var(--projects-muted)]">
-                No changes yet — run the agent to see file changes here.
-              </p>
+              <p className="m-0 text-[13.5px] text-[var(--projects-muted)]">No changes have been recorded yet.</p>
             )}
           </div>
         )}
-        {tab === "activity" && <AgentActivity agent={agent} />}
+        {tab === "activity" && <AgentActivity runs={runs} />}
         {tab === "settings" && <AgentSettings agent={agent} onAgentChange={onAgentChange} />}
       </div>
 

@@ -2,23 +2,40 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { loadAgents, saveAgents } from "../agent-store";
-import type { Agent } from "../types";
+import { agentFromRecord } from "../agent-api";
+import type { Agent, AgentRecord, AgentRun } from "../types";
 import { AgentWorkspace } from "./agent-workspace";
 
-/** Client lookup wrapper: the workspace is a nested route, and agents created
- * from the overview live in localStorage — so resolve the agent client-side
- * (same pattern as ProjectClientLookup). */
-export function AgentWorkspacePage({ agentId }: { agentId: string }) {
-  const [agent, setAgent] = useState<Agent | null | undefined>(undefined);
+type AgentWorkspacePageProps = {
+  agentId: string;
+  initialAgent: Agent;
+  initialRuns: AgentRun[];
+};
+
+type ErrorPayload = { error?: { message?: string } };
+
+async function updateAgent(path: string, body: Record<string, unknown>) {
+  const response = await fetch(path, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json().catch(() => null)) as { agent?: AgentRecord } & ErrorPayload;
+  if (!response.ok || !payload.agent) {
+    throw new Error(payload.error?.message ?? "The agent settings could not be saved.");
+  }
+  return payload.agent;
+}
+
+/** The workspace receives server-authorized Agent and run records. A queued
+ * run remains queued until a trusted provider worker is available. */
+export function AgentWorkspacePage({ agentId, initialAgent, initialRuns }: AgentWorkspacePageProps) {
+  const [agent, setAgent] = useState<Agent | null>(initialAgent);
 
   useEffect(() => {
-    setAgent(loadAgents().find((item) => item.id === agentId) ?? null);
-  }, [agentId]);
-
-  if (agent === undefined) {
-    return <div className="min-h-dvh bg-[var(--projects-bg)]" aria-busy="true" />;
-  }
+    setAgent(initialAgent);
+  }, [initialAgent]);
 
   if (agent === null) {
     return (
@@ -35,14 +52,17 @@ export function AgentWorkspacePage({ agentId }: { agentId: string }) {
     );
   }
 
-  const handleAgentChange = (next: Agent) => {
-    setAgent(next);
-    const all = loadAgents();
-    const updated = all.some((item) => item.id === next.id)
-      ? all.map((item) => (item.id === next.id ? next : item))
-      : [next, ...all];
-    saveAgents(updated);
+  const handleAgentChange = async (next: Agent) => {
+    const record = await updateAgent(`/api/stealth/agents/${encodeURIComponent(agentId)}`, {
+      name: next.name,
+      description: next.description,
+      role: next.role,
+      model: next.model,
+      instructions: next.instructions ?? "",
+      tools: next.tools,
+    });
+    setAgent(agentFromRecord(record));
   };
 
-  return <AgentWorkspace agent={agent} onAgentChange={handleAgentChange} />;
+  return <AgentWorkspace agent={agent} initialRuns={initialRuns} onAgentChange={handleAgentChange} />;
 }

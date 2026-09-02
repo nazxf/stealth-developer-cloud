@@ -1,16 +1,22 @@
-import { Bot, CircleCheck, FileDiff, LoaderCircle } from "lucide-react";
+import { Bot, FolderGit2, LoaderCircle, UserPlus } from "lucide-react";
 import type { Agent } from "../types";
 
 /** Coding-agent relevant summary — no server/infra metrics. */
 export function AgentSummary({ agents }: { agents: Agent[] }) {
   const activeAgents = agents.filter((agent) => agent.status === "active").length;
   const runningTasks = agents.filter((agent) => agent.currentTask).length;
+  const today = new Date();
+  const createdToday = agents.filter((agent) => {
+    const created = new Date(agent.createdAt);
+    return created.getUTCFullYear() === today.getUTCFullYear() && created.getUTCMonth() === today.getUTCMonth() && created.getUTCDate() === today.getUTCDate();
+  }).length;
+  const projectCount = new Set(agents.map((agent) => agent.projectId ?? agent.project)).size;
 
   const items = [
     { label: "Active Agents", value: String(activeAgents), Icon: Bot },
     { label: "Running Tasks", value: String(runningTasks), Icon: LoaderCircle },
-    { label: "Completed Today", value: "12", Icon: CircleCheck },
-    { label: "Changes Pending", value: "3", Icon: FileDiff },
+    { label: "Created Today", value: String(createdToday), Icon: UserPlus },
+    { label: "Projects", value: String(projectCount), Icon: FolderGit2 },
   ];
 
   return (

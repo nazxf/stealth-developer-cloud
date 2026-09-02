@@ -20,7 +20,7 @@ const PANEL_WIDTH = 268;
 // page mounts its own DesktopSidebar instance and would reset to expanded.
 let collapsedAcrossPages = false;
 
-export function DesktopSidebar({ hasTopBar = false }: { hasTopBar?: boolean }) {
+export function DesktopSidebar({ hasTopBar = false, accountEmail }: { hasTopBar?: boolean; accountEmail?: string }) {
   const [collapsed, setCollapsed] = useState(collapsedAcrossPages);
   const reduce = useReducedMotion() ?? false;
 
@@ -62,7 +62,7 @@ export function DesktopSidebar({ hasTopBar = false }: { hasTopBar?: boolean }) {
           hasTopBar ? "top-12 h-[calc(100dvh-48px)]" : "top-0 h-dvh",
         )}
       >
-        <SidebarContent collapsed={collapsed} onToggleCollapse={toggleCollapse} />
+        <SidebarContent collapsed={collapsed} onToggleCollapse={toggleCollapse} accountEmail={accountEmail} />
       </div>
     </motion.aside>
   );

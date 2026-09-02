@@ -1,0 +1,44 @@
+apiVersion: 1
+
+datasources:
+  - name: Stealth Prometheus
+    uid: stealth-prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      httpMethod: POST
+      timeInterval: 15s
+
+  - name: Stealth Loki
+    uid: stealth-loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      derivedFields:
+        - name: TraceID
+          matcherRegex: 'trace_id[=: ]+([a-f0-9]{32})'
+          url: '$${__value.raw}'
+          datasourceUid: stealth-tempo
+
+  - name: Stealth Tempo
+    uid: stealth-tempo
+    type: tempo
+    access: proxy
+    url: http://tempo:3200
+    editable: false
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: stealth-loki
+        spanStartTimeShift: '-5m'
+        spanEndTimeShift: '5m'
+        filterByTraceID: true
+        filterBySpanID: false
+      tracesToMetrics:
+        datasourceUid: stealth-prometheus
+      serviceMap:
+        datasourceUid: stealth-prometheus

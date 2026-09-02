@@ -44,18 +44,22 @@ function ProfileMenuItem({
   reduce,
   className,
   onSelect,
+  disabled = false,
 }: {
   Icon: LucideIcon;
   label: string;
   reduce: boolean;
   className?: string;
   onSelect?: () => void;
+  disabled?: boolean;
 }) {
   return (
     <motion.button
       type="button"
       role="menuitem"
       onClick={onSelect}
+      disabled={disabled}
+      aria-busy={disabled || undefined}
       className={cn(menuRowClass, className)}
       whileTap={tap(reduce)}
       transition={SPRING_PRESS}
@@ -144,13 +148,36 @@ function ThemeToggle({
   );
 }
 
-function ProfileMenu({ onClose }: { onClose: () => void }) {
+function ProfileMenu({ onClose, accountEmail }: { onClose: () => void; accountEmail?: string }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof document === "undefined") return "dark";
     return document.documentElement.dataset.theme === "light" ? "light" : "dark";
   });
   const reduce = useReducedMotion() ?? false;
+  const [logoutPending, setLogoutPending] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const identity = accountEmail?.trim() ? accountEmail.trim().split("@", 1)[0] || "Account" : "Account";
+  const emailLabel = accountEmail?.trim() || "No email available";
+
+  async function logout() {
+    if (logoutPending) return;
+    setLogoutPending(true);
+    setLogoutError(null);
+    try {
+      const response = await fetch("/api/stealth/session", { method: "DELETE", credentials: "include" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null;
+        setLogoutError(payload?.error?.message ?? "Unable to log out. Please try again.");
+        return;
+      }
+      window.location.assign("/login");
+    } catch {
+      setLogoutError("Unable to reach Stealth. Check your connection and try again.");
+    } finally {
+      setLogoutPending(false);
+    }
+  }
 
   useEffect(() => {
     const resolved =
@@ -198,10 +225,10 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
         <div aria-hidden="true" className="absolute -bottom-[5px] left-4 size-2.5 rotate-45 border-b border-r border-[#2d2d35] bg-[#232127]" />
 
         <div className="flex items-center gap-2.5 px-2.5 py-2.5">
-          <img alt="" className="size-9 shrink-0 rounded-full object-cover" src="https://avatars.githubusercontent.com/u/135522402?v=4" />
+          <img alt="" className="size-9 shrink-0 rounded-full object-cover" src="/stealth-mark.png" />
           <div className="min-w-0 leading-tight">
-            <p className="m-0 truncate text-[13px] font-semibold text-[#edecf1]">Nafixhutao</p>
-            <p className="m-0 mt-[2px] truncate text-[12px] text-[#8a8791]">@nafixhutao</p>
+            <p className="m-0 truncate text-[13px] font-semibold text-[#edecf1]">{identity}</p>
+            <p className="m-0 mt-[2px] truncate text-[12px] text-[#8a8791]">{emailLabel}</p>
           </div>
         </div>
 
@@ -218,14 +245,17 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
 
         <Divider />
 
+        {logoutError ? <p role="alert" className="m-0 px-2.5 py-2 text-[11px] leading-4 text-[#f2708a]">{logoutError}</p> : null}
+
         <ProfileMenuItem Icon={User} label="Profile Settings" reduce={reduce} />
         <ProfileMenuItem Icon={ExternalLink} label="Refer and Earn" reduce={reduce} />
         <ProfileMenuItem
           Icon={LogOut}
-          label="Log out"
+          label={logoutPending ? "Logging out…" : "Log out"}
           reduce={reduce}
           className="text-[#f2708a] hover:text-[#f2708a]"
-          onSelect={onClose}
+          disabled={logoutPending}
+          onSelect={() => void logout()}
         />
       </div>
     </motion.div>
@@ -235,9 +265,11 @@ function ProfileMenu({ onClose }: { onClose: () => void }) {
 export function BottomProfile({
   collapsed = false,
   onToggleCollapse,
+  accountEmail,
 }: {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  accountEmail?: string;
 }) {
   const [open, setOpen] = useState(false);
   const reduce = useReducedMotion() ?? false;
@@ -260,23 +292,23 @@ export function BottomProfile({
       >
         {/* rail shows a small 20px avatar, the panel wraps it in the full row */}
         <motion.img
-          alt="Nafixhutao avatar"
+          alt={`${accountEmail?.trim().split("@", 1)[0] || "Account"} avatar`}
           initial={false}
           animate={{ width: collapsed ? 20 : 32, height: collapsed ? 20 : 32 }}
           transition={collapsed ? LABEL_EXIT_TRANSITION : LABEL_ENTER_TRANSITION}
           className="shrink-0 object-cover rounded-full"
-          src="https://avatars.githubusercontent.com/u/135522402?v=4"
+          src="/stealth-mark.png"
         />
         <RailLabel collapsed={collapsed} className="flex min-w-0 flex-1 items-center">
           <div className="ml-2 min-w-0 leading-tight">
-            <p className="m-0 truncate text-[14px] leading-[20px] text-[oklch(0.767_0.0105_305)]">Nafixhutao</p>
-            <p className="m-0 mt-[2px] text-[12px] leading-[16px] text-[oklch(0.585_0.0161_305)]">@nafixhutao</p>
+            <p className="m-0 truncate text-[14px] leading-[20px] text-[oklch(0.767_0.0105_305)]">{accountEmail?.trim().split("@", 1)[0] || "Account"}</p>
+            <p className="m-0 mt-[2px] truncate text-[12px] leading-[16px] text-[oklch(0.585_0.0161_305)]">{accountEmail?.trim() || "No email available"}</p>
           </div>
           <ChevronsUpDown size={12} strokeWidth={1.7} className="ml-auto shrink-0 text-[#737078]" aria-hidden="true" />
         </RailLabel>
       </motion.button>
       <AnimatePresence>
-        {open && <ProfileMenu key="profile-menu" onClose={close} />}
+        {open && <ProfileMenu key="profile-menu" onClose={close} accountEmail={accountEmail} />}
       </AnimatePresence>
     </footer>
   );

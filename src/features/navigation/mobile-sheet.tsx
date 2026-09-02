@@ -24,7 +24,7 @@ const FOCUSABLE_SELECTOR = [
  * Esc closes, Tab is trapped inside, the body scroll is locked, and focus
  * returns to the opener on close.
  */
-export function MobileSheet({ open, onClose, hasTopBar = false }: SidebarProps) {
+export function MobileSheet({ open, onClose, hasTopBar = false, accountEmail }: SidebarProps) {
   const reduce = useReducedMotion() ?? false;
   const panelRef = useRef<HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
@@ -152,7 +152,7 @@ export function MobileSheet({ open, onClose, hasTopBar = false }: SidebarProps) 
           !open && "pointer-events-none",
         )}
       >
-        <SidebarContent onMobileClose={onClose} />
+            <SidebarContent onMobileClose={onClose} accountEmail={accountEmail} />
       </motion.aside>
     </div>,
     document.body,

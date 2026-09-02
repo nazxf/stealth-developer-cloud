@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion, type Variants } from "motion/react";
-import { PixelSkeleton } from "@/components/pixel-skeleton";
 import {
   EASE_OUT,
   LABEL_ENTER_TRANSITION,
@@ -159,22 +158,26 @@ function NavRow({
   );
 }
 
+function accountIdentity(email?: string) {
+  const normalized = email?.trim();
+  if (!normalized) return { name: "Account", handle: "" };
+  const localPart = normalized.split("@", 1)[0] || "Account";
+  return { name: localPart, handle: normalized };
+}
+
 function Header({
   onClose,
   collapsed = false,
   onToggleCollapse,
+  accountEmail,
 }: {
   onClose?: () => void;
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  accountEmail?: string;
 }) {
-  const [planLoading, setPlanLoading] = useState(true);
   const reduce = useReducedMotion() ?? false;
-
-  useEffect(() => {
-    const timer = setTimeout(() => setPlanLoading(false), 1500);
-    return () => clearTimeout(timer);
-  }, []);
+  const identity = accountIdentity(accountEmail);
 
   return (
     <header className="flex h-[44px] shrink-0 items-center px-4 lg:h-[48px]">
@@ -187,20 +190,16 @@ function Header({
         className="flex min-w-0 items-center overflow-hidden"
       >
         <motion.img
-          alt="Nafixhutao avatar"
+          alt={`${identity.name} avatar`}
           initial={false}
           animate={{ opacity: collapsed ? 0 : 1 }}
           transition={collapsed ? LABEL_EXIT_TRANSITION : LABEL_ENTER_TRANSITION}
           className="size-5 shrink-0 rounded-md object-cover"
-          src="https://avatars.githubusercontent.com/u/135522402?s=80&v=4"
+          src="/stealth-mark.png"
         />
         <RailLabel collapsed={collapsed} className="flex items-center">
-          <span className="ml-2 text-[14px] font-medium tracking-[-0.01em] leading-[20px] text-[oklch(0.949_0.0035_305)]">Nafixhutao</span>
-          {planLoading ? (
-            <PixelSkeleton className="ml-2 h-5 w-14" />
-          ) : (
-            <span className="ml-2 rounded-[5px] bg-[#201E22] px-[6px] py-[2px] text-[12px] font-medium leading-[16px] text-[oklch(0.767_0.0105_305)]">Pro Plus</span>
-          )}
+          <span className="ml-2 max-w-[150px] truncate text-[14px] font-medium tracking-[-0.01em] leading-[20px] text-[oklch(0.949_0.0035_305)]">{identity.name}</span>
+          <span className="ml-2 rounded-[5px] bg-[#201E22] px-[6px] py-[2px] text-[12px] font-medium leading-[16px] text-[oklch(0.767_0.0105_305)]">Console</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className="ml-2 size-[13px] shrink-0 text-[#737078]" aria-hidden="true">
             <path d="m7 8 5-5 5 5" />
             <path d="m7 16 5 5 5-5" />
@@ -387,11 +386,13 @@ export function SidebarContent({
   collapsed = false,
   showHeader = true,
   onToggleCollapse,
+  accountEmail,
 }: {
   onMobileClose?: () => void;
   collapsed?: boolean;
   showHeader?: boolean;
   onToggleCollapse?: () => void;
+  accountEmail?: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -453,7 +454,7 @@ export function SidebarContent({
   return (
     <>
       {showHeader ? (
-        <Header onClose={onMobileClose} collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
+        <Header onClose={onMobileClose} collapsed={collapsed} onToggleCollapse={onToggleCollapse} accountEmail={accountEmail} />
       ) : (
         <CompactSidebarHeader collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
       )}
@@ -501,7 +502,7 @@ export function SidebarContent({
           </motion.div>
         )}
       </AnimatePresence>
-      <BottomProfile collapsed={collapsed} onToggleCollapse={onToggleCollapse} />
+      <BottomProfile collapsed={collapsed} onToggleCollapse={onToggleCollapse} accountEmail={accountEmail} />
       <SearchPalette
         open={searchOpen}
         onClose={() => setSearchOpen(false)}

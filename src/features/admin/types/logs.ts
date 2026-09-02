@@ -11,8 +11,8 @@ export interface LogEntry {
   message: string;
   /** Optional trailing context on the row, e.g. "200" or "182ms". */
   meta?: string;
-  requestId: string;
-  traceId: string;
+  requestId?: string;
+  traceId?: string;
   user?: string;
   agentRun?: string;
   attributes: Record<string, string | number>;

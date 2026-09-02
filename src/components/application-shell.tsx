@@ -24,12 +24,15 @@ export function ApplicationShell({
   children,
   desktopSidebar = true,
   hasTopBar = false,
+  accountEmail,
 }: {
   children: ReactNode;
   /** Pages with their own chrome can opt out of the desktop rail. */
   desktopSidebar?: boolean;
   /** Shifts the mobile drawer below the 48px top bar those pages render. */
   hasTopBar?: boolean;
+  /** Email from the authenticated Console account. */
+  accountEmail?: string;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Stable identity: consumers (pages with heavy tables) must not re-render
@@ -61,7 +64,7 @@ export function ApplicationShell({
           </button>
         )}
         <div className="min-h-dvh lg:flex">
-          <Sidebar open={sidebarOpen} onClose={closeSidebar} hasTopBar={hasTopBar} desktop={desktopSidebar} />
+          <Sidebar open={sidebarOpen} onClose={closeSidebar} hasTopBar={hasTopBar} desktop={desktopSidebar} accountEmail={accountEmail} />
           <main className="relative min-h-dvh min-w-0 flex-1">{children}</main>
         </div>
       </div>

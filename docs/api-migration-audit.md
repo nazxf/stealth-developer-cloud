@@ -16,7 +16,8 @@ The browser must eventually **not** use `localStorage` as the source of truth
 for projects, deployments, agents, usage, or any other product data. This
 document inventories every location where the current UI still runs on
 in-browser data so each can be migrated to the Stealth API when its surface is
-ready. Nothing here is wired to a backend yet — no fake backend was added.
+ready. The connected Console identity and project list/create routes are now
+migrated; the remaining entries below are intentionally not yet connected.
 
 Legend: **[LS]** = localStorage is the authoritative datastore, **[H]** =
 hardcoded constant data, **[M]** = generated/simulated mock data, **[S]** =
@@ -26,7 +27,13 @@ simulated async behavior (timers standing in for network calls).
 
 ## Projects & deployments
 
-### `src/features/projects/project-store.ts` — [LS][H]
+### Connected project list/create — migrated
+- `/` now validates the HttpOnly API session server-side, lists organizations
+  and organization-scoped projects, and creates projects via the fixed
+  same-origin API bridge. This path does not use seed projects, timers, or
+  localStorage authority.
+
+### `src/features/projects/project-store.ts` — [LS][H] (legacy deployment UI only)
 - Storage key: `"projects-list-v1"`.
 - Authoritative datastore for the project list. Creating a project via the
   "New project" dialog writes here; the Projects page reads it and merges it
@@ -40,11 +47,82 @@ simulated async behavior (timers standing in for network calls).
 - Migration: projects from the API; usage metrics from the usage/billing
   endpoints.
 
-### `src/app/projects/[projectId]/page.tsx` — [H][LS]
-- Server component resolves the project from the static `data.ts` list; if not
-  found it falls back to `ProjectClientLookup`, which reads the localStorage
-  store — proof the browser store is treated as authoritative.
-- Migration: single API fetch by project ID; drop the client-lookup fallback.
+### Connected project shell and resource routes — partially migrated
+- `/projects/[projectId]` and its resource routes authenticate and resolve the
+  project through the API. The project identity, organization ID, and access
+  boundary are real. Project Auth identity management and owner/admin-only
+  registration settings are connected to the API: members can list users,
+  while owners/admins create users, block/unblock status, and toggle public
+  registration. The list/settings responses return safe `can_manage`
+  capabilities and never expose password hashes. Project API-key management is
+  also connected: owner/admin Console members can create and revoke scoped
+  server-to-server keys, while members can inspect safe metadata. Secrets are
+  shown once and stored only as SHA-256 hashes. Database core is now connected:
+  Console members can inspect databases, tables, typed columns, real indexes,
+  and permission-filtered rows; owner/admin members can mutate the schema and
+  rows. Server keys use independent `databases.read` and `databases.write`
+  scopes, and the dependency-free server SDK exposes the same operations.
+  Storage is connected with bucket/file controls and streamed local artifacts.
+  The Functions control plane and isolated worker are connected for
+  configuration, encrypted write-only variables, versioned source uploads,
+  immutable asynchronous builds with deployment-scoped variable snapshots,
+  atomic activation, asynchronous execution, bounded results, and redacted
+  logs. Sites are now connected for pre-built static archive upload, bounded
+  safe extraction, immutable deployments, atomic activation, quota accounting,
+  and public serving of only the active publication. Webhooks are now connected
+  end to end: signed transactional outbox events, leased delivery retries,
+  project-scoped API/Console controls, and the Webhooks Console page. Realtime
+  is now available as a permission-filtered, cursor-aware SSE stream backed by
+  the same seven-day event outbox. Relationships, transactions, backups,
+  full-text, bulk/import/export, and Messaging actions remain explicitly
+  disabled until their backend modules exist. Project Settings now updates the
+  project slug through an owner/admin API mutation and exposes stable project
+  and organization identifiers; destructive project deletion and billing
+  remain out of scope. Organization identity settings (name and slug) now use
+  the owner/admin organization API, while Console account session
+  listing/revocation and current-password-verified password changes are
+  available from the authenticated account API and Admin Settings without
+  exposing bearer tokens; password changes revoke other sessions. Organization membership
+  management now supports adding existing Console accounts, role changes, and
+  non-owner removal with owner/admin policy checks. Organization and project
+  audit Logs now read durable events; request/trace telemetry remains separate.
+  Usage now reads live resource aggregates from PostgreSQL;
+  network egress, compute, and invoice metering remain future work.
+
+### Deployment overview — migrated
+- `/projects/[projectId]/deployments` now aggregates the real Site and Function
+  deployment endpoints into one project-scoped timeline. Resource cards link
+  back to the existing upload, Git, build, and activation controls.
+- Owners and admins can start a public Git deployment from the same timeline;
+  the form creates a static Site when needed, then submits the repository,
+  ref, runtime, build command, output directory, and activation preference to
+  the existing Site API.
+- The page refreshes and polls only while a deployment is queued or building;
+  it never fabricates progress, versions, or worker output in the browser.
+- The server API client now exposes typed `projectSiteDeployments` and
+  `projectFunctionDeployments` list methods. The browser bridge already
+  enforces the same project-scoped GET boundaries as the resource pages.
+
+### Project Logs — migrated
+- `/projects/{projectID}/logs` loads project-scoped audit events through
+  `GET /v1/projects/{projectID}/audit-events`. Project mutations and resource
+  operations stamp the project ID into their audit metadata so events from
+  another project cannot appear in this view.
+- The page supports cursor pagination, action/service/level filters, and
+  detail inspection of the stored actor, target, timestamp, and metadata.
+  Request IDs, trace IDs, and synthetic live-tail entries remain unavailable
+  until the telemetry query contract is exposed.
+
+### Project Settings — migrated identity slice
+- `/projects/{projectID}/settings` loads the project through the authenticated
+  API and lets owners/admins rename its lowercase slug with
+  `PATCH /v1/projects/{projectID}`. The mutation is transactional, enforces
+  organization uniqueness, is idempotent, and emits a durable `project.update`
+  audit/webhook event with the old and new name.
+- The page displays the immutable project ID, organization ID, and creation
+  date. Project deletion and billing still require separate APIs and are not
+  represented as enabled controls; organization invitations live in Admin
+  Users rather than project settings.
 
 ### `src/features/projects/service-overview/use-service-overview.ts` — [LS][M][S]
 - Storage keys: `app-ig-service-canvas-v1` (per-project service canvas: node
@@ -62,91 +140,286 @@ simulated async behavior (timers standing in for network calls).
   flow survives reloads.
 - Migration: real deploy creation from a git source; workflow state server-side.
 
-### `src/features/projects/projects-page.tsx` — [LS][H]
+### `src/features/projects/projects-page.tsx` — [LS][H] (legacy deployment UI only)
 - Reads the localStorage project list and merges it with `data.ts` seeds;
   project deletion mutates the localStorage store.
 - Migration: list/delete via API.
 
-### `src/features/projects/usage-panel.tsx` — [H]
-- Renders `usageRows` from `data.ts` (hardcoded usage numbers).
-- Migration: usage endpoints.
+### Project overview and usage panel — migrated
+- `src/app/projects/[projectId]/page.tsx` loads the project identity and live
+  aggregate usage in parallel from `GET /v1/projects/{projectID}` and
+  `GET /v1/projects/{projectID}/usage`.
+- `src/features/projects/usage-panel.tsx` renders application users, database
+  rows, storage bytes, and function artifact usage from the PostgreSQL snapshot;
+  it no longer imports hardcoded `usageRows` from `data.ts`.
+- The dedicated `/projects/{projectID}/usage` route remains the detailed view;
+  network egress, compute, and invoice metering are still future work.
 
 ## Agents
 
-### `src/features/agents/agent-store.ts` — [LS]
-- Storage key: `"stealth-agents-v1"` (formerly `"geist-agents-v1"`).
-- Authoritative datastore for agents: seeded on first run from `SEED_AGENTS`,
-  create/persist via localStorage.
-- Migration: agent CRUD → Stealth API agents resource; hydrate from API.
+### Agent configuration control plane — migrated
+- PostgreSQL migration `000021_agents` stores project-scoped agent
+  configuration, role, branch, provider/model labels, tool grants, and
+  instructions. Provider credentials and run output are intentionally separate
+  resources and are not accepted by this endpoint.
+- `GET/POST /v1/agents` and `GET/PATCH/DELETE /v1/agents/{agentID}` enforce
+  Console session authentication, project membership isolation, and owner/admin
+  writes. Mutations emit audit and transactional webhook events.
+- `/agent` loads the roster and project selector from the API. Create/delete
+  mutations use the same-origin bridge; the workspace Settings tab persists
+  mutable fields through PATCH.
 
-### `src/features/agents/data.ts` — [H][M][S]
-- `SEED_AGENTS` (3 fake agents bound to project `stealth-console`),
-  `SEED_CHANGES` (fake file diffs), `buildSeedMessages()` (fake conversation),
-  `buildRunSteps()` / `buildRunChanges()` (simulated run steps the workspace
-  plays back with timers), `getAgentTasks()` / `getAgentActivity()` (fake
-  per-agent task and activity feeds).
-- Migration: agents, runs, messages, changes, tasks, and activity from the
-  API; run playback replaced by real run events/streaming.
+### Agent run queue — migrated for durable state
+- Migration `000022_agent_runs` stores prompts, queue/worker lifecycle, bounded
+  output, worker-produced steps/changes, and sequence-numbered logs. Composite
+  tenant/agent foreign keys and membership checks prevent cross-project reads.
+- `GET/POST /v1/agents/{agentID}/runs`, `GET /.../{runID}`, cancellation, and
+  log polling are session-authenticated. Owners/admins may enqueue or cancel;
+  members may read. Repository worker primitives provide atomic claim,
+  worker fencing, terminal transitions, log append, and stale-run requeue.
+- The workspace now renders only API-backed runs and polls queued/running state;
+  no localStorage seed, timer playback, or fabricated file changes remain.
 
-### `src/features/agents/workspace/agent-workspace-page.tsx` — [LS]
-- Reads the agent store from localStorage by ID.
-- Migration: API fetch by agent ID.
+### `src/features/agents/workspace/agent-workspace-page.tsx` — migrated
+- Fetches an API-authorized agent and its latest run page in parallel on the
+  server. Settings writes and new prompts use the same-origin bridge.
+- Provider connections and the trusted execution worker remain a separate
+  milestone; until then, accepted prompts honestly remain `queued`.
 
-### `src/features/agents/components/create-agent-dialog.tsx` — [H]
-- Hardcoded `PROJECTS` list, providers (`OpenAI`, `Anthropic`), and model
-  catalogs.
-- Migration: project list from API; providers/models from platform catalog.
+### `src/features/agents/components/create-agent-dialog.tsx` — partially migrated
+- Project options now come from the authenticated organization/project API and
+  no longer include hardcoded project names.
+- Provider/model options remain a UI catalog placeholder until provider
+  connections and model capabilities have a durable API contract.
 
-### `src/features/agents/agent-page.tsx` — [LS]
-- Loads/hydrates the agent store from localStorage for the overview list.
-- Migration: API list.
+### `src/features/agents/agent-page.tsx` — migrated
+- The overview list is initialized from `GET /v1/agents`; it does not read or
+  write the `stealth-agents-v1` localStorage key. Summary values are derived
+  from returned records rather than hardcoded counts.
 
 ## Auth
 
-### `src/features/auth/login-form.tsx` / `forgot-password-form.tsx` — [S]
-- Mock sign-in / reset (1.2s timer then redirect). Comments already mark them
-  for replacement.
-- Migration: real auth endpoints + session handling.
+### `src/features/auth/login-form.tsx` / `signup-form.tsx` — migrated
+- Login and signup call the same-origin bridge and receive only HttpOnly
+  session cookies. The forgot-password, verification, and reset pages use the
+  same bridge and the API's one-time token endpoints.
+
+### Project application Auth boundary — connected core
+- Project identity management and the owner/admin registration setting are
+  real Console/API resources. Public project registration, email/password
+  sessions, current-account, and logout are separate API routes backed by
+  hashed project session tokens; they never use the Console session cookie.
+- `packages/sdk-js` provides a dependency-free typed browser client. The
+  registration, email/password session, current-account, logout, verification,
+  password recovery, and public Site URL lifecycle is complete for the current
+  API contract. It requires a same-origin endpoint or same-origin reverse
+  proxy. Project-scoped credentialed CORS origin allowlists are now connected;
+  one-time email verification and password recovery are backed by PostgreSQL
+  token hashes and the pluggable mailer. Custom Site
+  domain ownership and Host-based serving are managed by the Sites Console
+  panel or the server SDK.
+
+### Project API keys — connected server-to-server slice
+- PostgreSQL migration `000004_project_api_keys` stores only a SHA-256 secret
+  digest, canonical supported scopes, optional bounded expiry, revocation, and
+  usage timestamps.
+- `/projects/[projectId]/api-keys` is backed by the project API-key management
+  endpoints. It lists safe metadata, creates one-time `stl_key_...` secrets,
+  and revokes keys with owner/admin permission checks; viewers remain
+  read-only. Keys currently authorize only project Auth user list/get/create
+  and status operations through `X-Stealth-Key`; the canonical scope set now
+  also includes independent Database, Storage, Functions, and Sites read/write
+  pairs.
+- `packages/sdk-js/server.ts` is a separate dependency-free server-oriented
+  client. It never persists or logs a key and must not be bundled into browser
+  code. It now exposes the database/table/column/index/row methods with
+  independent Database, Storage, Functions, and Sites read/write
+  authorization.
+  Advanced database features and other modules remain unavailable.
 
 ## Admin (`src/features/admin/`)
 
-The entire admin area runs on deterministic generated mock data with a live
-tick simulated after hydration. It is already labeled as mock in comments;
-migration is wholesale.
+The admin area now requires an authenticated Console session. The Overview
+health strip and Service Health table query a same-origin health proxy backed by
+the API's liveness/readiness probes; raw Prometheus metrics remain private to
+the observability network. Workspace usage, agent runs, members, audit events,
+organization incidents, Function execution failures, and the bounded
+root-request trace index are query-backed; historical charts and provider data
+still use deterministic preview data until authenticated query contracts exist.
 
 ### `src/features/admin/data/admin-mock-data.ts` — [M][H]
-- Seeded-PRNG generators (mulberry32) for telemetry series, hosts, workers,
-  logs, traces, errors, incidents, runs, users, providers, model usage.
+- Seeded-PRNG generators (mulberry32) remain only for preview telemetry series,
+  hosts, providers, and model usage.
 - Repository names (`stealth-console`, `stealth-docs-site`,
   `stealth-admin-ui`) and `@stealth.dev` user emails are mock values.
 - Migration: replace with admin/observability endpoints.
 
 ### `src/features/admin/hooks/use-live-updates.ts` — [M]
-- Simulated "live" value drift on an interval. Migration: realtime feed
-  (SSE/WebSocket) from the API.
+- Simulated "live" value drift on an interval for preview-only aggregate
+  charts/workers. Migration: realtime feed (SSE/WebSocket) from the API.
 
-### `src/features/admin/settings/settings-page.tsx` — [S]
-- Local state only, nothing persists; save shows a transient confirmation.
-- Migration: platform settings API.
+### Authenticated health probe — migrated
+- `src/app/admin/layout.tsx` resolves the Console account server-side and
+  redirects unauthenticated visitors to `/login` before mounting the admin
+  shell.
+- `src/app/api/admin/health/route.ts` validates the same HttpOnly session and
+  exposes only API liveness/readiness status. It never proxies `/metrics` or
+  leaks raw Prometheus labels to the browser.
+- `src/features/admin/overview/` polls that probe every 15 seconds and labels
+  the remaining aggregate telemetry as preview data.
+
+### Admin Overview workspace aggregates — migrated
+- `/admin` loads the authenticated account's organizations and projects on the
+  server, then aggregates the existing `GET /v1/projects/{projectID}/usage`
+  snapshots. Application users, database rows/tables, storage, Functions,
+  Sites, Realtime events, and webhook deliveries therefore reflect the current
+  workspace rather than generated constants.
+- Projects whose usage snapshot cannot be read are counted in the coverage
+  tile instead of contributing guessed zeroes. The Recent Agent Runs card
+  loads each visible agent's durable run page through the same authenticated
+  API contract used by `/admin/runs`; failed agent reads are reported as
+  unavailable rather than replaced with generated runs. The resource section
+  now shows current durable usage/quota aggregates; historical CPU,
+  memory/network time series remain unavailable until their query contracts
+  exist. Recent incidents are loaded from the organization incident API.
+
+### Admin Agent Runs — migrated
+- `/admin/runs` loads the authenticated workspace's agents and their durable
+  run pages through `GET /v1/agents` and `GET /v1/agents/{agentID}/runs`.
+- Filters and detail drawers now use persisted status, prompt, timestamps,
+  worker steps, output, errors, and file changes. Unknown token/cost,
+  repository, and trace fields are not invented; they remain unavailable until
+  metering and telemetry contracts are added.
+- If one agent's run list fails, the page shows the records that were read and
+  reports the unavailable-agent count instead of substituting fixtures.
+
+### Admin Usage — migrated
+- `/admin/usage` shares the server-side workspace usage loader with Overview,
+  so its users, database, storage, Functions, Sites, and webhook totals come
+  from the same PostgreSQL-backed project usage snapshots.
+- Capacity bars use the durable artifact/file quota fields. Token spend,
+  sandbox compute, and historical time series stay unavailable and are not
+  displayed as estimates.
+
+### Admin Status Page — migrated
+- `/admin/status` uses the authenticated health proxy for current API
+  liveness/readiness status and clearly reports probe failures.
+- Synthetic uptime history is not persisted by the current backend, so the
+  page does not manufacture 45-day percentages. Incident records are managed
+  separately through the durable organization incident API below.
+
+### Admin Infrastructure — migrated runtime slice
+- `/admin/infrastructure` now consumes the same authenticated liveness and
+  readiness probes instead of rendering generated host, CPU, memory, storage,
+  or worker-heartbeat values.
+- The page labels Prometheus/OpenTelemetry as private deployment dependencies
+  and explicitly marks host inventory, historical resource charts, and uptime
+  history unavailable until durable query contracts are added. Legacy mock-only
+  child components remain unmounted.
+
+### Admin Users — migrated
+- `/admin/users` loads the authenticated account's organizations and each
+  organization's paginated membership list through
+  `GET /v1/organizations/{organizationID}/memberships`.
+- Membership responses include the account email, role, organization, member
+  timestamp, and a `can_manage` capability. The page keeps the cross-org
+  directory but also lets owners/admins add an existing Console account,
+  invite a teammate by email, change regular-member roles, or remove non-owner
+  memberships through the corresponding authenticated mutation endpoints.
+  Invitation tokens are stored only as SHA-256 hashes, expire after the
+  verification TTL, bind to the recipient email, and are consumed atomically;
+  owner memberships remain protected and ownership transfer is separate.
+- Partial reads and pagination safety limits are reported in the UI instead of
+  being replaced with fixture members.
+
+### Admin Logs — migrated
+- `/admin/logs` loads the authenticated workspace's durable audit events from
+  `GET /v1/organizations/{organizationID}/audit-events`, merges streams across
+  visible organizations, and supports action/service/level filtering.
+- Event details preserve the stored actor, target, timestamp, and JSON
+  metadata. Synthetic live-tail entries, request IDs, and trace IDs are not
+  fabricated; those require a separate telemetry query contract.
+
+### Admin Settings — migrated account and organization identity slice
+- `/admin/settings` loads the authenticated account and its organizations from
+  the Console API. Account email, account ID, and verification state are
+  displayed from server data; unverified accounts can request a new one-time
+  verification email through `POST /v1/account/verification`.
+- Owners and admins can rename an organization and change its lowercase slug
+  through `PATCH /v1/organizations/{organizationID}`. The mutation is
+  transactional, enforces membership policy and slug uniqueness, is
+  idempotent, and emits a durable `organization.update` audit event.
+- Deployment variables are intentionally read-only reference labels. Browser
+  state never claims to change server runtime configuration; production values
+  remain managed by the deployment environment and manifests.
+
+### Admin Incidents — migrated
+- `/admin/incidents` loads incidents for every organization visible to the
+  authenticated account through `GET /v1/organizations/{organizationID}/incidents`.
+- Owners and admins can create incidents and update metadata/status through the
+  authenticated bridge. Each mutation is transactional, appends a timeline
+  update, sets or clears `resolved_at` consistently, and emits a durable
+  `organization.incident.*` audit event. Other organization members retain
+  read-only access.
+- Partial organization reads are reported in the page. The board no longer
+  synthesizes IDs, timestamps, durations, or timeline entries in the browser.
+
+### Admin Workers — migrated queue slice
+- `/admin/workers` now reads the same durable Agent Run records as
+  `/admin/runs`, exposing queued, running, and terminal work without inventing
+  a worker fleet, CPU values, or heartbeat timestamps.
+- Provider calls, tool execution, sandbox lifecycle, and host telemetry remain
+  trusted-worker concerns. The page labels those deployment boundaries rather
+  than presenting generated workers.
+
+### Admin Errors — migrated Function failure slice
+- `/admin/errors` walks the authenticated workspace's organizations, projects,
+  Functions, and durable execution pages, then groups only executions whose
+  persisted status is `failed`. Exact error messages, function/project
+  identity, triggers, response status, and timestamps remain attached to each
+  occurrence; no users, traces, stack frames, resolution state, or synthetic
+  rates are inferred.
+- Partial reads are reported with their organization/project/Function counts.
+  The page links back to the project Functions surface for remediation and
+  retains the API's tenant and membership boundaries.
+
+### Admin Traces — migrated root-request index
+- `/admin/traces` loads `GET /v1/organizations/{organizationID}/traces` for
+  every visible organization and merges the tenant-scoped rows into the
+  Console table. Pagination safety limits and partial organization reads are
+  shown explicitly.
+- The page derives latency percentiles and error rate from persisted request
+  rows, and the detail drawer exposes the HTTP status, response size, scope,
+  and root-span waterfall. Nested spans and full attributes remain in the
+  private OpenTelemetry/Tempo backend; the UI does not invent them.
 
 ### Other admin pages — [M][S]
-- `logs-page.tsx` (rotating fake log tail), `incidents/`
-  (`create-incident-dialog.tsx` appends a local-only incident),
-  `runs-page.tsx` (mock cost field), overview tiles/charts — all consume the
-  generators above.
-- Migration: real telemetry/logging/incident/run endpoints.
+- providers and overview charts still consume the preview generators above.
+- Migration: real telemetry/incident/provider endpoints.
+
+### Platform observability — connected foundation
+- API and Functions worker expose bounded Prometheus metrics and emit optional
+  OpenTelemetry server/consumer spans with W3C trace propagation. The
+  `observability` Compose profile provisions Prometheus, Grafana, Loki, Tempo,
+  and Grafana Alloy log shipping with a preloaded overview dashboard.
+- Migration: replace the remaining admin mock pages with authenticated
+  query-backed views over the remaining metrics, logs, and provider data; add retention and
+  alert-management APIs before exposing them to tenant operators.
 
 ## Navigation chrome
 
-### `src/features/navigation/sidebar-content.tsx` / `profile-menu.tsx` — [H]
-- Hardcoded signed-in user identity ("Nafixhutao" / "@nafixhutao", plan badge
-  "Pro Plus" with a fake 1.5s load timer), avatar URL pointing at a GitHub
-  avatar, hardcoded plan labels.
-- Migration: current account/workspace from the API.
+### `src/features/navigation/sidebar-content.tsx` / `profile-menu.tsx` — migrated
+- Agent routes fetch the authenticated Console account in parallel with their
+  page data and pass the email into the shared sidebar. The identity label,
+  handle, and logout action now reflect the HttpOnly session; the old fake
+  plan-loading timer and GitHub avatar have been removed.
+- Provider/billing plan data is intentionally not displayed until a durable
+  account-plan contract exists.
 
-### `src/components/top-bar.tsx` — [H]
-- Hardcoded avatar image URL.
-- Migration: account profile from the API.
+### `src/components/top-bar.tsx` — legacy-only
+- The top bar is retained for the unused canvas prototype and now uses the
+  local Stealth mark instead of a third-party avatar. Active App Router pages
+  use the project shell or account-backed ApplicationShell.
 
 ## Dev tooling (not product UI)
 

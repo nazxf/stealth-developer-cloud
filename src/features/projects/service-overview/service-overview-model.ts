@@ -155,7 +155,7 @@ export function cloneDeploymentConfig(config: DeploymentConfig = DEFAULT_DEPLOYM
 }
 
 export function serviceStorageKey(projectId: string) {
-  return projectId === "app_ig" ? SERVICE_STORAGE_KEY : `${SERVICE_STORAGE_KEY}:${projectId}`;
+  return `${SERVICE_STORAGE_KEY}:${projectId}`;
 }
 
 export function workflowStorageKey(projectId: string) {

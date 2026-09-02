@@ -52,7 +52,7 @@ function RoundAction({ label, children }: { label: string; children: ReactNode }
 export function TopBar({
   onMenuClick,
   showSidebarToggle = true,
-  projectName = "app_ig",
+  projectName = "project",
   environment = "production",
 }: {
   onMenuClick?: () => void;
@@ -161,7 +161,7 @@ export function TopBar({
           aria-label="Account"
           className="ml-1 inline-flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[#4a474e] bg-[#edecf1]"
         >
-          <img alt="Nafixhutao" src="https://avatars.githubusercontent.com/u/135522402?v=4" className="size-full object-cover" />
+          <img alt="Stealth account avatar" src="/stealth-mark.png" className="size-full object-cover" />
         </button>
       </div>
     </header>

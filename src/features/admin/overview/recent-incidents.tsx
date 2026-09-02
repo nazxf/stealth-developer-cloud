@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { INCIDENTS } from "../data/admin-mock-data";
 import { AdminPanel, AdminPanelHeader } from "../components/admin-panel";
 import { IncidentStatusBadge, SeverityBadge } from "../components/domain-badges";
 import { Mono } from "../components/admin-panel";
+import type { Incident } from "../types/incidents";
 
-/** Latest incidents, linking into the incidents board. */
-export function RecentIncidents({ limit = 3, className }: { limit?: number; className?: string }) {
-  const incidents = INCIDENTS.slice(0, limit);
+/** Latest durable incidents, linking into the incidents board. */
+export function RecentIncidents({ incidents, limit = 3, className }: { incidents: Incident[]; limit?: number; className?: string }) {
+  const recent = incidents.slice(0, limit);
 
   return (
     <AdminPanel className={className}>
@@ -22,7 +22,7 @@ export function RecentIncidents({ limit = 3, className }: { limit?: number; clas
         }
       />
       <ul className="m-0 list-none p-0">
-        {incidents.map((incident) => (
+        {recent.length === 0 ? <li className="px-1 py-8 text-center text-[12px] text-[var(--projects-muted)]">No incidents recorded for this workspace.</li> : recent.map((incident) => (
           <li key={incident.id} className="border-b border-[var(--projects-divider)] last:border-b-0">
             <Link
               href="/admin/incidents"

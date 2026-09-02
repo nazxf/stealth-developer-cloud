@@ -2,8 +2,9 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Small labeled stat used in summary rows (platform metrics, host summary,
- * usage tiles). Value strings arrive pre-formatted from mock data.
+ * Small labeled stat used in summary rows (platform metrics, runtime probes,
+ * usage tiles). Value strings arrive pre-formatted from the owning data
+ * source.
  */
 export function StatTile({
   icon: Icon,

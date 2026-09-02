@@ -1,113 +1,93 @@
-import { usageRows } from "./data";
+import type { ProjectUsage } from "@/lib/stealth-api";
 
-/*
- * Layout "Free plan usage" versi kartu (grid 4 kolom dengan ikon + progress bar)
- * — dikomentari sementara agar tidak tampil di halaman projects.
- *
- * import { ArrowDownUp, Database, FolderOpen, Users } from "lucide-react";
- *
- * const usageIcons = [ArrowDownUp, Database, Users, FolderOpen] as const;
- *
- * export function UsagePanel() {
- *   return (
- *     <section aria-labelledby="usage-panel-title" className="mt-6">
- *       <div className="flex flex-wrap items-baseline justify-between gap-2 px-0.5 sm:px-1">
- *         <div>
- *           <h2 id="usage-panel-title" className="m-0 text-[18px] font-semibold leading-6 text-[var(--projects-text)]">
- *             Free plan usage
- *           </h2>
- *           <p className="projects-mono m-0 mt-1 text-[11px] uppercase tracking-[0.08em] text-[var(--projects-muted)]">
- *             Current billing cycle
- *           </p>
- *         </div>
- *         <span className="inline-flex h-6 items-center rounded-full border border-[var(--projects-border)] px-2.5 text-[11px] font-medium text-[var(--projects-muted)]">
- *           4 resources
- *         </span>
- *       </div>
- *
- *       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
- *         {usageRows.map((row, index) => {
- *           const Icon = usageIcons[index];
- *
- *           return (
- *             <div
- *               key={row.label}
- *               className="flex min-w-0 flex-col rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-4 transition-colors hover:border-[var(--projects-border-hover)] sm:p-5"
- *             >
- *               <div className="flex items-center gap-2.5">
- *                 <Icon size={15} strokeWidth={1.9} className="shrink-0 text-[var(--projects-accent)]" aria-hidden="true" />
- *                 <span className="truncate text-[13px] font-medium leading-5 text-[var(--projects-muted)]">{row.label}</span>
- *               </div>
- *
- *               <p className="m-0 mt-4 text-[28px] font-semibold leading-9 tracking-[-0.02em] tabular-nums text-[var(--projects-text)]">
- *                 {row.value}
- *               </p>
- *
- *               <div className="mt-auto flex items-baseline justify-between gap-2 pt-4">
- *                 <span className="text-[12px] leading-4 text-[var(--projects-muted)]">of {row.limit} limit</span>
- *                 <span className="projects-mono text-[11px] leading-4 text-[var(--projects-muted)]">
- *                   {Math.round(row.percent)}%
- *                 </span>
- *               </div>
- *
- *               <div
- *                 className="mt-2.5 h-1 overflow-hidden rounded-full bg-[var(--projects-progress-track)]"
- *                 role="progressbar"
- *                 aria-label={`${row.label} usage`}
- *                 aria-valuemin={0}
- *                 aria-valuemax={100}
- *                 aria-valuenow={row.percent}
- *               >
- *                 <span
- *                   className="block h-full min-w-0 rounded-full bg-[var(--projects-accent)] transition-[width]"
- *                   style={{ width: `${row.percent > 0 ? Math.max(row.percent, 2) : 0}%` }}
- *                 />
- *               </div>
- *             </div>
- *           );
- *         })}
- *       </div>
- *     </section>
- *   );
- * }
- */
+type UsageRow = {
+  label: string;
+  value: string;
+  limit: string;
+  percent?: number;
+};
 
-export function UsagePanel() {
+const numberFormatter = new Intl.NumberFormat("en-US");
+const byteFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+
+function formatCount(value: number) {
+  return numberFormatter.format(value);
+}
+
+function formatBytes(value: number) {
+  if (value < 1024) return `${formatCount(value)} B`;
+  const units = ["KiB", "MiB", "GiB", "TiB"];
+  let amount = value;
+  let unit = "B";
+  for (const candidate of units) {
+    amount /= 1024;
+    unit = candidate;
+    if (amount < 1024 || candidate === units.at(-1)) break;
+  }
+  return `${byteFormatter.format(amount)} ${unit}`;
+}
+
+function percent(used: number, limit: number) {
+  if (limit <= 0) return undefined;
+  return Math.min(100, Math.max(0, (used / limit) * 100));
+}
+
+function rowsFor(usage: ProjectUsage): UsageRow[] {
+  return [
+    { label: "Application users", value: formatCount(usage.application_users), limit: "identities" },
+    { label: "Database rows", value: formatCount(usage.database_row_count), limit: `${formatCount(usage.database_count)} databases` },
+    {
+      label: "File storage",
+      value: formatBytes(usage.storage_bytes),
+      limit: formatBytes(usage.storage_quota_bytes),
+      percent: percent(usage.storage_bytes, usage.storage_quota_bytes),
+    },
+    {
+      label: "Function artifacts",
+      value: formatBytes(usage.function_artifact_bytes),
+      limit: formatBytes(usage.function_quota_bytes),
+      percent: percent(usage.function_artifact_bytes, usage.function_quota_bytes),
+    },
+  ];
+}
+
+export function UsagePanel({ usage }: { usage: ProjectUsage }) {
+  const rows = rowsFor(usage);
+
   return (
     <aside
       aria-labelledby="usage-panel-title"
-      className="mt-6 h-[210px] w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-[15px]"
+      className="mt-6 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-[15px]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h2 id="usage-panel-title" className="m-0 text-[13px] font-semibold leading-[18px] text-[var(--projects-text)]">
-            Free plan usage
+            Resource usage
           </h2>
-          <p className="m-0 text-xs leading-4 text-[var(--projects-muted)]">Current billing cycle</p>
+          <p className="m-0 text-xs leading-4 text-[var(--projects-muted)]">Live PostgreSQL snapshot</p>
         </div>
-        <button
-          type="button"
-          className="h-[27px] shrink-0 rounded-md border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-[11px] text-xs font-medium leading-4 text-white transition-colors hover:bg-[var(--projects-accent-hover)]"
-        >
-          Upgrade to Pro
-        </button>
+        <time dateTime={usage.captured_at} className="shrink-0 text-[10px] text-[var(--projects-muted)]">
+          {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(usage.captured_at))}
+        </time>
       </div>
 
       <div className="mt-[17px] divide-y divide-dashed divide-[var(--projects-divider)]">
-        {usageRows.map((row) => (
-          <div key={row.label} className="flex h-[34px] items-center">
-            <span
-              className="mr-2.5 size-3.5 shrink-0 rounded-full border-2 border-[var(--projects-ring)]"
-              aria-hidden="true"
-            />
+        {rows.map((row) => (
+          <div key={row.label} className="flex min-h-[42px] items-center gap-3 py-1.5">
+            <span className="size-2.5 shrink-0 rounded-full bg-[var(--projects-accent)]" aria-hidden="true" />
             <span className="min-w-0 flex-1 truncate font-mono text-[10px] leading-[14px] tracking-[0.02em] text-[var(--projects-text)]">
               {row.label}
             </span>
-            <span className="ml-3 shrink-0 font-mono text-[10px] leading-[14px]">
+            <span className="shrink-0 text-right font-mono text-[10px] leading-[14px]">
               <strong className="font-semibold text-[var(--projects-text)]">{row.value}</strong>
               <span className="px-2 text-[var(--projects-muted)]">/</span>
               <span className="text-[var(--projects-muted)]">{row.limit}</span>
             </span>
+            {row.percent !== undefined ? (
+              <span className="w-12 shrink-0 text-right text-[10px] tabular-nums text-[var(--projects-muted)]">
+                {row.percent.toFixed(1)}%
+              </span>
+            ) : null}
           </div>
         ))}
       </div>

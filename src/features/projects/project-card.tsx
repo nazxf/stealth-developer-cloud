@@ -1,5 +1,5 @@
-import { Box, MoreVertical } from "lucide-react";
 import Link from "next/link";
+import { Box, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatProjectDate } from "./data";
 import { ProjectStatusBadge } from "./project-status-badge";
@@ -44,6 +44,7 @@ function ProjectIcon({ size = "default" }: { size?: "default" | "compact" }) {
 export function ProjectCard({ project, view }: { project: Project; view: ProjectView }) {
   const isList = view === "list";
   const description = project.description?.trim() || "No description";
+  const href = `/projects/${encodeURIComponent(project.id)}`;
 
   if (isList) {
     return (
@@ -53,14 +54,7 @@ export function ProjectCard({ project, view }: { project: Project; view: Project
           projectTableColumns,
         )}
       >
-        <Link
-          href={`/projects/${project.id}`}
-          aria-label={`Open project ${project.name}`}
-          className="absolute inset-0 z-0 outline-none focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)] focus-visible:ring-inset"
-        >
-          <span className="sr-only">Open project {project.name}</span>
-        </Link>
-
+        <Link href={href} aria-label={`Open project ${project.name}`} className="absolute inset-0 z-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--projects-accent)]" />
         <div className="pointer-events-none relative z-10 flex min-w-0 items-center gap-3">
           <ProjectIcon size="compact" />
           <span className="min-w-0">
@@ -96,14 +90,6 @@ export function ProjectCard({ project, view }: { project: Project; view: Project
 
   return (
     <article className="group relative flex min-h-[178px] w-full flex-col rounded-md border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5 transition-colors hover:border-[var(--projects-border-hover)] hover:bg-[var(--projects-control)] max-lg:min-h-0 max-lg:gap-4">
-      <Link
-        href={`/projects/${project.id}`}
-        aria-label={`Open project ${project.name}`}
-        className="absolute inset-0 z-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)] focus-visible:ring-inset"
-      >
-        <span className="sr-only">Open project {project.name}</span>
-      </Link>
-
       <button
         type="button"
         aria-label={`Project actions for ${project.name}`}
@@ -112,6 +98,7 @@ export function ProjectCard({ project, view }: { project: Project; view: Project
         <MoreVertical size={16} strokeWidth={2} aria-hidden="true" />
       </button>
 
+      <Link href={href} aria-label={`Open project ${project.name}`} className="absolute inset-0 z-0 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--projects-accent)]" />
       <div className="pointer-events-none relative z-10 flex items-center gap-3 pr-9">
         <ProjectIcon />
         <div className="min-w-0">

@@ -1,17 +1,18 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { RUNS } from "../data/admin-mock-data";
 import { AdminPanel, AdminPanelHeader, Mono } from "../components/admin-panel";
 import { RunStatusBadge } from "../components/domain-badges";
+import type { AgentRun } from "../types/runs";
 
 /** The four most recent agent runs, dense table. */
-export function RecentRuns({ className }: { className?: string }) {
-  const runs = RUNS.slice(0, 4);
+export function RecentRuns({ runs: initialRuns, unavailableAgents = 0, className }: { runs: AgentRun[]; unavailableAgents?: number; className?: string }) {
+  const runs = initialRuns.slice(0, 4);
 
   return (
     <AdminPanel className={className}>
       <AdminPanelHeader
         title="Recent Agent Runs"
+        subtitle="Durable queue records from the authenticated workspace."
         right={
           <Link
             href="/admin/runs"
@@ -21,6 +22,7 @@ export function RecentRuns({ className }: { className?: string }) {
           </Link>
         }
       />
+      {unavailableAgents > 0 ? <p className="m-0 mb-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] leading-4 text-amber-200">{unavailableAgents} agent run stream{unavailableAgents === 1 ? " is" : "s are"} temporarily unavailable.</p> : null}
       <div
         aria-hidden="true"
         className="hidden grid-cols-[minmax(0,1.1fr)_0.8fr_minmax(0,1.5fr)_1fr_0.8fr_1fr_0.8fr] gap-3 border-b border-[var(--projects-divider)] px-3 pb-2 lg:grid"
@@ -34,7 +36,7 @@ export function RecentRuns({ className }: { className?: string }) {
         <ColumnLabel>Started</ColumnLabel>
       </div>
       <ul className="m-0 list-none p-0">
-        {runs.map((run) => (
+        {runs.length === 0 ? <li className="px-3 py-6 text-center text-[12px] text-[var(--projects-muted)]">No durable agent runs have been queued.</li> : runs.map((run) => (
           <li
             key={run.id}
             className="border-b border-[var(--projects-divider)] px-3 py-2.5 transition-colors last:border-b-0 hover:bg-white/[0.02] lg:grid lg:grid-cols-[minmax(0,1.1fr)_0.8fr_minmax(0,1.5fr)_1fr_0.8fr_1fr_0.8fr] lg:items-center lg:gap-3"

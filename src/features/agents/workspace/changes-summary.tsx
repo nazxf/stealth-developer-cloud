@@ -1,15 +1,13 @@
 import { FileDiff, FilePlus2, FileText } from "lucide-react";
 import type { FileChange } from "../types";
 
-/** Diff-style summary card for a finished run — mock data only. */
+/** Diff-style summary card for changes persisted by an execution worker. */
 export function ChangesSummary({
   changes,
   onReview,
-  onDiscard,
 }: {
   changes: FileChange[];
   onReview?: () => void;
-  onDiscard?: () => void;
 }) {
   const additions = changes.reduce((sum, change) => sum + change.additions, 0);
   const deletions = changes.reduce((sum, change) => sum + change.deletions, 0);
@@ -42,26 +40,15 @@ export function ChangesSummary({
         ))}
       </ul>
 
-      {(onReview || onDiscard) && (
+      {onReview && (
         <div className="flex items-center justify-end gap-2 border-t border-[var(--projects-divider)] px-3.5 py-2.5">
-          {onDiscard && (
-            <button
-              type="button"
-              onClick={onDiscard}
-              className="inline-flex h-8 items-center rounded-md border border-[var(--projects-border)] px-3 text-[12px] font-medium text-[var(--projects-muted)] transition-colors hover:border-[var(--projects-border-hover)] hover:text-[var(--projects-text)]"
-            >
-              Discard
-            </button>
-          )}
-          {onReview && (
-            <button
-              type="button"
-              onClick={onReview}
-              className="inline-flex h-8 items-center rounded-md border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--projects-accent-hover)]"
-            >
-              Review Changes
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onReview}
+            className="inline-flex h-8 items-center rounded-md border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-3 text-[12px] font-semibold text-white transition-colors hover:bg-[var(--projects-accent-hover)]"
+          >
+            Review Changes
+          </button>
         </div>
       )}
     </div>

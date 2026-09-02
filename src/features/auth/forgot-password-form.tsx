@@ -43,10 +43,23 @@ export function ForgotPasswordForm() {
 
     setError(undefined);
     setSubmitting(true);
-    // Mock reset request; replace with a real auth call when a backend exists.
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    setSubmitting(false);
-    setSent(true);
+    try {
+      const response = await fetch("/api/stealth/account/recovery", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: trimmedEmail }),
+      });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        setError(payload?.error?.message ?? "Unable to send reset instructions. Please try again.");
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError("Unable to reach Stealth. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

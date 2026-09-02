@@ -1,18 +1,6 @@
 import type { Project } from "./types";
 
-export const projects: Project[] = [
-  {
-    id: "app_ig",
-    name: "app_ig",
-    provider: "AWS",
-    region: "ap-southeast-1",
-    regionCountry: "singapore",
-    environment: "production",
-    plan: "NANO",
-    status: "paused",
-    createdAt: "2025-05-14T10:24:00Z",
-  },
-];
+export const projects: Project[] = [];
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",

@@ -12,6 +12,9 @@ export interface IncidentUpdate {
 /** A platform incident with severity, blast radius, and timeline. */
 export interface Incident {
   id: string;
+  organizationId?: string;
+  organizationName?: string;
+  canManage?: boolean;
   title: string;
   severity: IncidentSeverity;
   services: string[];
@@ -20,4 +23,6 @@ export interface Incident {
   /** Pre-formatted duration, "12m" / "1h 42m" / "Ongoing for 12m". */
   duration: string;
   updates: IncidentUpdate[];
+  createdAt?: string;
+  resolvedAt?: string;
 }

@@ -9,6 +9,8 @@ export interface SidebarProps {
   /** When false the desktop rail is never rendered — pages that manage their
    * own chrome still get the mobile drawer without changing desktop layout. */
   desktop?: boolean;
+  /** Authenticated Console account email shown in the profile chrome. */
+  accountEmail?: string;
 }
 
 export type BadgeKind = "Beta" | "New";

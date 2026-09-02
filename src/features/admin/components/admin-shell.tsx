@@ -9,7 +9,7 @@ import { AdminSidebar } from "./admin-sidebar";
  * content area. Deliberately separate from ApplicationShell so customer
  * pages keep the customer sidebar and admin pages never mount it.
  */
-export function AdminShell({ children }: { children: ReactNode }) {
+export function AdminShell({ children, accountEmail }: { children: ReactNode; accountEmail: string }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const openSidebar = useCallback(() => setSidebarOpen(true), []);
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
@@ -27,8 +27,14 @@ export function AdminShell({ children }: { children: ReactNode }) {
         <PanelToggleIcon className="size-[18px]" />
       </button>
       <div className="lg:flex">
-        <AdminSidebar open={sidebarOpen} onClose={closeSidebar} />
-        <main className="relative min-h-dvh min-w-0 flex-1">{children}</main>
+        <AdminSidebar open={sidebarOpen} onClose={closeSidebar} accountEmail={accountEmail} />
+        <main className="relative min-h-dvh min-w-0 flex-1">
+          <div className="border-b border-[var(--projects-border)] bg-[#16151a] px-4 py-2 text-[11.5px] leading-4 text-[var(--projects-muted)] sm:px-6 lg:px-7">
+            <span className="font-medium text-[var(--projects-text)]">Preview telemetry.</span>{" "}
+            API liveness/readiness, workspace audit events, and incident records are connected; historical charts remain preview data until their query APIs are enabled.
+          </div>
+          {children}
+        </main>
       </div>
     </div>
   );

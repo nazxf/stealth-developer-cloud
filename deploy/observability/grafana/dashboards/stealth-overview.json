@@ -1,0 +1,68 @@
+{
+  "annotations": { "list": [] },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "stealth-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (status) (rate(stealth_api_http_requests_total[5m]))", "legendFormat": "HTTP {{status}}", "refId": "A" }
+      ],
+      "title": "API request rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "stealth-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (le, route) (rate(stealth_api_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95 {{route}}", "refId": "A" }
+      ],
+      "title": "API p95 latency by route",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "stealth-prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (result) (rate(stealth_functions_worker_builds_completed_total[15m]))", "legendFormat": "build {{result}}", "refId": "A" },
+        { "expr": "sum by (result) (rate(stealth_functions_worker_jobs_completed_total[15m]))", "legendFormat": "execution {{result}}", "refId": "B" }
+      ],
+      "title": "Function worker terminal results",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "stealth-loki" },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+      "id": 4,
+      "options": { "deduplication": true, "enableLogDetails": true, "prettifyLogMessage": true, "showCommonLabels": false, "showLabels": true, "showTime": true, "sortOrder": "Descending", "wrapLines": false },
+      "targets": [
+        { "expr": "{service=~\"api|worker\"}", "legendFormat": "{{service}}", "refId": "A" }
+      ],
+      "title": "API and worker logs",
+      "type": "logs"
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 41,
+  "tags": ["stealth", "platform"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "Stealth platform overview",
+  "uid": "stealth-overview",
+  "version": 1,
+  "weekStart": ""
+}

@@ -1,0 +1,242 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      target: api
+    environment:
+      DATABASE_URL: postgres://stealth:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/stealth?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      HTTP_ADDR: :8080
+      ACME_ENABLED: ${ACME_ENABLED:-false}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      ACME_DIRECTORY_URL: ${ACME_DIRECTORY_URL:-https://acme-v02.api.letsencrypt.org/directory}
+      ACME_TLS_ADDR: ${ACME_TLS_ADDR:-:8443}
+      ACME_HTTP_CHALLENGE_ADDR: ${ACME_HTTP_CHALLENGE_ADDR:-:8081}
+      ACME_CERT_CACHE_DIR: ${ACME_CERT_CACHE_DIR:-/var/lib/stealth/storage/acme}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_COOKIE_NAME: stealth_session
+      SESSION_TTL: 720h
+      APP_SESSION_TTL: ${APP_SESSION_TTL:-720h}
+      AUTH_VERIFICATION_TTL: ${AUTH_VERIFICATION_TTL:-24h}
+      AUTH_PASSWORD_RESET_TTL: ${AUTH_PASSWORD_RESET_TTL:-1h}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-disabled}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      AUTH_RATE_LIMIT: ${AUTH_RATE_LIMIT:-10}
+      AUTH_RATE_WINDOW: ${AUTH_RATE_WINDOW:-1m}
+      STORAGE_ROOT: ${STORAGE_ROOT:-/var/lib/stealth/storage}
+      STORAGE_MAX_FILE_SIZE: ${STORAGE_MAX_FILE_SIZE:-50MiB}
+      STORAGE_DEFAULT_QUOTA_BYTES: ${STORAGE_DEFAULT_QUOTA_BYTES:-1GiB}
+      FUNCTIONS_SECRET_KEY: ${FUNCTIONS_SECRET_KEY:?set FUNCTIONS_SECRET_KEY in .env}
+      FUNCTIONS_MAX_ARTIFACT_SIZE: ${FUNCTIONS_MAX_ARTIFACT_SIZE:-50MiB}
+      FUNCTIONS_DEFAULT_QUOTA_BYTES: ${FUNCTIONS_DEFAULT_QUOTA_BYTES:-1GiB}
+      SITES_MAX_ARTIFACT_SIZE: ${SITES_MAX_ARTIFACT_SIZE:-50MiB}
+      SITES_DEFAULT_QUOTA_BYTES: ${SITES_DEFAULT_QUOTA_BYTES:-1GiB}
+      SITES_MAX_EXPANDED_BYTES: ${SITES_MAX_EXPANDED_BYTES:-256MiB}
+      SITES_MAX_FILES: ${SITES_MAX_FILES:-4096}
+      SITES_GIT_FETCH_CONCURRENCY: ${SITES_GIT_FETCH_CONCURRENCY:-4}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_API_SERVICE_NAME:-stealth-api}
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-0.1}
+    ports:
+      - "${API_PORT:-8080}:8080"
+      - "${ACME_TLS_PORT:-8443}:8443"
+      - "${ACME_HTTP_CHALLENGE_PORT:-8081}:8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/readyz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - stealth-storage-data:/var/lib/stealth/storage
+
+  storage-init:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      target: api
+    # Docker creates a named volume as root. Initialize it before the API
+    # starts so the non-root API user can create tenant object directories.
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["mkdir -p /var/lib/stealth/storage/functions /var/lib/stealth/storage/sites /var/lib/stealth/storage/site-archives && chown -R stealth:stealth /var/lib/stealth/storage"]
+    user: "0:0"
+    restart: "no"
+    volumes:
+      - stealth-storage-data:/var/lib/stealth/storage
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/api/Dockerfile
+      target: worker
+    entrypoint: ["/usr/local/bin/stealth-worker"]
+    # The worker is the only trusted service that talks to Docker. User code
+    # runs in child containers with a non-root UID and never sees this socket.
+    user: "0:0"
+    environment:
+      DATABASE_URL: postgres://stealth:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}@postgres:5432/stealth?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
+      STORAGE_ROOT: ${STORAGE_ROOT:-/var/lib/stealth/storage}
+      STORAGE_MAX_FILE_SIZE: ${STORAGE_MAX_FILE_SIZE:-50MiB}
+      STORAGE_DEFAULT_QUOTA_BYTES: ${STORAGE_DEFAULT_QUOTA_BYTES:-1GiB}
+      FUNCTIONS_SECRET_KEY: ${FUNCTIONS_SECRET_KEY:?set FUNCTIONS_SECRET_KEY in .env}
+      FUNCTIONS_MAX_ARTIFACT_SIZE: ${FUNCTIONS_MAX_ARTIFACT_SIZE:-50MiB}
+      FUNCTIONS_DEFAULT_QUOTA_BYTES: ${FUNCTIONS_DEFAULT_QUOTA_BYTES:-1GiB}
+      SITES_MAX_ARTIFACT_SIZE: ${SITES_MAX_ARTIFACT_SIZE:-50MiB}
+      SITES_DEFAULT_QUOTA_BYTES: ${SITES_DEFAULT_QUOTA_BYTES:-1GiB}
+      SITES_MAX_EXPANDED_BYTES: ${SITES_MAX_EXPANDED_BYTES:-256MiB}
+      SITES_MAX_FILES: ${SITES_MAX_FILES:-4096}
+      SITES_GIT_FETCH_CONCURRENCY: ${SITES_GIT_FETCH_CONCURRENCY:-4}
+      FUNCTIONS_RUNNER_ENABLED: ${FUNCTIONS_RUNNER_ENABLED:-true}
+      FUNCTIONS_WORKER_ID: ${FUNCTIONS_WORKER_ID:-stealth-worker-1}
+      FUNCTIONS_RUNNER_POLL: ${FUNCTIONS_RUNNER_POLL:-500ms}
+      FUNCTIONS_RUNNER_LEASE_AGE: ${FUNCTIONS_RUNNER_LEASE_AGE:-20m}
+      FUNCTIONS_RUNNER_BUILD_TIMEOUT: ${FUNCTIONS_RUNNER_BUILD_TIMEOUT:-15m}
+      FUNCTIONS_RUNNER_STAGING_ROOT: ${FUNCTIONS_RUNNER_STAGING_ROOT:-/var/lib/stealth/runner-staging}
+      FUNCTIONS_RUNNER_STAGING_VOLUME: ${FUNCTIONS_RUNNER_STAGING_VOLUME:-stealth-function-runner-staging}
+      FUNCTIONS_RUNNER_METRICS_ADDR: ${FUNCTIONS_RUNNER_METRICS_ADDR:-:9091}
+      FUNCTIONS_RUNNER_HELPER_IMAGE: ${FUNCTIONS_RUNNER_HELPER_IMAGE:-alpine:3.22}
+      FUNCTIONS_RUNNER_NODE_IMAGE: ${FUNCTIONS_RUNNER_NODE_IMAGE:-node:22-alpine}
+      FUNCTIONS_RUNNER_PYTHON_IMAGE: ${FUNCTIONS_RUNNER_PYTHON_IMAGE:-python:3.13-alpine}
+      FUNCTIONS_RUNNER_GO_IMAGE: ${FUNCTIONS_RUNNER_GO_IMAGE:-golang:1.24-alpine}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_SERVICE_NAME: ${OTEL_WORKER_SERVICE_NAME:-stealth-worker}
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLER_ARG:-0.1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    volumes:
+      - stealth-storage-data:/var/lib/stealth/storage
+      - stealth-functions-runner-staging:/var/lib/stealth/runner-staging
+      - /var/run/docker.sock:/var/run/docker.sock
+    # Kept off the host interface; the optional Prometheus profile reaches it
+    # over the Compose network at worker:9091.
+    expose:
+      - "9091"
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: ["observability"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+    volumes:
+      - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - stealth-prometheus-data:/prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      api:
+        condition: service_healthy
+      worker:
+        condition: service_started
+
+  tempo:
+    image: grafana/tempo:2.8.1
+    profiles: ["observability"]
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./deploy/observability/tempo.yml:/etc/tempo/tempo.yml:ro
+      - stealth-tempo-data:/var/tempo
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"
+    expose:
+      - "4317"
+      - "4318"
+
+  loki:
+    image: grafana/loki:3.5.0
+    profiles: ["observability"]
+    command: ["-config.file=/etc/loki/loki.yml"]
+    volumes:
+      - ./deploy/observability/loki.yml:/etc/loki/loki.yml:ro
+      - stealth-loki-data:/loki
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+
+  alloy:
+    image: grafana/alloy:v1.8.3
+    profiles: ["observability"]
+    command: ["run", "--server.http.listen-addr=0.0.0.0:12345", "/etc/alloy/config.alloy"]
+    volumes:
+      - ./deploy/observability/alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      loki:
+        condition: service_started
+
+  grafana:
+    image: grafana/grafana:12.0.0
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change-me-locally}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - stealth-grafana-data:/var/lib/grafana
+      - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    depends_on:
+      prometheus:
+        condition: service_started
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: stealth
+      POSTGRES_USER: stealth
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - stealth-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U stealth -d stealth"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - stealth-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  stealth-postgres-data:
+  stealth-redis-data:
+  stealth-storage-data:
+  stealth-functions-runner-staging:
+    name: ${FUNCTIONS_RUNNER_STAGING_VOLUME:-stealth-function-runner-staging}
+  stealth-prometheus-data:
+  stealth-tempo-data:
+  stealth-loki-data:
+  stealth-grafana-data:

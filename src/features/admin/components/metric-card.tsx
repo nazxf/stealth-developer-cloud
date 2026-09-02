@@ -25,7 +25,7 @@ export function MetricCard({
   change?: string;
   changeLabel?: string;
   changeTone?: AdminStatusTone;
-  history: number[];
+  history?: number[];
   sparkTone?: SparkTone;
 }) {
   const changeClass =
@@ -55,7 +55,11 @@ export function MetricCard({
         )}
       </div>
 
-      <Sparkline data={history} tone={sparkTone} height={26} />
+      {history && history.length > 1 ? (
+        <Sparkline data={history} tone={sparkTone} height={26} />
+      ) : (
+        <p className="m-0 pt-1 text-[10.5px] leading-4 text-[var(--projects-muted)]/70">Current aggregate · history unavailable</p>
+      )}
     </article>
   );
 }

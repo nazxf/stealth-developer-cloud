@@ -14,7 +14,7 @@ export function AgentSettings({
   onAgentChange,
 }: {
   agent: Agent;
-  onAgentChange: (agent: Agent) => void;
+  onAgentChange: (agent: Agent) => void | Promise<void>;
 }) {
   const [name, setName] = useState(agent.name);
   const [description, setDescription] = useState(agent.description);
@@ -23,6 +23,8 @@ export function AgentSettings({
   const [instructions, setInstructions] = useState(agent.instructions ?? "");
   const [tools, setTools] = useState<AgentTool[]>([...agent.tools]);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Re-sync the form whenever a different agent is opened.
   useEffect(() => {
@@ -33,20 +35,30 @@ export function AgentSettings({
     setInstructions(agent.instructions ?? "");
     setTools([...agent.tools]);
     setSaved(false);
+    setError(null);
   }, [agent]);
 
-  const handleSave = () => {
-    onAgentChange({
-      ...agent,
-      name: name.trim() || agent.name,
-      description: description.trim(),
-      role,
-      model,
-      instructions,
-      tools,
-    });
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await onAgentChange({
+        ...agent,
+        name: name.trim() || agent.name,
+        description: description.trim(),
+        role,
+        model,
+        instructions,
+        tools,
+      });
+      setSaved(true);
+      window.setTimeout(() => setSaved(false), 2000);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "The agent settings could not be saved.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const toggleTool = (tool: AgentTool, checked: boolean) => {
@@ -160,12 +172,14 @@ export function AgentSettings({
         <button
           type="button"
           onClick={handleSave}
-          className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-4 text-[13px] font-semibold leading-none text-white transition-colors hover:bg-[var(--projects-accent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--projects-accent)]/70"
+          disabled={saving}
+          className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-4 text-[13px] font-semibold leading-none text-white transition-colors hover:bg-[var(--projects-accent-hover)] disabled:cursor-default disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--projects-accent)]/70"
         >
           {saved ? <Check size={15} strokeWidth={2} aria-hidden="true" /> : null}
-          {saved ? "Saved" : "Save changes"}
+          {saving ? "Saving…" : saved ? "Saved" : "Save changes"}
         </button>
         {saved && <span className="text-[12.5px] text-[var(--projects-muted)]">Settings updated.</span>}
+        {error && <span role="alert" className="text-[12.5px] text-[var(--projects-danger)]">{error}</span>}
       </div>
     </div>
   );

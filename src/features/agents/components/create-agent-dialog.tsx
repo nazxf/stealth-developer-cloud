@@ -1,9 +1,8 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Bot, Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AGENT_ROLES, ALL_TOOLS, DEFAULT_INSTRUCTIONS } from "../data";
-import { buildAgent } from "../agent-store";
-import type { Agent, AgentRole, AgentTool } from "../types";
+import type { AgentCreateDraft, AgentRole, AgentTool } from "../types";
 
 const fieldClass =
   "h-10 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-[13px] leading-4 text-[var(--projects-text)] outline-none transition-colors focus:border-[var(--projects-border-hover)]";
@@ -16,8 +15,6 @@ const MODELS_BY_PROVIDER: Record<string, string[]> = {
   OpenAI: ["GPT-5.6", "GPT-5.6 mini"],
   Anthropic: ["Claude Sonnet 4.5", "Claude Haiku 4.5"],
 };
-const PROJECTS = ["stealth-console", "stealth-docs-site", "stealth-admin-ui"] as const;
-const ACCESS_OPTIONS = ["Read project", "Edit files", "Run commands", "Run tests", "View git diff"] as const;
 
 function CheckRow({
   label,
@@ -94,24 +91,23 @@ function SelectField({
 export function CreateAgentDialog({
   open,
   onClose,
-  existingIds,
+  projects,
+  pending = false,
   onCreate,
 }: {
   open: boolean;
   onClose: () => void;
-  existingIds: string[];
-  onCreate: (agent: Agent) => void;
+  projects: Array<{ id: string; name: string }>;
+  pending?: boolean;
+  onCreate: (draft: AgentCreateDraft) => void | Promise<void>;
 }) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<AgentRole>("General");
   const [description, setDescription] = useState("");
   const [provider, setProvider] = useState<string>("OpenAI");
   const [model, setModel] = useState<string>("GPT-5.6");
-  const [project, setProject] = useState<string>(PROJECTS[0]);
+  const [project, setProject] = useState<string>(projects[0]?.id ?? "");
   const [branch, setBranch] = useState("main");
-  const [access, setAccess] = useState<Record<string, boolean>>(
-    () => Object.fromEntries(ACCESS_OPTIONS.map((option) => [option, true])),
-  );
   const [instructions, setInstructions] = useState(DEFAULT_INSTRUCTIONS);
   const [tools, setTools] = useState<AgentTool[]>([...ALL_TOOLS]);
   const [nameError, setNameError] = useState<string | undefined>();
@@ -123,13 +119,12 @@ export function CreateAgentDialog({
     setDescription("");
     setProvider("OpenAI");
     setModel("GPT-5.6");
-    setProject(PROJECTS[0]);
+    setProject(projects[0]?.id ?? "");
     setBranch("main");
-    setAccess(Object.fromEntries(ACCESS_OPTIONS.map((option) => [option, true])));
     setInstructions(DEFAULT_INSTRUCTIONS);
     setTools([...ALL_TOOLS]);
     setNameError(undefined);
-  }, [open]);
+  }, [open, projects]);
 
   useEffect(() => {
     if (!open) return;
@@ -152,12 +147,11 @@ export function CreateAgentDialog({
       setNameError("Agent name is required.");
       return;
     }
-    onCreate(
-      buildAgent(
-        { name, role, description, provider, model, project, branch, instructions, tools },
-        existingIds,
-      ),
-    );
+    if (!project) {
+      setNameError("Select a project before creating an agent.");
+      return;
+    }
+    void onCreate({ projectId: project, name, role, description, provider, model, branch, instructions, tools });
   };
 
   return (
@@ -277,26 +271,27 @@ export function CreateAgentDialog({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <label className="block">
                 <span className={labelClass}>Project</span>
-                <SelectField value={project} onChange={setProject} ariaLabel="Project">
-                  {PROJECTS.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </SelectField>
+                {projects.length > 0 ? (
+                  <SelectField value={project} onChange={setProject} ariaLabel="Project">
+                    {projects.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </SelectField>
+                ) : (
+                  <p className="m-0 rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2.5 text-[12.5px] leading-5 text-[var(--projects-muted)]">
+                    No projects are available for this account.
+                  </p>
+                )}
+                <p className="m-0 mt-1.5 text-[11.5px] leading-4 text-[var(--projects-muted)]">
+                  Agents inherit the selected project&apos;s access boundary. Owners and admins can manage configuration.
+                </p>
               </label>
-              <div>
-                <span className={labelClass}>Access</span>
-                <div className="space-y-2 rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2.5">
-                  {ACCESS_OPTIONS.map((option) => (
-                    <CheckRow
-                      key={option}
-                      label={option}
-                      checked={access[option]}
-                      disabled={option === "Read project"}
-                      onChange={(checked) => setAccess((prev) => ({ ...prev, [option]: checked }))}
-                    />
-                  ))}
+              <div className="hidden sm:block">
+                <span className={labelClass}>Control plane</span>
+                <div className="rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2.5 text-[12.5px] leading-5 text-[var(--projects-muted)]">
+                  Provider credentials are not stored in this form. Connect a provider before running the agent.
                 </div>
               </div>
             </div>
@@ -338,10 +333,11 @@ export function CreateAgentDialog({
           <button
             type="submit"
             form="create-agent-form"
-            className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-4 text-[13px] font-semibold leading-none text-white transition-colors hover:bg-[var(--projects-accent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--projects-accent)]/70"
+            disabled={pending || projects.length === 0}
+            className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-4 text-[13px] font-semibold leading-none text-white transition-colors hover:bg-[var(--projects-accent-hover)] disabled:cursor-default disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--projects-accent)]/70"
           >
             <Check size={15} strokeWidth={2} aria-hidden="true" />
-            Create Agent
+            {pending ? "Creating…" : "Create Agent"}
           </button>
         </div>
       </div>

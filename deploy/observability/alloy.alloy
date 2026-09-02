@@ -1,0 +1,54 @@
+discovery.docker "stealth" {
+  host = "unix:///var/run/docker.sock"
+}
+
+discovery.relabel "stealth_labels" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "stealth" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.stealth.targets
+  labels        = { "job" = "stealth" }
+  relabel_rules = discovery.relabel.stealth_labels.rules
+  forward_to    = [loki.process.stealth.receiver]
+}
+
+loki.process "stealth" {
+  stage.docker {}
+
+  stage.json {
+    expressions = {
+      level = "level",
+      msg   = "msg",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  forward_to = [loki.write.stealth.receiver]
+}
+
+loki.write "stealth" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+  external_labels = {
+    cluster = "stealth-compose",
+  }
+}

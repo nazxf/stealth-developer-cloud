@@ -21,14 +21,14 @@ function useMediaQuery(query: string) {
 }
 
 /** A reference-accurate, responsive navigation drawer. */
-export function Sidebar({ open, onClose, hasTopBar = false, desktop = true }: SidebarProps) {
+export function Sidebar({ open, onClose, hasTopBar = false, desktop = true, accountEmail }: SidebarProps) {
   const isMobile = useMediaQuery("(max-width: 1023px)");
   // desktop=false keeps only the mobile sheet mounted, so pages that render
   // their own chrome get nav on phones without a desktop layout change.
   return isMobile || !desktop ? (
-    <MobileSheet open={open} onClose={onClose} hasTopBar={hasTopBar} />
+    <MobileSheet open={open} onClose={onClose} hasTopBar={hasTopBar} accountEmail={accountEmail} />
   ) : (
-    <DesktopSidebar hasTopBar={hasTopBar} />
+    <DesktopSidebar hasTopBar={hasTopBar} accountEmail={accountEmail} />
   );
 }
 

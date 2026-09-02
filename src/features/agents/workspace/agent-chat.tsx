@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   Search,
   Terminal,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Agent, AgentStep, WorkspaceMessage } from "../types";
@@ -66,12 +67,12 @@ function AgentMessage({
   message,
   agentName,
   onReview,
-  onDiscard,
+  onCancel,
 }: {
   message: Extract<WorkspaceMessage, { role: "agent" }>;
   agentName: string;
   onReview?: () => void;
-  onDiscard?: (messageId: string) => void;
+  onCancel?: (runId: string) => void | Promise<void>;
 }) {
   const firstPendingIndex = message.steps.findIndex((step) => step.status === "pending");
   const currentStep = message.status === "running" ? message.steps[firstPendingIndex] : undefined;
@@ -98,19 +99,60 @@ function AgentMessage({
           </ul>
         )}
 
+        {message.status === "queued" && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
+            <p className="m-0 flex items-center gap-2 text-[12.5px] text-[var(--projects-muted)]">
+              <LoaderCircle size={13} strokeWidth={2} className="animate-spin text-[var(--projects-accent)]" aria-hidden="true" />
+              Queued — waiting for an execution worker
+            </p>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={() => void onCancel(message.runId)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--projects-border)] px-2 text-[11.5px] font-medium text-[var(--projects-muted)] transition-colors hover:text-[var(--projects-text)]"
+              >
+                <X size={12} strokeWidth={1.8} aria-hidden="true" />
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
+
         {message.status === "running" && (
-          <p className="m-0 mt-2.5 flex items-center gap-2 text-[12.5px] text-[var(--projects-muted)]">
-            <LoaderCircle size={13} strokeWidth={2} className="animate-spin text-[var(--projects-accent)]" aria-hidden="true" />
-            Working
-            {currentStep ? ` — ${currentStep.target}...` : "..."}
+          <div className="mt-2.5 flex flex-wrap items-center gap-3">
+            <p className="m-0 flex items-center gap-2 text-[12.5px] text-[var(--projects-muted)]">
+              <LoaderCircle size={13} strokeWidth={2} className="animate-spin text-[var(--projects-accent)]" aria-hidden="true" />
+              Working
+              {currentStep ? ` — ${currentStep.target}...` : "..."}
+            </p>
+            {onCancel && (
+              <button
+                type="button"
+                onClick={() => void onCancel(message.runId)}
+                className="inline-flex h-7 items-center gap-1.5 rounded-md border border-[var(--projects-border)] px-2 text-[11.5px] font-medium text-[var(--projects-muted)] transition-colors hover:text-[var(--projects-text)]"
+              >
+                <X size={12} strokeWidth={1.8} aria-hidden="true" />
+                Cancel
+              </button>
+            )}
+          </div>
+        )}
+
+        {message.status === "failed" && (
+          <p className="m-0 mt-2.5 flex items-center gap-2 text-[12.5px] text-[var(--projects-danger)]">
+            <CircleAlert size={13} strokeWidth={1.8} aria-hidden="true" />
+            Execution failed
           </p>
+        )}
+
+        {message.status === "cancelled" && (
+          <p className="m-0 mt-2.5 text-[12.5px] text-[var(--projects-muted)]">Execution cancelled</p>
         )}
 
         {message.status === "completed" && message.changes && message.changes.length > 0 && (
           <ChangesSummary
             changes={message.changes}
             onReview={onReview}
-            onDiscard={onDiscard ? () => onDiscard(message.id) : undefined}
           />
         )}
       </div>
@@ -122,12 +164,12 @@ export function AgentChat({
   agent,
   messages,
   onReview,
-  onDiscard,
+  onCancel,
 }: {
   agent: Agent;
   messages: WorkspaceMessage[];
   onReview?: () => void;
-  onDiscard?: (messageId: string) => void;
+  onCancel?: (runId: string) => void | Promise<void>;
 }) {
   return (
     <div className="mx-auto w-full max-w-[760px] space-y-5 px-4 py-5 sm:px-6">
@@ -149,7 +191,7 @@ export function AgentChat({
             message={message}
             agentName={agent.name}
             onReview={onReview}
-            onDiscard={onDiscard}
+            onCancel={onCancel}
           />
         ),
       )}

@@ -1,16 +1,3 @@
-export type UserStatus = "active" | "idle" | "suspended";
-
-/** A platform user, as seen from the admin user table. */
-export interface AdminUser {
-  id: string;
-  name: string;
-  email: string;
-  role: "Owner" | "Admin" | "Member";
-  runs: number;
-  lastActive: string;
-  status: UserStatus;
-}
-
 export type ProviderStatus = "healthy" | "degraded" | "down";
 
 /** A model provider endpoint (OpenAI, Anthropic, ...). */

@@ -128,9 +128,11 @@ function AdminNavRow({
 }
 
 function AdminSidebarBody({
+  accountEmail,
   onNavigate,
   onMobileClose,
 }: {
+  accountEmail: string;
   /** Fires after a navigation link is chosen (mobile closes the sheet). */
   onNavigate?: (href: string) => void;
   onMobileClose?: () => void;
@@ -189,16 +191,18 @@ function AdminSidebarBody({
       </nav>
 
       <footer className="shrink-0 border-t border-[#26242b] px-4 py-3">
+        <p className="m-0 truncate text-[11px] text-[#AAA6AE]" title={accountEmail}>
+          {accountEmail}
+        </p>
         <Link
-          href="/admin/status"
-          onClick={() => onNavigate?.("/admin/status")}
-          className="flex items-center gap-2 text-[12px] text-[#AAA6AE] transition-colors hover:text-[#EEEAF0]"
+          href="/admin"
+          onClick={() => onNavigate?.("/admin")}
+          className="mt-1.5 flex items-center gap-2 text-[12px] text-[#AAA6AE] transition-colors hover:text-[#EEEAF0]"
         >
           <span className="relative flex size-2">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-[var(--projects-accent)] opacity-50" />
-            <span className="relative inline-flex size-2 rounded-full bg-[var(--projects-accent)]" />
+            <span className="relative inline-flex size-2 rounded-full bg-[var(--projects-warning)]" />
           </span>
-          All systems operational
+          API health probe
         </Link>
         <Link
           href="/"
@@ -214,7 +218,7 @@ function AdminSidebarBody({
 
 /** Desktop rail (fixed panel) + mobile slide-in sheet, mirroring the
  * customer sidebar's behavior but with admin-only navigation. */
-export function AdminSidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function AdminSidebar({ open, onClose, accountEmail }: { open: boolean; onClose: () => void; accountEmail: string }) {
   const [mounted, setMounted] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const reduce = useReducedMotion() ?? false;
@@ -268,7 +272,7 @@ export function AdminSidebar({ open, onClose }: { open: boolean; onClose: () => 
         aria-label="Admin navigation"
         className="sticky top-0 hidden h-dvh w-[228px] shrink-0 flex-col overflow-hidden border-r border-[#322F37] bg-[#121014] lg:flex"
       >
-        <AdminSidebarBody />
+        <AdminSidebarBody accountEmail={accountEmail} />
       </aside>
 
       {mounted && (
@@ -324,7 +328,7 @@ export function AdminSidebar({ open, onClose }: { open: boolean; onClose: () => 
               !open && "pointer-events-none",
             )}
           >
-            <AdminSidebarBody onNavigate={() => onClose()} onMobileClose={onClose} />
+            <AdminSidebarBody accountEmail={accountEmail} onNavigate={() => onClose()} onMobileClose={onClose} />
           </motion.div>
         </div>
       )}
