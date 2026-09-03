@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clipboard, LoaderCircle, Save, Settings2 } from "lucide-react";
+import { AlertTriangle, Check, Clipboard, LoaderCircle, Save, Settings2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import type { Project } from "@/lib/stealth-api";
@@ -26,6 +26,19 @@ async function updateProject(projectId: string, name: string) {
   return response.json() as Promise<{ project: Project }>;
 }
 
+async function deleteProject(projectId: string, confirmName: string) {
+  const response = await fetch(`/api/stealth/projects/${encodeURIComponent(projectId)}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ confirm_name: confirmName }),
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as ErrorPayload | null;
+    throw new ProjectSettingsError(response.status, payload?.error?.message ?? "Project could not be deleted.");
+  }
+}
+
 function IdentifierRow({ label, value, copied, onCopy }: { label: string; value: string; copied: boolean; onCopy: () => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--projects-divider)] py-3 first:border-t-0 first:pt-0 last:pb-0">
@@ -47,6 +60,9 @@ export function ProjectSettings({ project }: { project: Project }) {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState<"project" | "organization" | null>(null);
+  const [deleteName, setDeleteName] = useState("");
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   async function copyIdentifier(kind: "project" | "organization", value: string) {
     try {
@@ -60,7 +76,7 @@ export function ProjectSettings({ project }: { project: Project }) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busy || deleteBusy) return;
     const nextName = name.trim();
     if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(nextName)) {
       setError("Project name must be a lowercase slug between 2 and 63 characters.");
@@ -89,6 +105,29 @@ export function ProjectSettings({ project }: { project: Project }) {
     }
   }
 
+  async function submitDelete(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (busy || deleteBusy || deleteName !== project.name) return;
+    setDeleteBusy(true);
+    setDeleteError(null);
+    try {
+      await deleteProject(project.id, deleteName);
+      router.replace("/");
+    } catch (reason) {
+      if (reason instanceof ProjectSettingsError && reason.status === 403) {
+        setDeleteError("Only the project owner can delete this project.");
+      } else if (reason instanceof ProjectSettingsError && reason.status === 404) {
+        router.replace("/");
+      } else if (reason instanceof ProjectSettingsError && reason.status === 422) {
+        setDeleteError("Type the exact current project name to confirm deletion.");
+      } else {
+        setDeleteError(reason instanceof Error ? reason.message : "Project could not be deleted.");
+      }
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
   return (
     <section className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <header className="border-b border-[var(--projects-border)] pb-6">
@@ -108,13 +147,13 @@ export function ProjectSettings({ project }: { project: Project }) {
           </div>
           <label className="mt-5 block text-[12px] font-medium text-[var(--projects-muted)]" htmlFor="project-name">
             Name
-            <input id="project-name" value={name} onChange={(event) => setName(event.target.value)} disabled={busy} required minLength={2} maxLength={63} pattern="[a-z0-9][a-z0-9-]{1,62}" autoComplete="off" spellCheck={false} className="mt-1 block h-10 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 font-mono text-[13px] text-[var(--projects-text)] outline-none transition-colors placeholder:text-[var(--projects-muted)] focus:border-[var(--projects-accent)] focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)] disabled:cursor-not-allowed disabled:opacity-60" />
+            <input id="project-name" value={name} onChange={(event) => setName(event.target.value)} disabled={busy || deleteBusy} required minLength={2} maxLength={63} pattern="[a-z0-9][a-z0-9-]{1,62}" autoComplete="off" spellCheck={false} className="mt-1 block h-10 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 font-mono text-[13px] text-[var(--projects-text)] outline-none transition-colors placeholder:text-[var(--projects-muted)] focus:border-[var(--projects-accent)] focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)] disabled:cursor-not-allowed disabled:opacity-60" />
           </label>
           <p className="m-0 mt-2 text-[11px] leading-5 text-[var(--projects-muted)]">Use 2–63 characters: <code className="rounded bg-[var(--projects-control)] px-1">a-z</code>, <code className="rounded bg-[var(--projects-control)] px-1">0-9</code>, and hyphens. Renaming does not change the project ID.</p>
           {error ? <p role="alert" className="m-0 mt-4 rounded-md border border-rose-400/30 bg-rose-400/10 px-3 py-2 text-[12px] leading-5 text-rose-200">{error}</p> : null}
           {message ? <p role="status" className="m-0 mt-4 rounded-md border border-emerald-400/30 bg-emerald-400/10 px-3 py-2 text-[12px] leading-5 text-emerald-200">{message}</p> : null}
           <div className="mt-5 flex justify-end border-t border-[var(--projects-divider)] pt-4">
-            <button type="submit" disabled={busy} aria-busy={busy} className="inline-flex h-9 items-center gap-2 rounded-md bg-[var(--projects-accent-strong)] px-3.5 text-[12px] font-semibold text-white outline-none transition-colors hover:bg-[var(--projects-accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)] disabled:cursor-not-allowed disabled:opacity-60">
+            <button type="submit" disabled={busy || deleteBusy} aria-busy={busy || deleteBusy} className="inline-flex h-9 items-center gap-2 rounded-md bg-[var(--projects-accent-strong)] px-3.5 text-[12px] font-semibold text-white outline-none transition-colors hover:bg-[var(--projects-accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)] disabled:cursor-not-allowed disabled:opacity-60">
               {busy ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Save size={14} aria-hidden="true" />}
               {busy ? "Saving…" : "Save changes"}
             </button>
@@ -134,6 +173,29 @@ export function ProjectSettings({ project }: { project: Project }) {
           </div>
         </aside>
       </div>
+
+      <details className="mt-5 rounded-xl border border-rose-400/30 bg-rose-400/[0.04]">
+        <summary className="flex cursor-pointer list-none items-center gap-3 px-5 py-4 outline-none marker:hidden focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)]">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-rose-400/30 bg-rose-400/10 text-rose-200"><AlertTriangle size={17} aria-hidden="true" /></span>
+          <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold text-rose-100">Danger zone</span><span className="mt-1 block text-[12px] leading-5 text-rose-100/65">Permanently delete this project and all of its resources.</span></span>
+          <span className="text-[11px] font-semibold text-rose-200">Expand</span>
+        </summary>
+        <div className="border-t border-rose-400/20 px-5 py-5">
+          <h2 className="m-0 text-[14px] font-semibold text-rose-100">Delete project</h2>
+          <p className="m-0 mt-2 max-w-2xl text-[12px] leading-5 text-rose-100/70">This action is irreversible. It removes the project database rows, API keys, application users, deployments, and stored artifacts. Only the project owner can confirm it.</p>
+          <form onSubmit={(event) => void submitDelete(event)} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
+            <label className="min-w-0 flex-1 text-[11px] font-medium text-rose-100/75" htmlFor="delete-project-name">
+              Type <code className="rounded bg-black/20 px-1 font-mono text-rose-50">{project.name}</code> to confirm
+              <input id="delete-project-name" value={deleteName} onChange={(event) => { setDeleteName(event.target.value); setDeleteError(null); }} disabled={deleteBusy} autoComplete="off" spellCheck={false} className="mt-1 block h-10 w-full rounded-md border border-rose-400/30 bg-black/20 px-3 font-mono text-[13px] text-rose-50 outline-none placeholder:text-rose-100/35 focus:border-rose-300 focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-60" placeholder={project.name} />
+            </label>
+            <button type="submit" disabled={deleteBusy || deleteName !== project.name} aria-busy={deleteBusy} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-rose-300/40 bg-rose-500/15 px-3.5 text-[12px] font-semibold text-rose-100 outline-none transition-colors hover:bg-rose-500/25 focus-visible:ring-2 focus-visible:ring-rose-300 disabled:cursor-not-allowed disabled:opacity-45">
+              {deleteBusy ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
+              {deleteBusy ? "Deleting…" : "Delete project"}
+            </button>
+          </form>
+          {deleteError ? <p role="alert" className="m-0 mt-3 rounded-md border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-[12px] leading-5 text-rose-100">{deleteError}</p> : null}
+        </div>
+      </details>
     </section>
   );
 }

@@ -23,6 +23,7 @@ const projectUserPath = new RegExp(`^projects/${canonicalUUID}/users/${canonical
 const projectUserStatusPath = new RegExp(`^projects/${canonicalUUID}/users/${canonicalUUID}/status$`);
 const projectAuthSettingsPath = new RegExp(`^projects/${canonicalUUID}/auth/settings$`);
 const projectUsagePath = new RegExp(`^projects/${canonicalUUID}/usage$`);
+const projectUsageMeteringPath = new RegExp(`^projects/${canonicalUUID}/usage/metering$`);
 const projectAuthVerificationPath = new RegExp(`^projects/${canonicalUUID}/account/verification$`);
 const projectAuthRecoveryPath = new RegExp(`^projects/${canonicalUUID}/account/recovery$`);
 const projectAPIKeysPath = new RegExp(`^projects/${canonicalUUID}/api-keys$`);
@@ -85,7 +86,7 @@ export function isAllowedStealthPath(path: string[], method: string) {
     (organizationTracesPath.test(joined) && method === "GET") ||
     (organizationInvitationAcceptPath.test(joined) && method === "POST") ||
     (accountSessionPath.test(joined) && method === "DELETE") ||
-    (projectResourcePath.test(joined) && ["GET", "PATCH"].includes(method)) ||
+    (projectResourcePath.test(joined) && ["GET", "PATCH", "DELETE"].includes(method)) ||
     (projectAuditEventsPath.test(joined) && method === "GET") ||
     (agentsPath.test(joined) && ["GET", "POST"].includes(method)) ||
     (agentPath.test(joined) && ["GET", "PATCH", "DELETE"].includes(method)) ||
@@ -98,6 +99,7 @@ export function isAllowedStealthPath(path: string[], method: string) {
     (projectUserStatusPath.test(joined) && method === "PATCH") ||
     (projectAuthSettingsPath.test(joined) && ["GET", "PATCH"].includes(method)) ||
     (projectUsagePath.test(joined) && method === "GET") ||
+    (projectUsageMeteringPath.test(joined) && method === "GET") ||
     (projectAuthVerificationPath.test(joined) && ["POST", "PUT"].includes(method)) ||
     (projectAuthRecoveryPath.test(joined) && ["POST", "PUT"].includes(method)) ||
     (projectAPIKeysPath.test(joined) && ["GET", "POST"].includes(method)) ||

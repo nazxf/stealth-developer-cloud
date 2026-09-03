@@ -1,6 +1,10 @@
 import { notFound, redirect } from "next/navigation";
-import { Database, FileText, HardDrive, Radio, Server, Users, Webhook } from "lucide-react";
-import { StealthAPIError, stealthAPI, type ProjectUsage } from "@/lib/stealth-api";
+import { Activity, Clock3, Database, Download, FileText, HardDrive, Play, Radio, Server, Users, Webhook } from "lucide-react";
+import { StealthAPIError, stealthAPI, type ProjectUsage, type ProjectUsageMetering } from "@/lib/stealth-api";
+
+const numberFormatter = new Intl.NumberFormat("en-US");
+const compactNumberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
+const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
@@ -16,7 +20,19 @@ function formatBytes(value: number) {
 }
 
 function formatCount(value: number) {
-  return new Intl.NumberFormat("en-US").format(value);
+  return numberFormatter.format(value);
+}
+
+function formatDuration(value: number) {
+  if (value < 1000) return `${formatCount(value)} ms`;
+  const seconds = value / 1000;
+  if (seconds < 60) return `${compactNumberFormatter.format(seconds)} s`;
+  return `${compactNumberFormatter.format(seconds / 60)} min`;
+}
+
+function formatUsageDate(value: string) {
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? value : dateFormatter.format(date);
 }
 
 function usagePercent(used: number, limit: number) {
@@ -48,9 +64,102 @@ function UsageGrid({ usage }: { usage: ProjectUsage }) {
   );
 }
 
+function MeteringCard({ icon: Icon, label, value, detail }: { icon: typeof Activity; label: string; value: string; detail: string }) {
+  return (
+    <article className="rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--projects-muted)]">{label}</p>
+          <p className="m-0 mt-3 text-[26px] font-semibold tracking-[-0.04em] text-[var(--projects-text)]">{value}</p>
+        </div>
+        <span className="flex size-9 items-center justify-center rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] text-[var(--projects-accent)]">
+          <Icon size={17} aria-hidden="true" />
+        </span>
+      </div>
+      <p className="m-0 mt-2 text-[12px] text-[var(--projects-muted)]">{detail}</p>
+    </article>
+  );
+}
+
+function MeteringGrid({ usage }: { usage: ProjectUsage }) {
+  return (
+    <div className="mt-8">
+      <div>
+        <p className="m-0 text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--projects-muted)]">Durable metering</p>
+        <p className="m-0 mt-1 text-[13px] leading-5 text-[var(--projects-muted)]">Rolling 30-day activity recorded transactionally by the API and Function workers.</p>
+      </div>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MeteringCard icon={Activity} label="API requests" value={formatCount(usage.api_request_count_30d)} detail="Requests in the rolling window" />
+        <MeteringCard icon={Download} label="API egress" value={formatBytes(usage.api_egress_bytes_30d)} detail="Response bytes in the rolling window" />
+        <MeteringCard icon={Play} label="Function invocations" value={formatCount(usage.function_invocation_count_30d)} detail={`${formatCount(usage.function_failure_count_30d)} failed invocations`} />
+        <MeteringCard icon={Clock3} label="Function compute" value={formatDuration(usage.function_compute_ms_30d)} detail="Recorded execution time" />
+      </div>
+    </div>
+  );
+}
+
+function MeteringTable({ metering }: { metering: ProjectUsageMetering }) {
+  return (
+    <section className="mt-8 rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5" aria-labelledby="daily-metering-title">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--projects-divider)] pb-4">
+        <div>
+          <h2 id="daily-metering-title" className="m-0 text-[17px] font-semibold text-[var(--projects-text)]">Daily metering</h2>
+          <p className="m-0 mt-1 text-[12px] leading-5 text-[var(--projects-muted)]">Exact non-empty UTC buckets from {metering.from} through {metering.to}.</p>
+        </div>
+        <span className="rounded-full border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-1.5 text-[11px] text-[var(--projects-muted)]">{metering.days.length} active days</span>
+      </div>
+
+      {metering.days.length === 0 ? (
+        <p className="m-0 px-2 py-10 text-center text-[13px] text-[var(--projects-muted)]">No API requests or Function executions have been metered in this window.</p>
+      ) : (
+        <div className="mt-4 overflow-x-auto rounded-md border border-[var(--projects-border)]">
+          <table className="w-full min-w-[760px] text-left text-[12px]">
+            <caption className="sr-only">Daily project API and Function usage</caption>
+            <thead className="border-b border-[var(--projects-divider)] bg-[var(--projects-control)] text-[10.5px] uppercase tracking-[0.08em] text-[var(--projects-muted)]">
+              <tr>
+                <th scope="col" className="px-3 py-2">UTC date</th>
+                <th scope="col" className="px-3 py-2 text-right">API requests</th>
+                <th scope="col" className="px-3 py-2 text-right">Egress</th>
+                <th scope="col" className="px-3 py-2 text-right">Invocations</th>
+                <th scope="col" className="px-3 py-2 text-right">Failures</th>
+                <th scope="col" className="px-3 py-2 text-right">Compute</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--projects-divider)]">
+              {metering.days.map((day) => (
+                <tr key={day.date}>
+                  <th scope="row" className="px-3 py-2.5 font-mono text-[11px] font-medium text-[var(--projects-text)]">{formatUsageDate(day.date)}</th>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatCount(day.api_request_count)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-muted)]">{formatBytes(day.api_egress_bytes)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatCount(day.function_invocation_count)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-muted)]">{formatCount(day.function_failure_count)}</td>
+                  <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-muted)]">{formatDuration(day.function_compute_ms)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="border-t border-[var(--projects-divider)] bg-[var(--projects-control)] font-semibold">
+              <tr>
+                <th scope="row" className="px-3 py-2.5 text-[var(--projects-text)]">Total</th>
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatCount(metering.totals.api_request_count)}</td>
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatBytes(metering.totals.api_egress_bytes)}</td>
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatCount(metering.totals.function_invocation_count)}</td>
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatCount(metering.totals.function_failure_count)}</td>
+                <td className="px-3 py-2.5 text-right font-mono tabular-nums text-[var(--projects-text)]">{formatDuration(metering.totals.function_compute_ms)}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export async function ProjectUsagePage({ projectId }: { projectId: string }) {
   try {
-    const { usage } = await stealthAPI.projectUsage(projectId);
+    const [{ usage }, { metering }] = await Promise.all([
+      stealthAPI.projectUsage(projectId),
+      stealthAPI.projectUsageMetering(projectId),
+    ]);
     return (
       <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
         <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--projects-border)] pb-6">
@@ -58,7 +167,9 @@ export async function ProjectUsagePage({ projectId }: { projectId: string }) {
           <time dateTime={usage.captured_at} className="rounded-full border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-1.5 text-[11px] text-[var(--projects-muted)]">Captured {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(usage.captured_at))}</time>
         </header>
         <UsageGrid usage={usage} />
-        <p className="m-0 mt-6 text-[11px] leading-5 text-[var(--projects-muted)]">Storage, Functions, and Sites percentages use the sum of project quotas. Network egress, compute time, and billing invoices will be added when durable metering is available.</p>
+        <MeteringGrid usage={usage} />
+        <MeteringTable metering={metering} />
+        <p className="m-0 mt-6 text-[11px] leading-5 text-[var(--projects-muted)]">Storage, Functions, and Sites percentages use the sum of project quotas. Metering values are usage facts; plan limits, invoices, and quota enforcement belong to the billing layer.</p>
       </section>
     );
   } catch (error) {
