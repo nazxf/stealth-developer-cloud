@@ -72,6 +72,15 @@ export type ServerCreateWebhookInput = { name: string; url: string; events?: str
 export type ServerUpdateWebhookInput = Partial<ServerCreateWebhookInput>;
 export type ServerWebhookSecretResponse = { webhook: ServerWebhook; secret: string };
 export type ServerRealtimeStreamOptions = { cursor?: string; events?: string[] };
+export type ServerMessagingChannel = "email" | "sms" | "push";
+export type ServerMessagingProvider = { id: string; project_id: string; name: string; channel: ServerMessagingChannel; provider: string; credentials_present: boolean; enabled: boolean; created_at: string; updated_at: string };
+export type ServerCreateMessagingProviderInput = { name: string; channel: ServerMessagingChannel; provider: string; credentials?: Record<string, string>; enabled?: boolean };
+export type ServerUpdateMessagingProviderInput = Partial<ServerCreateMessagingProviderInput>;
+export type ServerMessagingTopic = { id: string; project_id: string; name: string; description: string; enabled: boolean; subscriber_count: number; created_at: string; updated_at: string };
+export type ServerCreateMessagingTopicInput = { name: string; description?: string; enabled?: boolean };
+export type ServerUpdateMessagingTopicInput = Partial<ServerCreateMessagingTopicInput>;
+export type ServerMessagingSubscriber = { id: string; project_id: string; topic_id: string; channel: ServerMessagingChannel; address_preview: string; enabled: boolean; created_at: string; updated_at: string };
+export type ServerCreateMessagingSubscriberInput = { channel: ServerMessagingChannel; address: string; enabled?: boolean };
 
 export class ServerStealthClient {
   private readonly endpoint: string;
@@ -189,6 +198,28 @@ export class ServerStealthClient {
     rotateSecret: (webhookID: string) => Promise<ServerWebhookSecretResponse>;
     delete: (webhookID: string) => Promise<void>;
     deliveries: (webhookID: string, options?: { limit?: number; cursor?: string }) => Promise<{ deliveries: ServerWebhookDelivery[]; pagination: { limit: number; next_cursor: string | null } }>;
+  };
+  readonly messaging: {
+    providers: {
+      list: (options?: { limit?: number; cursor?: string }) => Promise<{ providers: ServerMessagingProvider[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>;
+      get: (providerID: string) => Promise<ServerMessagingProvider>;
+      create: (input: ServerCreateMessagingProviderInput) => Promise<ServerMessagingProvider>;
+      update: (providerID: string, input: ServerUpdateMessagingProviderInput) => Promise<ServerMessagingProvider>;
+      delete: (providerID: string) => Promise<void>;
+    };
+    topics: {
+      list: (options?: { limit?: number; cursor?: string }) => Promise<{ topics: ServerMessagingTopic[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>;
+      get: (topicID: string) => Promise<ServerMessagingTopic>;
+      create: (input: ServerCreateMessagingTopicInput) => Promise<ServerMessagingTopic>;
+      update: (topicID: string, input: ServerUpdateMessagingTopicInput) => Promise<ServerMessagingTopic>;
+      delete: (topicID: string) => Promise<void>;
+      subscribers: {
+        list: (topicID: string, options?: { limit?: number; cursor?: string }) => Promise<{ subscribers: ServerMessagingSubscriber[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>;
+        get: (topicID: string, subscriberID: string) => Promise<ServerMessagingSubscriber>;
+        create: (topicID: string, input: ServerCreateMessagingSubscriberInput) => Promise<ServerMessagingSubscriber>;
+        delete: (topicID: string, subscriberID: string) => Promise<void>;
+      };
+    };
   };
   /**
    * Opens the authenticated SSE stream. The caller owns response.body and
@@ -326,6 +357,28 @@ export class ServerStealthClient {
       delete: (webhookID) => this.deleteWebhook(webhookID),
       deliveries: (webhookID, listOptions) => this.listWebhookDeliveries(webhookID, listOptions),
     };
+    this.messaging = {
+      providers: {
+        list: (listOptions) => this.listMessagingProviders(listOptions),
+        get: (providerID) => this.getMessagingProvider(providerID),
+        create: (input) => this.createMessagingProvider(input),
+        update: (providerID, input) => this.updateMessagingProvider(providerID, input),
+        delete: (providerID) => this.deleteMessagingProvider(providerID),
+      },
+      topics: {
+        list: (listOptions) => this.listMessagingTopics(listOptions),
+        get: (topicID) => this.getMessagingTopic(topicID),
+        create: (input) => this.createMessagingTopic(input),
+        update: (topicID, input) => this.updateMessagingTopic(topicID, input),
+        delete: (topicID) => this.deleteMessagingTopic(topicID),
+        subscribers: {
+          list: (topicID, listOptions) => this.listMessagingSubscribers(topicID, listOptions),
+          get: (topicID, subscriberID) => this.getMessagingSubscriber(topicID, subscriberID),
+          create: (topicID, input) => this.createMessagingSubscriber(topicID, input),
+          delete: (topicID, subscriberID) => this.deleteMessagingSubscriber(topicID, subscriberID),
+        },
+      },
+    };
     this.realtime = {
       stream: (streamOptions) => this.openRealtimeStream(streamOptions),
     };
@@ -450,6 +503,20 @@ export class ServerStealthClient {
   private async rotateWebhookSecret(webhookID: string) { return this.request<ServerWebhookSecretResponse>(`/webhooks/${encodeURIComponent(webhookID)}/rotate-secret`, { method: "POST", body: "{}" }); }
   private async deleteWebhook(webhookID: string) { await this.request<void>(`/webhooks/${encodeURIComponent(webhookID)}`, { method: "DELETE" }); }
   private async listWebhookDeliveries(webhookID: string, options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ deliveries: ServerWebhookDelivery[]; pagination: { limit: number; next_cursor: string | null } }>(`/webhooks/${encodeURIComponent(webhookID)}/deliveries${query ? `?${query}` : ""}`); }
+  private async listMessagingProviders(options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ providers: ServerMessagingProvider[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>(`/messaging/providers${query ? `?${query}` : ""}`); }
+  private async getMessagingProvider(providerID: string) { const response = await this.request<{ provider: ServerMessagingProvider }>(`/messaging/providers/${encodeURIComponent(providerID)}`); return response.provider; }
+  private async createMessagingProvider(input: ServerCreateMessagingProviderInput) { const response = await this.request<{ provider: ServerMessagingProvider }>("/messaging/providers", { method: "POST", body: JSON.stringify(input) }); return response.provider; }
+  private async updateMessagingProvider(providerID: string, input: ServerUpdateMessagingProviderInput) { const response = await this.request<{ provider: ServerMessagingProvider }>(`/messaging/providers/${encodeURIComponent(providerID)}`, { method: "PATCH", body: JSON.stringify(input) }); return response.provider; }
+  private async deleteMessagingProvider(providerID: string) { await this.request<void>(`/messaging/providers/${encodeURIComponent(providerID)}`, { method: "DELETE" }); }
+  private async listMessagingTopics(options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ topics: ServerMessagingTopic[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>(`/messaging/topics${query ? `?${query}` : ""}`); }
+  private async getMessagingTopic(topicID: string) { const response = await this.request<{ topic: ServerMessagingTopic }>(`/messaging/topics/${encodeURIComponent(topicID)}`); return response.topic; }
+  private async createMessagingTopic(input: ServerCreateMessagingTopicInput) { const response = await this.request<{ topic: ServerMessagingTopic }>("/messaging/topics", { method: "POST", body: JSON.stringify(input) }); return response.topic; }
+  private async updateMessagingTopic(topicID: string, input: ServerUpdateMessagingTopicInput) { const response = await this.request<{ topic: ServerMessagingTopic }>(`/messaging/topics/${encodeURIComponent(topicID)}`, { method: "PATCH", body: JSON.stringify(input) }); return response.topic; }
+  private async deleteMessagingTopic(topicID: string) { await this.request<void>(`/messaging/topics/${encodeURIComponent(topicID)}`, { method: "DELETE" }); }
+  private async listMessagingSubscribers(topicID: string, options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ subscribers: ServerMessagingSubscriber[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>(`/messaging/topics/${encodeURIComponent(topicID)}/subscribers${query ? `?${query}` : ""}`); }
+  private async getMessagingSubscriber(topicID: string, subscriberID: string) { const response = await this.request<{ subscriber: ServerMessagingSubscriber }>(`/messaging/topics/${encodeURIComponent(topicID)}/subscribers/${encodeURIComponent(subscriberID)}`); return response.subscriber; }
+  private async createMessagingSubscriber(topicID: string, input: ServerCreateMessagingSubscriberInput) { const response = await this.request<{ subscriber: ServerMessagingSubscriber }>(`/messaging/topics/${encodeURIComponent(topicID)}/subscribers`, { method: "POST", body: JSON.stringify(input) }); return response.subscriber; }
+  private async deleteMessagingSubscriber(topicID: string, subscriberID: string) { await this.request<void>(`/messaging/topics/${encodeURIComponent(topicID)}/subscribers/${encodeURIComponent(subscriberID)}`, { method: "DELETE" }); }
   private async openRealtimeStream(options: ServerRealtimeStreamOptions = {}): Promise<Response> {
     const query = new URLSearchParams();
     if (options.cursor) query.set("cursor", options.cursor);

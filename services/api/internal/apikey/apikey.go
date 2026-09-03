@@ -41,6 +41,8 @@ var supportedProjectScopes = map[string]struct{}{
 	"webhooks.read":   {},
 	"webhooks.write":  {},
 	"realtime.read":   {},
+	"messaging.read":  {},
+	"messaging.write": {},
 }
 
 var (

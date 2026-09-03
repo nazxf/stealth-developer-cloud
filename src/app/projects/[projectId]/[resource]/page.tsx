@@ -7,6 +7,7 @@ import { ProjectDeploymentsPage } from "@/features/console/project-deployments-p
 import { ProjectStoragePage } from "@/features/console/project-storage-page";
 import { ProjectSitesPage } from "@/features/console/project-sites-page";
 import { ProjectWebhooksPage } from "@/features/console/project-webhooks-page";
+import { ProjectMessagingPage } from "@/features/console/project-messaging-page";
 import { ProjectRealtimePage } from "@/features/console/project-realtime-page";
 import { ProjectUsagePage, usageRangeFromQuery } from "@/features/console/project-usage-page";
 import { ProjectLogsPage } from "@/features/console/project-logs-page";
@@ -32,6 +33,7 @@ export default async function ProjectResourceRoute({
   if (resource === "sites") return <ProjectSitesPage projectId={projectId} />;
   if (resource === "deployments") return <ProjectDeploymentsPage projectId={projectId} />;
   if (resource === "webhooks") return <ProjectWebhooksPage projectId={projectId} />;
+  if (resource === "messaging") return <ProjectMessagingPage projectId={projectId} />;
   if (resource === "realtime") return <ProjectRealtimePage projectId={projectId} />;
   if (resource === "usage") {
     const query = await searchParams;

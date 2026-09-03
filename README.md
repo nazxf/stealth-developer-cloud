@@ -50,7 +50,7 @@ authenticated query contracts are implemented.
 
 - `src/app/` — routes (`/`, `/projects/[projectId]`, `/projects/[projectId]/deployments`, `/agent`, `/agent/[agentId]`, `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, `/accept-invitation`, `/admin/*`)
 - `src/components/` — cross-feature shell (`application-shell.tsx`, `top-bar.tsx`) and primitives
-- `src/features/` — feature-first modules: `projects/` (list, detail, service-overview, pre-deploy), `console/` (project Auth, Databases, Storage, Functions, Sites, and Webhooks control planes), `agents/` (API-backed configuration plus staged run workspace), `navigation/`, `auth/`, `admin/`
+- `src/features/` — feature-first modules: `projects/` (list, detail, service-overview, pre-deploy), `console/` (project Auth, Databases, Storage, Functions, Sites, Messaging, and Webhooks control planes), `agents/` (API-backed configuration plus staged run workspace), `navigation/`, `auth/`, `admin/`
 - `src/lib/`, `src/styles/` — shared utilities and stylesheets
 - `services/api/cmd/api` — API process entry point and graceful shutdown
 - `services/api/internal/auth` — Argon2id password and opaque session helpers
@@ -276,14 +276,16 @@ The server-only SDK entry point (`packages/sdk-js/server.ts`) sends
 `X-Stealth-Key` for the supported `users.read`, `users.write`,
 `databases.read`, `databases.write`, `storage.read`, `storage.write`,
 `functions.read`, `functions.write`, `sites.read`, `sites.write`, `webhooks.read`,
-`webhooks.write`, and `realtime.read` scopes
+`webhooks.write`, `realtime.read`, `messaging.read`, and `messaging.write` scopes
 and never persists the key. Database core now supports typed databases/tables/columns, real key/unique
 indexes, and permission-aware row CRUD. Database `write` does not imply
 `read`; callers must grant both scopes when they need both. Realtime is
 available as an authenticated, cursor-aware Server-Sent Events stream; see
 [`docs/realtime.md`](docs/realtime.md) for its permission and reconnect
-contract. Relationships, transactions, backups, full-text, bulk/import/export,
-and other future modules remain unavailable.
+contract. Messaging configuration is available for providers, topics, and
+masked subscribers; delivery adapters and the trusted sending worker remain a
+separate milestone. Relationships, transactions, backups, full-text,
+bulk/import/export, and other future modules remain unavailable.
 
 ### Webhooks contract
 
@@ -304,6 +306,17 @@ timeouts, 408/425/429, and 5xx responses retry with exponential backoff (up to
 12 attempts), while other 4xx responses are terminal. See
 [`docs/webhooks.md`](docs/webhooks.md) for the event envelope and verification
 example.
+
+### Messaging contract
+
+Project Messaging is managed at `/v1/projects/{projectID}/messaging`. The
+control plane stores email, SMS, and push provider metadata, encrypted
+credentials, topics, and encrypted recipient addresses. Owners/admins or
+`messaging.write` keys can mutate the resources; `messaging.read` is independent
+and returns only safe metadata and masked subscriber previews. Mutations emit
+audit/outbox events. A trusted delivery worker and provider adapters are
+intentionally not implied by this configuration API. See
+[`docs/messaging.md`](docs/messaging.md) for the request contract.
 
 ### Sites contract
 

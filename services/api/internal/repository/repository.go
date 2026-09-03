@@ -28,6 +28,11 @@ type Repository struct {
 	pool          *pgxpool.Pool
 	txtResolver   SiteTXTResolver
 	webhookCipher *functionsecret.Cipher
+	// Messaging provider credentials and subscriber addresses use the same
+	// process-held AES-GCM key as webhook secrets. Keeping the cipher on the
+	// repository ensures reads can expose only safe metadata while trusted
+	// workers can later decrypt values without changing the API contract.
+	messagingCipher *functionsecret.Cipher
 }
 
 func New(pool *pgxpool.Pool) *Repository { return &Repository{pool: pool} }
@@ -35,10 +40,10 @@ func NewWithTXTResolver(pool *pgxpool.Pool, resolver SiteTXTResolver) *Repositor
 	return &Repository{pool: pool, txtResolver: resolver}
 }
 func NewWithWebhookCipher(pool *pgxpool.Pool, cipher *functionsecret.Cipher) *Repository {
-	return &Repository{pool: pool, webhookCipher: cipher}
+	return &Repository{pool: pool, webhookCipher: cipher, messagingCipher: cipher}
 }
 func NewWithTXTResolverAndWebhookCipher(pool *pgxpool.Pool, resolver SiteTXTResolver, cipher *functionsecret.Cipher) *Repository {
-	return &Repository{pool: pool, txtResolver: resolver, webhookCipher: cipher}
+	return &Repository{pool: pool, txtResolver: resolver, webhookCipher: cipher, messagingCipher: cipher}
 }
 func (r *Repository) Ping(ctx context.Context) error { return r.pool.Ping(ctx) }
 

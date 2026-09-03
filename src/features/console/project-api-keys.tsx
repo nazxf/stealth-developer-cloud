@@ -37,6 +37,8 @@ const scopeOptions = [
   { value: "webhooks.read" as const, label: "Webhooks read", description: "Inspect webhook configurations and delivery history." },
   { value: "webhooks.write" as const, label: "Webhooks write", description: "Create, update, rotate, and delete project webhooks." },
   { value: "realtime.read" as const, label: "Realtime read", description: "Consume the authenticated project Server-Sent Events stream." },
+  { value: "messaging.read" as const, label: "Messaging read", description: "Inspect messaging providers, topics, and masked subscribers." },
+  { value: "messaging.write" as const, label: "Messaging write", description: "Create, update, and delete messaging providers, topics, and subscribers." },
 ];
 
 class APIKeysBridgeError extends Error {
@@ -292,7 +294,7 @@ export function ProjectAPIKeys({ projectId, initialKeys, initialNextCursor, init
         <div>
           <p className="m-0 font-mono text-[12px] text-[var(--projects-muted)]">project: {projectId}</p>
           <h1 className="m-0 mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[var(--projects-text)]">API Keys</h1>
-            <p className="m-0 mt-2 max-w-2xl text-[14px] leading-6 text-[var(--projects-muted)]">Scoped server-to-server keys for this project. Users, Database, Storage, Functions, Sites, Webhooks, and Realtime scopes are available; write never implies read.</p>
+            <p className="m-0 mt-2 max-w-2xl text-[14px] leading-6 text-[var(--projects-muted)]">Scoped server-to-server keys for this project. Users, Database, Storage, Functions, Sites, Webhooks, Realtime, and Messaging scopes are available; write never implies read.</p>
         </div>
         {canManage ? <button type="button" onClick={openCreate} className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-4 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-colors hover:bg-[var(--projects-accent-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--projects-accent)]/70"><Plus size={15} aria-hidden="true" />Create API key</button> : null}
       </header>

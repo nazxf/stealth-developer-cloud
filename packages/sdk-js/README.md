@@ -155,6 +155,12 @@ The Webhooks control plane uses independent `webhooks.read` and
 on create/rotation, and deliveries are signed with HMAC-SHA256 by the trusted
 worker. Configure endpoints with HTTPS and verify the timestamped raw request
 body before accepting an event.
+The Messaging control plane uses independent `messaging.read` and
+`messaging.write` scopes. Provider credentials and subscriber addresses are
+encrypted at rest; the SDK returns only provider metadata and masked subscriber
+previews. `client.messaging` manages providers, topics, and subscribers. It
+does not claim that a message was sent: provider adapters and the trusted
+delivery worker are a separate deployment milestone.
 The browser client also exposes a safe public URL helper for active Sites;
 Site creation, uploads, Git deployments, activation, and deletion stay in the
 server-only client because they require a project API key. Git deployments

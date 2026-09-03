@@ -167,7 +167,7 @@ export type ProjectAPIKey = {
   created_at: string;
   updated_at: string;
 };
-export type ProjectAPIKeyScope = "users.read" | "users.write" | "databases.read" | "databases.write" | "storage.read" | "storage.write" | "functions.read" | "functions.write" | "sites.read" | "sites.write" | "webhooks.read" | "webhooks.write" | "realtime.read";
+export type ProjectAPIKeyScope = "users.read" | "users.write" | "databases.read" | "databases.write" | "storage.read" | "storage.write" | "functions.read" | "functions.write" | "sites.read" | "sites.write" | "webhooks.read" | "webhooks.write" | "realtime.read" | "messaging.read" | "messaging.write";
 export type CreateProjectAPIKeyInput = {
   name: string;
   scopes: ProjectAPIKeyScope[];
@@ -177,6 +177,14 @@ export type ProjectWebhook = { id: string; project_id: string; name: string; url
 export type ProjectWebhookDelivery = { id: string; webhook_id: string; event_id: string; event_name: string; status: "pending" | "running" | "succeeded" | "failed"; attempt_count: number; last_status_code: number | null; last_error: string | null; delivered_at: string | null; created_at: string; updated_at: string };
 export type CreateProjectWebhookInput = { name: string; url: string; events?: string[]; enabled?: boolean };
 export type UpdateProjectWebhookInput = Partial<CreateProjectWebhookInput>;
+export type ProjectMessagingProvider = { id: string; project_id: string; name: string; channel: "email" | "sms" | "push"; provider: string; credentials_present: boolean; enabled: boolean; created_at: string; updated_at: string };
+export type CreateProjectMessagingProviderInput = { name: string; channel: ProjectMessagingProvider["channel"]; provider: string; credentials?: Record<string, string>; enabled?: boolean };
+export type UpdateProjectMessagingProviderInput = Partial<CreateProjectMessagingProviderInput>;
+export type ProjectMessagingTopic = { id: string; project_id: string; name: string; description: string; enabled: boolean; subscriber_count: number; created_at: string; updated_at: string };
+export type CreateProjectMessagingTopicInput = { name: string; description?: string; enabled?: boolean };
+export type UpdateProjectMessagingTopicInput = Partial<CreateProjectMessagingTopicInput>;
+export type ProjectMessagingSubscriber = { id: string; project_id: string; topic_id: string; channel: ProjectMessagingProvider["channel"]; address_preview: string; enabled: boolean; created_at: string; updated_at: string };
+export type CreateProjectMessagingSubscriberInput = { channel: ProjectMessagingProvider["channel"]; address: string; enabled?: boolean };
 
 export type DatabaseColumnType = "varchar" | "text" | "integer" | "double" | "boolean" | "datetime" | "json";
 export type DatabasePermission = "any" | "users" | `user:${string}`;
@@ -541,6 +549,49 @@ export const stealthAPI = {
     const query = params.toString();
     return request<{ deliveries: ProjectWebhookDelivery[]; pagination: Pagination }>(`/v1/projects/${encodeURIComponent(projectID)}/webhooks/${encodeURIComponent(webhookID)}/deliveries${query ? `?${query}` : ""}`);
   },
+  projectMessagingProviders: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request<{ providers: ProjectMessagingProvider[]; pagination: Pagination; can_manage: boolean }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers${query ? `?${query}` : ""}`);
+  },
+  projectMessagingProvider: (projectID: string, providerID: string) =>
+    request<{ provider: ProjectMessagingProvider }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers/${encodeURIComponent(providerID)}`),
+  createProjectMessagingProvider: (projectID: string, input: CreateProjectMessagingProviderInput) =>
+    request<{ provider: ProjectMessagingProvider }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
+  updateProjectMessagingProvider: (projectID: string, providerID: string, input: UpdateProjectMessagingProviderInput) =>
+    request<{ provider: ProjectMessagingProvider }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers/${encodeURIComponent(providerID)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
+  deleteProjectMessagingProvider: (projectID: string, providerID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers/${encodeURIComponent(providerID)}`, { method: "DELETE" }),
+  projectMessagingTopics: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request<{ topics: ProjectMessagingTopic[]; pagination: Pagination; can_manage: boolean }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics${query ? `?${query}` : ""}`);
+  },
+  projectMessagingTopic: (projectID: string, topicID: string) =>
+    request<{ topic: ProjectMessagingTopic }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}`),
+  createProjectMessagingTopic: (projectID: string, input: CreateProjectMessagingTopicInput) =>
+    request<{ topic: ProjectMessagingTopic }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
+  updateProjectMessagingTopic: (projectID: string, topicID: string, input: UpdateProjectMessagingTopicInput) =>
+    request<{ topic: ProjectMessagingTopic }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
+  deleteProjectMessagingTopic: (projectID: string, topicID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}`, { method: "DELETE" }),
+  projectMessagingSubscribers: (projectID: string, topicID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request<{ subscribers: ProjectMessagingSubscriber[]; pagination: Pagination; can_manage: boolean }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}/subscribers${query ? `?${query}` : ""}`);
+  },
+  projectMessagingSubscriber: (projectID: string, topicID: string, subscriberID: string) =>
+    request<{ subscriber: ProjectMessagingSubscriber }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}/subscribers/${encodeURIComponent(subscriberID)}`),
+  createProjectMessagingSubscriber: (projectID: string, topicID: string, input: CreateProjectMessagingSubscriberInput) =>
+    request<{ subscriber: ProjectMessagingSubscriber }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}/subscribers`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
+  deleteProjectMessagingSubscriber: (projectID: string, topicID: string, subscriberID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}/subscribers/${encodeURIComponent(subscriberID)}`, { method: "DELETE" }),
   projectDatabases: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

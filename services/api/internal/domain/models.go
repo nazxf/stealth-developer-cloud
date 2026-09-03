@@ -199,41 +199,41 @@ type AgentRunLog struct {
 // are derived from tenant-owned PostgreSQL rows; no request or billing data is
 // guessed when the underlying subsystem has no durable counter yet.
 type ProjectUsage struct {
-	ProjectID             string    `json:"project_id"`
-	CapturedAt            time.Time `json:"captured_at"`
-	ApplicationUsers      int64     `json:"application_users"`
-	DatabaseCount         int64     `json:"database_count"`
-	DatabaseTableCount    int64     `json:"database_table_count"`
-	DatabaseRowCount      int64     `json:"database_row_count"`
-	StorageFileCount      int64     `json:"storage_file_count"`
-	StorageBytes          int64     `json:"storage_bytes"`
-	StorageQuotaBytes     int64     `json:"storage_quota_bytes"`
-	FunctionCount         int64     `json:"function_count"`
-	FunctionArtifactBytes int64     `json:"function_artifact_bytes"`
-	FunctionQuotaBytes    int64     `json:"function_quota_bytes"`
-	SiteCount             int64     `json:"site_count"`
-	SiteArtifactBytes     int64     `json:"site_artifact_bytes"`
-	SiteReservedBytes     int64     `json:"site_reserved_bytes"`
-	SiteQuotaBytes        int64     `json:"site_quota_bytes"`
-	RealtimeEventCount    int64     `json:"realtime_event_count"`
-	WebhookDeliveryCount7 int64     `json:"webhook_delivery_count_7d"`
-	APIRequestCount30D    int64     `json:"api_request_count_30d"`
-	APIEgressBytes30D     int64     `json:"api_egress_bytes_30d"`
-	FunctionInvocationCount30D int64 `json:"function_invocation_count_30d"`
-	FunctionFailureCount30D    int64 `json:"function_failure_count_30d"`
-	FunctionComputeMS30D        int64 `json:"function_compute_ms_30d"`
+	ProjectID                  string    `json:"project_id"`
+	CapturedAt                 time.Time `json:"captured_at"`
+	ApplicationUsers           int64     `json:"application_users"`
+	DatabaseCount              int64     `json:"database_count"`
+	DatabaseTableCount         int64     `json:"database_table_count"`
+	DatabaseRowCount           int64     `json:"database_row_count"`
+	StorageFileCount           int64     `json:"storage_file_count"`
+	StorageBytes               int64     `json:"storage_bytes"`
+	StorageQuotaBytes          int64     `json:"storage_quota_bytes"`
+	FunctionCount              int64     `json:"function_count"`
+	FunctionArtifactBytes      int64     `json:"function_artifact_bytes"`
+	FunctionQuotaBytes         int64     `json:"function_quota_bytes"`
+	SiteCount                  int64     `json:"site_count"`
+	SiteArtifactBytes          int64     `json:"site_artifact_bytes"`
+	SiteReservedBytes          int64     `json:"site_reserved_bytes"`
+	SiteQuotaBytes             int64     `json:"site_quota_bytes"`
+	RealtimeEventCount         int64     `json:"realtime_event_count"`
+	WebhookDeliveryCount7      int64     `json:"webhook_delivery_count_7d"`
+	APIRequestCount30D         int64     `json:"api_request_count_30d"`
+	APIEgressBytes30D          int64     `json:"api_egress_bytes_30d"`
+	FunctionInvocationCount30D int64     `json:"function_invocation_count_30d"`
+	FunctionFailureCount30D    int64     `json:"function_failure_count_30d"`
+	FunctionComputeMS30D       int64     `json:"function_compute_ms_30d"`
 }
 
 // ProjectUsageDay is one durable UTC calendar bucket. Missing days are not
 // synthesized; callers can fill gaps when rendering charts without confusing
 // unavailable data with a measured zero.
 type ProjectUsageDay struct {
-	Date                       string `json:"date"`
-	APIRequestCount            int64  `json:"api_request_count"`
-	APIEgressBytes             int64  `json:"api_egress_bytes"`
-	FunctionInvocationCount    int64  `json:"function_invocation_count"`
-	FunctionFailureCount       int64  `json:"function_failure_count"`
-	FunctionComputeMS          int64  `json:"function_compute_ms"`
+	Date                    string `json:"date"`
+	APIRequestCount         int64  `json:"api_request_count"`
+	APIEgressBytes          int64  `json:"api_egress_bytes"`
+	FunctionInvocationCount int64  `json:"function_invocation_count"`
+	FunctionFailureCount    int64  `json:"function_failure_count"`
+	FunctionComputeMS       int64  `json:"function_compute_ms"`
 }
 
 type ProjectUsageMetering struct {
@@ -317,6 +317,47 @@ type WebhookDelivery struct {
 	DeliveredAt    *time.Time `json:"delivered_at,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// MessagingProvider is a safe project provider projection. Credentials are
+// encrypted at rest and represented only by the configured flag; plaintext
+// values and ciphertext are never serialized.
+type MessagingProvider struct {
+	ID                 string    `json:"id"`
+	ProjectID          string    `json:"project_id"`
+	Name               string    `json:"name"`
+	Channel            string    `json:"channel"`
+	Provider           string    `json:"provider"`
+	CredentialsPresent bool      `json:"credentials_present"`
+	Enabled            bool      `json:"enabled"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+// MessagingTopic is a project-scoped fan-out target. SubscriberCount is
+// computed from durable subscriber rows and is safe to show in the Console.
+type MessagingTopic struct {
+	ID              string    `json:"id"`
+	ProjectID       string    `json:"project_id"`
+	Name            string    `json:"name"`
+	Description     string    `json:"description"`
+	Enabled         bool      `json:"enabled"`
+	SubscriberCount int64     `json:"subscriber_count"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
+}
+
+// MessagingSubscriber keeps the recipient secret while returning a bounded
+// masked preview for operators. The full address is never returned by the API.
+type MessagingSubscriber struct {
+	ID             string    `json:"id"`
+	ProjectID      string    `json:"project_id"`
+	TopicID        string    `json:"topic_id"`
+	Channel        string    `json:"channel"`
+	AddressPreview string    `json:"address_preview"`
+	Enabled        bool      `json:"enabled"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 // RealtimeEvent is the short-lived project event envelope consumed by the

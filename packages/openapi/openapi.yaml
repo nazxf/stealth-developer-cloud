@@ -565,6 +565,184 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+  /v1/projects/{projectID}/messaging/providers:
+    get:
+      operationId: listMessagingProviders
+      description: List safe email, SMS, and push provider metadata. Credentials are never returned. Console owners/admins or messaging.read API keys may read.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { description: Messaging provider metadata, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingProvidersPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createMessagingProvider
+      description: Create a project messaging provider. Credential values are encrypted at rest and are accepted only in this request; delivery requires a separately deployed trusted worker adapter.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateMessagingProviderRequest' } } } }
+      responses:
+        '201': { description: Provider metadata, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingProviderResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /v1/projects/{projectID}/messaging/providers/{providerID}:
+    get:
+      operationId: getMessagingProvider
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/ProviderID' }]
+      responses:
+        '200': { description: Provider metadata, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingProviderResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateMessagingProvider
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/ProviderID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateMessagingProviderRequest' } } } }
+      responses:
+        '200': { description: Updated provider metadata, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingProviderResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+    delete:
+      operationId: deleteMessagingProvider
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/ProviderID' }]
+      responses:
+        '204': { description: Provider deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/projects/{projectID}/messaging/topics:
+    get:
+      operationId: listMessagingTopics
+      description: List durable messaging topics with enabled state and subscriber counts.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { description: Messaging topics, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingTopicsPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createMessagingTopic
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateMessagingTopicRequest' } } } }
+      responses:
+        '201': { description: Topic created, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingTopicResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /v1/projects/{projectID}/messaging/topics/{topicID}:
+    get:
+      operationId: getMessagingTopic
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }]
+      responses:
+        '200': { description: Topic metadata, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingTopicResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: updateMessagingTopic
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/UpdateMessagingTopicRequest' } } } }
+      responses:
+        '200': { description: Updated topic, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingTopicResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      operationId: deleteMessagingTopic
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }]
+      responses:
+        '204': { description: Topic and its subscribers deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /v1/projects/{projectID}/messaging/topics/{topicID}/subscribers:
+    get:
+      operationId: listMessagingSubscribers
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { description: Masked topic subscribers, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingSubscribersPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      operationId: createMessagingSubscriber
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateMessagingSubscriberRequest' } } } }
+      responses:
+        '201': { description: Masked subscriber, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingSubscriberResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+  /v1/projects/{projectID}/messaging/topics/{topicID}/subscribers/{subscriberID}:
+    get:
+      operationId: getMessagingSubscriber
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }, { $ref: '#/components/parameters/SubscriberID' }]
+      responses:
+        '200': { description: Masked subscriber, content: { application/json: { schema: { $ref: '#/components/schemas/MessagingSubscriberResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: deleteMessagingSubscriber
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/TopicID' }, { $ref: '#/components/parameters/SubscriberID' }]
+      responses:
+        '204': { description: Subscriber deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
   /v1/projects/{projectID}/realtime:
     get:
       operationId: streamProjectRealtime
@@ -1476,7 +1654,7 @@ components:
   securitySchemes:
     sessionCookie: { type: apiKey, in: cookie, name: stealth_session }
     projectAppCookie: { type: apiKey, in: cookie, name: stealth_app_<project-id-without-hyphens>, description: Project-specific opaque HttpOnly cookie. The actual name is derived from the path projectID; it is never the Console stealth_session cookie. }
-    projectApiKey: { type: apiKey, in: header, name: X-Stealth-Key, description: Project-bound server-to-server secret. Supported scopes are users.read/write, databases.read/write, storage.read/write, functions.read/write, sites.read/write, webhooks.read/write, and realtime.read; never send this header through the Console browser bridge. }
+    projectApiKey: { type: apiKey, in: header, name: X-Stealth-Key, description: Project-bound server-to-server secret. Supported scopes include users, databases, storage, functions, sites, webhooks, realtime.read, and messaging read/write pairs; never send this header through the Console browser bridge. }
   parameters:
     Limit: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
     Cursor: { name: cursor, in: query, schema: { type: string, format: uuid } }
@@ -1498,6 +1676,9 @@ components:
     FunctionID: { name: functionID, in: path, required: true, schema: { type: string, format: uuid } }
     SiteID: { name: siteID, in: path, required: true, schema: { type: string, format: uuid } }
     WebhookID: { name: webhookID, in: path, required: true, schema: { type: string, format: uuid } }
+    ProviderID: { name: providerID, in: path, required: true, schema: { type: string, format: uuid } }
+    TopicID: { name: topicID, in: path, required: true, schema: { type: string, format: uuid } }
+    SubscriberID: { name: subscriberID, in: path, required: true, schema: { type: string, format: uuid } }
     DomainID: { name: domainID, in: path, required: true, schema: { type: string, format: uuid } }
     VariableID: { name: variableID, in: path, required: true, schema: { type: string, format: uuid } }
     DeploymentID: { name: deploymentID, in: path, required: true, schema: { type: string, format: uuid } }
@@ -1539,7 +1720,7 @@ components:
     AcceptOrganizationInvitationRequest: { type: object, additionalProperties: false, anyOf: [{ required: [token] }, { required: [secret] }], properties: { token: { type: string, minLength: 43, maxLength: 43, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true }, secret: { type: string, minLength: 43, maxLength: 43, pattern: '^[A-Za-z0-9_-]{43}$', writeOnly: true } } }
     CreateProjectUserRequest: { type: object, additionalProperties: false, required: [email, password], properties: { email: { type: string, format: email, maxLength: 320 }, password: { type: string, minLength: 12, maxLength: 256, writeOnly: true }, name: { type: [string, 'null'], minLength: 2, maxLength: 120 } } }
     UpdateProjectUserStatusRequest: { type: object, additionalProperties: false, required: [status], properties: { status: { type: string, enum: [active, blocked] } } }
-    CreateProjectAPIKeyRequest: { type: object, additionalProperties: false, required: [name, scopes], properties: { name: { type: string, minLength: 2, maxLength: 120 }, scopes: { type: array, minItems: 1, maxItems: 13, uniqueItems: true, items: { type: string, enum: [users.read, users.write, databases.read, databases.write, storage.read, storage.write, functions.read, functions.write, sites.read, sites.write, webhooks.read, webhooks.write, realtime.read] } }, expires_at: { type: [string, 'null'], format: date-time, description: Optional future expiry, at most 365 days from creation. } } }
+    CreateProjectAPIKeyRequest: { type: object, additionalProperties: false, required: [name, scopes], properties: { name: { type: string, minLength: 2, maxLength: 120 }, scopes: { type: array, minItems: 1, maxItems: 15, uniqueItems: true, items: { type: string, enum: [users.read, users.write, databases.read, databases.write, storage.read, storage.write, functions.read, functions.write, sites.read, sites.write, webhooks.read, webhooks.write, realtime.read, messaging.read, messaging.write] } }, expires_at: { type: [string, 'null'], format: date-time, description: Optional future expiry, at most 365 days from creation. } } }
     UpdateProjectAuthSettingsRequest: { type: object, additionalProperties: false, minProperties: 1, properties: { registration_enabled: { type: boolean }, cors_origins: { type: array, maxItems: 32, uniqueItems: true, items: { type: string, minLength: 8, maxLength: 2048, pattern: '^(http|https)://[^*/\\s/?#]+(:[0-9]+)?$' } } } }
     Slug: { type: string, pattern: '^[a-z0-9][a-z0-9-]{1,62}$' }
     Account: { type: object, required: [id, email, email_verified, created_at], properties: { id: { type: string, format: uuid }, email: { type: string, format: email }, email_verified: { type: boolean }, created_at: { type: string, format: date-time } } }
@@ -1584,7 +1765,7 @@ components:
     ProjectUsageResponse: { type: object, additionalProperties: false, required: [usage], properties: { usage: { $ref: '#/components/schemas/ProjectUsage' } } }
     AcceptedResponse: { type: object, additionalProperties: false, required: [status], properties: { status: { type: string, enum: [accepted] } } }
     ApplicationAccountResponse: { type: object, additionalProperties: false, required: [account], properties: { account: { $ref: '#/components/schemas/ProjectUser' } } }
-    ProjectAPIKey: { type: object, additionalProperties: false, required: [id, project_id, name, prefix, scopes, expires_at, revoked_at, last_used_at, created_at, updated_at], properties: { id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, name: { type: string, minLength: 2, maxLength: 120 }, prefix: { type: string, pattern: '^stl_key_[A-Za-z0-9_-]{8}$' }, scopes: { type: array, minItems: 1, maxItems: 13, uniqueItems: true, items: { type: string, enum: [users.read, users.write, databases.read, databases.write, storage.read, storage.write, functions.read, functions.write, sites.read, sites.write, webhooks.read, webhooks.write, realtime.read] } }, expires_at: { type: [string, 'null'], format: date-time }, revoked_at: { type: [string, 'null'], format: date-time }, last_used_at: { type: [string, 'null'], format: date-time }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    ProjectAPIKey: { type: object, additionalProperties: false, required: [id, project_id, name, prefix, scopes, expires_at, revoked_at, last_used_at, created_at, updated_at], properties: { id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, name: { type: string, minLength: 2, maxLength: 120 }, prefix: { type: string, pattern: '^stl_key_[A-Za-z0-9_-]{8}$' }, scopes: { type: array, minItems: 1, maxItems: 15, uniqueItems: true, items: { type: string, enum: [users.read, users.write, databases.read, databases.write, storage.read, storage.write, functions.read, functions.write, sites.read, sites.write, webhooks.read, webhooks.write, realtime.read, messaging.read, messaging.write] } }, expires_at: { type: [string, 'null'], format: date-time }, revoked_at: { type: [string, 'null'], format: date-time }, last_used_at: { type: [string, 'null'], format: date-time }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
     ProjectAPIKeyResponse: { type: object, additionalProperties: false, required: [key], properties: { key: { $ref: '#/components/schemas/ProjectAPIKey' } } }
     CreateProjectAPIKeyResponse: { type: object, additionalProperties: false, required: [key, secret], properties: { key: { $ref: '#/components/schemas/ProjectAPIKey' }, secret: { type: string, writeOnly: true, pattern: '^stl_key_[A-Za-z0-9_-]{43}$', description: High-entropy secret shown only in this response. It cannot be recovered later. } } }
     OrganizationsPage: { type: object, required: [organizations, pagination], properties: { organizations: { type: array, items: { $ref: '#/components/schemas/Organization' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
@@ -1614,6 +1795,20 @@ components:
     WebhookDelivery: { type: object, additionalProperties: false, required: [id, webhook_id, event_id, event_name, status, attempt_count, last_status_code, last_error, delivered_at, created_at, updated_at], properties: { id: { type: string, format: uuid }, webhook_id: { type: string, format: uuid }, event_id: { type: string, format: uuid }, event_name: { type: string }, status: { type: string, enum: [pending, running, succeeded, failed] }, attempt_count: { type: integer, minimum: 0, maximum: 100 }, last_status_code: { type: [integer, 'null'], minimum: 100, maximum: 599 }, last_error: { type: [string, 'null'], maxLength: 4000 }, delivered_at: { type: [string, 'null'], format: date-time }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
     WebhooksPage: { type: object, additionalProperties: false, required: [webhooks, pagination, can_manage], properties: { webhooks: { type: array, items: { $ref: '#/components/schemas/Webhook' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
     WebhookDeliveriesPage: { type: object, additionalProperties: false, required: [deliveries, pagination], properties: { deliveries: { type: array, items: { $ref: '#/components/schemas/WebhookDelivery' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
+    MessagingProvider: { type: object, additionalProperties: false, required: [id, project_id, name, channel, provider, credentials_present, enabled, created_at, updated_at], properties: { id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, name: { type: string, minLength: 2, maxLength: 120 }, channel: { type: string, enum: [email, sms, push] }, provider: { type: string, minLength: 1, maxLength: 64 }, credentials_present: { type: boolean }, enabled: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CreateMessagingProviderRequest: { type: object, additionalProperties: false, required: [name, channel, provider], properties: { name: { type: string, minLength: 2, maxLength: 120 }, channel: { type: string, enum: [email, sms, push] }, provider: { type: string, minLength: 1, maxLength: 64 }, credentials: { type: object, maxProperties: 32, additionalProperties: { type: string, maxLength: 4096 }, writeOnly: true }, enabled: { type: boolean, default: true } } }
+    UpdateMessagingProviderRequest: { type: object, additionalProperties: false, minProperties: 1, properties: { name: { type: string, minLength: 2, maxLength: 120 }, channel: { type: string, enum: [email, sms, push] }, provider: { type: string, minLength: 1, maxLength: 64 }, credentials: { type: object, maxProperties: 32, additionalProperties: { type: string, maxLength: 4096 }, writeOnly: true, description: Send an empty object to clear stored credentials. }, enabled: { type: boolean } } }
+    MessagingProvidersPage: { type: object, additionalProperties: false, required: [providers, pagination, can_manage], properties: { providers: { type: array, items: { $ref: '#/components/schemas/MessagingProvider' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
+    MessagingTopic: { type: object, additionalProperties: false, required: [id, project_id, name, description, enabled, subscriber_count, created_at, updated_at], properties: { id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, name: { type: string, minLength: 2, maxLength: 120 }, description: { type: string, maxLength: 2000 }, enabled: { type: boolean }, subscriber_count: { type: integer, format: int64, minimum: 0 }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    CreateMessagingTopicRequest: { type: object, additionalProperties: false, required: [name], properties: { name: { type: string, minLength: 2, maxLength: 120 }, description: { type: string, maxLength: 2000 }, enabled: { type: boolean, default: true } } }
+    UpdateMessagingTopicRequest: { type: object, additionalProperties: false, minProperties: 1, properties: { name: { type: string, minLength: 2, maxLength: 120 }, description: { type: string, maxLength: 2000 }, enabled: { type: boolean } } }
+    MessagingTopicResponse: { type: object, additionalProperties: false, required: [topic], properties: { topic: { $ref: '#/components/schemas/MessagingTopic' } } }
+    MessagingTopicsPage: { type: object, additionalProperties: false, required: [topics, pagination, can_manage], properties: { topics: { type: array, items: { $ref: '#/components/schemas/MessagingTopic' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
+    MessagingSubscriber: { type: object, additionalProperties: false, required: [id, project_id, topic_id, channel, address_preview, enabled, created_at, updated_at], properties: { id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, topic_id: { type: string, format: uuid }, channel: { type: string, enum: [email, sms, push] }, address_preview: { type: string, maxLength: 255 }, enabled: { type: boolean }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } }, description: Full subscriber addresses are write-only and returned only as masked previews. }
+    CreateMessagingSubscriberRequest: { type: object, additionalProperties: false, required: [channel, address], properties: { channel: { type: string, enum: [email, sms, push] }, address: { type: string, minLength: 1, maxLength: 2048, writeOnly: true }, enabled: { type: boolean, default: true } } }
+    MessagingProviderResponse: { type: object, additionalProperties: false, required: [provider], properties: { provider: { $ref: '#/components/schemas/MessagingProvider' } } }
+    MessagingSubscriberResponse: { type: object, additionalProperties: false, required: [subscriber], properties: { subscriber: { $ref: '#/components/schemas/MessagingSubscriber' } } }
+    MessagingSubscribersPage: { type: object, additionalProperties: false, required: [subscribers, pagination, can_manage], properties: { subscribers: { type: array, items: { $ref: '#/components/schemas/MessagingSubscriber' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
     RealtimeEvent: { type: object, additionalProperties: false, required: [id, event, project_id, target, data, created_at], properties: { id: { type: string, format: uuid }, event: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{2,159}$' }, project_id: { type: string, format: uuid }, target: { type: object, additionalProperties: false, required: [type, id], properties: { type: { type: string }, id: { type: [string, 'null'], format: uuid } } }, data: { type: object }, created_at: { type: string, format: date-time } } }
     DatabasePermission: { type: string, pattern: '^(any|users|user:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$', description: Canonical application grant. Only any, users, and user:<project-user-uuid> are supported. }
     StoragePermission: { type: string, pattern: '^(any|users|user:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12})$', description: Canonical application grant. Empty arrays deny by default; anonymous uploads must provide all file grant arrays explicitly. }

@@ -33,6 +33,12 @@ const projectWebhookPath = new RegExp(`^projects/${canonicalUUID}/webhooks/${can
 const projectWebhookRotatePath = new RegExp(`^projects/${canonicalUUID}/webhooks/${canonicalUUID}/rotate-secret$`);
 const projectWebhookDeliveriesPath = new RegExp(`^projects/${canonicalUUID}/webhooks/${canonicalUUID}/deliveries$`);
 const projectRealtimePath = new RegExp(`^projects/${canonicalUUID}/realtime$`);
+const projectMessagingProvidersPath = new RegExp(`^projects/${canonicalUUID}/messaging/providers$`);
+const projectMessagingProviderPath = new RegExp(`^projects/${canonicalUUID}/messaging/providers/${canonicalUUID}$`);
+const projectMessagingTopicsPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics$`);
+const projectMessagingTopicPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics/${canonicalUUID}$`);
+const projectMessagingSubscribersPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics/${canonicalUUID}/subscribers$`);
+const projectMessagingSubscriberPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics/${canonicalUUID}/subscribers/${canonicalUUID}$`);
 const projectDatabasesPath = new RegExp(`^projects/${canonicalUUID}/databases$`);
 const projectDatabasePath = new RegExp(`^projects/${canonicalUUID}/databases/${canonicalUUID}$`);
 const projectDatabaseTablesPath = new RegExp(`^projects/${canonicalUUID}/databases/${canonicalUUID}/tables$`);
@@ -108,6 +114,12 @@ export function isAllowedStealthPath(path: string[], method: string) {
     (projectWebhookPath.test(joined) && ["GET", "PATCH", "DELETE"].includes(method)) ||
     (projectWebhookRotatePath.test(joined) && method === "POST") ||
     (projectWebhookDeliveriesPath.test(joined) && method === "GET") ||
+    (projectMessagingProvidersPath.test(joined) && ["GET", "POST"].includes(method)) ||
+    (projectMessagingProviderPath.test(joined) && ["GET", "PATCH", "DELETE"].includes(method)) ||
+    (projectMessagingTopicsPath.test(joined) && ["GET", "POST"].includes(method)) ||
+    (projectMessagingTopicPath.test(joined) && ["GET", "PATCH", "DELETE"].includes(method)) ||
+    (projectMessagingSubscribersPath.test(joined) && ["GET", "POST"].includes(method)) ||
+    (projectMessagingSubscriberPath.test(joined) && ["GET", "DELETE"].includes(method)) ||
     (projectRealtimePath.test(joined) && method === "GET") ||
     (projectDatabasesPath.test(joined) && ["GET", "POST"].includes(method)) ||
     (projectDatabasePath.test(joined) && ["GET", "DELETE"].includes(method)) ||
