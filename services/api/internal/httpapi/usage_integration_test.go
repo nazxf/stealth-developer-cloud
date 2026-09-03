@@ -68,6 +68,7 @@ func TestProjectUsageIntegration(t *testing.T) {
 		Usage struct {
 			ProjectID        string    `json:"project_id"`
 			ApplicationUsers int64     `json:"application_users"`
+			APIRequests30D   int64     `json:"api_request_count_30d"`
 			CapturedAt       time.Time `json:"captured_at"`
 		} `json:"usage"`
 	}
@@ -79,10 +80,62 @@ func TestProjectUsageIntegration(t *testing.T) {
 	var after struct {
 		Usage struct {
 			ApplicationUsers int64 `json:"application_users"`
+			APIRequests30D   int64 `json:"api_request_count_30d"`
 		} `json:"usage"`
 	}
 	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage", nil, http.StatusOK, &after)
 	if after.Usage.ApplicationUsers != 1 {
 		t.Fatalf("application user count = %d, want 1", after.Usage.ApplicationUsers)
 	}
+	if after.Usage.APIRequests30D < 1 {
+		t.Fatalf("API request count = %d, want at least one recorded project request", after.Usage.APIRequests30D)
+	}
+
+	usageDate := time.Now().UTC().AddDate(0, 0, -10).Format("2006-01-02")
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO project_usage_daily (project_id,usage_date,api_request_count,api_egress_bytes,function_invocation_count,function_failure_count,function_compute_ms)
+		VALUES ($1,$2::date,7,700,2,1,50)
+		ON CONFLICT (project_id,usage_date) DO UPDATE SET
+			api_request_count=EXCLUDED.api_request_count,
+			api_egress_bytes=EXCLUDED.api_egress_bytes,
+			function_invocation_count=EXCLUDED.function_invocation_count,
+			function_failure_count=EXCLUDED.function_failure_count,
+			function_compute_ms=EXCLUDED.function_compute_ms`, project.Project.ID, usageDate); err != nil {
+		t.Fatal(err)
+	}
+	var metering struct {
+		Metering struct {
+			ProjectID string `json:"project_id"`
+			From      string `json:"from"`
+			To        string `json:"to"`
+			Days      []struct {
+				Date                    string `json:"date"`
+				APIRequestCount         int64  `json:"api_request_count"`
+				APIEgressBytes          int64  `json:"api_egress_bytes"`
+				FunctionInvocationCount int64  `json:"function_invocation_count"`
+				FunctionFailureCount    int64  `json:"function_failure_count"`
+				FunctionComputeMS       int64  `json:"function_compute_ms"`
+			} `json:"days"`
+			Totals struct {
+				APIRequestCount         int64 `json:"api_request_count"`
+				APIEgressBytes          int64 `json:"api_egress_bytes"`
+				FunctionInvocationCount int64 `json:"function_invocation_count"`
+				FunctionFailureCount    int64 `json:"function_failure_count"`
+				FunctionComputeMS       int64 `json:"function_compute_ms"`
+			} `json:"totals"`
+		} `json:"metering"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage/metering?from="+usageDate+"&to="+usageDate, nil, http.StatusOK, &metering)
+	if metering.Metering.ProjectID != project.Project.ID || metering.Metering.From != usageDate || metering.Metering.To != usageDate || len(metering.Metering.Days) != 1 {
+		t.Fatalf("unexpected metering window: %+v", metering.Metering)
+	}
+	day := metering.Metering.Days[0]
+	if day.Date != usageDate || day.APIRequestCount != 7 || day.APIEgressBytes != 700 || day.FunctionInvocationCount != 2 || day.FunctionFailureCount != 1 || day.FunctionComputeMS != 50 {
+		t.Fatalf("unexpected metering day: %+v", day)
+	}
+	if metering.Metering.Totals.APIRequestCount != 7 || metering.Metering.Totals.FunctionComputeMS != 50 {
+		t.Fatalf("unexpected metering totals: %+v", metering.Metering.Totals)
+	}
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage/metering?from=not-a-date", nil, http.StatusUnprocessableEntity, nil)
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage/metering?from=2020-01-01&to=2022-01-01", nil, http.StatusUnprocessableEntity, nil)
 }

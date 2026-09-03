@@ -230,6 +230,34 @@ func (s *Store) RemoveRelative(relative string) error {
 	return nil
 }
 
+// RemoveProject removes the complete filesystem namespace for one project.
+// Project IDs are server-generated UUIDv7 values and are the only accepted
+// directory selector; symlinked namespaces are rejected before RemoveAll so
+// a project deletion can never escape this store's root.
+func (s *Store) RemoveProject(projectID uuid.UUID) error {
+	if s == nil || projectID == uuid.Nil || projectID.Version() != uuid.Version(7) {
+		return ErrInvalidPath
+	}
+	path, err := s.resolveRelative(projectID.String())
+	if err != nil {
+		return err
+	}
+	info, err := os.Lstat(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return ErrInvalidPath
+	}
+	if err := os.RemoveAll(path); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Store) OpenRelative(relative string) (*os.File, error) {
 	path, err := s.resolveRelative(relative)
 	if err != nil {

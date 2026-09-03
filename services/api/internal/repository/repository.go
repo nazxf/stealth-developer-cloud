@@ -20,6 +20,7 @@ var (
 	ErrNotFound             = errors.New("not found")
 	ErrConflict             = errors.New("conflict")
 	ErrForbidden            = errors.New("forbidden")
+	ErrConfirmationRequired = errors.New("confirmation required")
 	ErrRegistrationDisabled = errors.New("registration disabled")
 )
 
@@ -473,6 +474,47 @@ func (r *Repository) UpdateProject(ctx context.Context, projectID, accountID uui
 	return item, nil
 }
 
+// DeleteProject permanently removes a project and all tenant-owned database
+// rows that reference it. The schema uses ON DELETE CASCADE for every project
+// resource, so this operation remains atomic from the API's perspective. A
+// caller must be the organization owner and repeat the current project name as
+// an explicit confirmation to protect against accidental destructive calls.
+func (r *Repository) DeleteProject(ctx context.Context, projectID, accountID uuid.UUID, confirmationName string) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	var orgID uuid.UUID
+	var name string
+	if err := tx.QueryRow(ctx, `SELECT organization_id,name FROM projects WHERE id=$1 FOR UPDATE`, projectID).Scan(&orgID, &name); errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	if err := requireProjectRoleTx(ctx, tx, projectID, accountID, "owner"); err != nil {
+		return err
+	}
+	if confirmationName != name {
+		return ErrConfirmationRequired
+	}
+	if err := writeAuditMetadata(ctx, tx, orgID, accountID, "project.delete", "project", projectID, map[string]any{
+		"project_id": projectID.String(),
+		"name":       name,
+	}); err != nil {
+		return err
+	}
+	result, err := tx.Exec(ctx, `DELETE FROM projects WHERE id=$1`, projectID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() != 1 {
+		return ErrNotFound
+	}
+	return tx.Commit(ctx)
+}
+
 // ListProjectUsers returns only the safe application-user projection. The
 // project membership check deliberately happens before the list query so a
 // caller from another tenant receives the same hidden-resource 404 as
@@ -847,6 +889,81 @@ func (r *Repository) UpdateProjectUserStatus(ctx context.Context, projectID, use
 		return domain.ApplicationUser{}, err
 	}
 	return item, nil
+}
+
+// DeleteProjectUser permanently removes an application identity. Its
+// project-scoped sessions and recovery tokens are deleted by foreign-key
+// cascade, while database rows keep their data and clear the creator pointer.
+// Only project owners and admins may perform the operation.
+func (r *Repository) DeleteProjectUser(ctx context.Context, projectID, userID, accountID uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err := requireProjectRoleTx(ctx, tx, projectID, accountID, "owner", "admin"); err != nil {
+		return err
+	}
+	if err := r.deleteProjectUserTx(ctx, tx, projectID, userID, accountID, map[string]any{}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+// DeleteProjectUserByAPIKey is the server-to-server equivalent. The API key
+// is revalidated inside the write transaction so revocation cannot race this
+// destructive mutation.
+func (r *Repository) DeleteProjectUserByAPIKey(ctx context.Context, projectID, userID, apiKeyID uuid.UUID) error {
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if err := requireActiveProjectAPIKeyTx(ctx, tx, projectID, apiKeyID, "users.write"); err != nil {
+		return err
+	}
+	if err := r.deleteProjectUserTx(ctx, tx, projectID, userID, uuid.Nil, map[string]any{
+		"actor":      "api_key",
+		"api_key_id": apiKeyID.String(),
+	}); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *Repository) deleteProjectUserTx(ctx context.Context, tx pgx.Tx, projectID, userID, actorID uuid.UUID, metadata map[string]any) error {
+	var email string
+	if err := tx.QueryRow(ctx, `SELECT email FROM project_users WHERE project_id=$1 AND id=$2 FOR UPDATE`, projectID, userID).Scan(&email); errors.Is(err, pgx.ErrNoRows) {
+		return ErrNotFound
+	} else if err != nil {
+		return err
+	}
+	orgID, err := projectOrganizationIDValue(ctx, tx, projectID)
+	if err != nil {
+		return err
+	}
+	if metadata == nil {
+		metadata = map[string]any{}
+	}
+	metadata["project_id"] = projectID.String()
+	webhookMetadata := make(map[string]any, len(metadata))
+	for key, value := range metadata {
+		webhookMetadata[key] = value
+	}
+	auditMetadata := make(map[string]any, len(metadata)+1)
+	for key, value := range metadata {
+		auditMetadata[key] = value
+	}
+	// Email is useful for audit operators but is deliberately kept out of
+	// webhook payloads, where it would widen the recipient data surface.
+	auditMetadata["email"] = email
+	if _, err := tx.Exec(ctx, `DELETE FROM project_users WHERE project_id=$1 AND id=$2`, projectID, userID); err != nil {
+		return err
+	}
+	if err := writeAuditMetadata(ctx, tx, orgID, actorID, "project_user.delete", "project_user", userID, auditMetadata); err != nil {
+		return err
+	}
+	return r.enqueueWebhookEventTx(ctx, tx, projectID, "project_user.delete", "project_user", userID, webhookMetadata)
 }
 
 func (r *Repository) requireProjectAccess(ctx context.Context, projectID, accountID uuid.UUID) error {

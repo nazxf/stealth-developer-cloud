@@ -103,7 +103,12 @@ func (r *Repository) RecordHTTPTrace(ctx context.Context, id uuid.UUID, input HT
 	if input.OrganizationID == nil && input.ProjectID == nil {
 		return ErrInvalidHTTPTrace
 	}
-	_, err := r.pool.Exec(ctx, `
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	_, err = tx.Exec(ctx, `
 		INSERT INTO http_traces (id,trace_id,span_id,organization_id,project_id,account_id,method,route,status,duration_ms,response_bytes,started_at,finished_at)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
 		id,
@@ -120,7 +125,18 @@ func (r *Repository) RecordHTTPTrace(ctx context.Context, id uuid.UUID, input HT
 		input.StartedAt,
 		input.FinishedAt,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if input.ProjectID != nil {
+		if err := incrementUsageTx(ctx, tx, *input.ProjectID, input.StartedAt, UsageDelta{
+			APIRequestCount: 1,
+			APIEgressBytes:  input.ResponseBytes,
+		}); err != nil {
+			return err
+		}
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *Repository) ListOrganizationHTTPTraces(ctx context.Context, organizationID, accountID uuid.UUID, limit int, cursor string) ([]domain.HTTPTrace, string, error) {

@@ -227,6 +227,7 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireSession).Post("/organizations/{organizationID}/projects", s.createProject)
 		r.With(s.requireSession).Get("/projects/{projectID}", s.getProject)
 		r.With(s.requireSession).Patch("/projects/{projectID}", s.updateProject)
+		r.With(s.requireSession).Delete("/projects/{projectID}", s.deleteProject)
 		r.With(s.requireSession).Get("/projects/{projectID}/audit-events", s.listProjectAuditEvents)
 		r.With(s.requireSession).Get("/agents", s.listAgents)
 		r.With(s.requireSession).Post("/agents", s.createAgent)
@@ -241,10 +242,12 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireProjectManagement).Get("/projects/{projectID}/users", s.listProjectUsers)
 		r.With(s.requireProjectManagement).Post("/projects/{projectID}/users", s.createProjectUser)
 		r.With(s.requireProjectManagement).Get("/projects/{projectID}/users/{userID}", s.getProjectUser)
+		r.With(s.requireProjectManagement).Delete("/projects/{projectID}/users/{userID}", s.deleteProjectUser)
 		r.With(s.requireProjectManagement).Patch("/projects/{projectID}/users/{userID}/status", s.updateProjectUserStatus)
 		r.With(s.requireSession).Get("/projects/{projectID}/auth/settings", s.getProjectAuthSettings)
 		r.With(s.requireSession).Patch("/projects/{projectID}/auth/settings", s.updateProjectAuthSettings)
 		r.With(s.requireSession).Get("/projects/{projectID}/usage", s.getProjectUsage)
+		r.With(s.requireSession).Get("/projects/{projectID}/usage/metering", s.getProjectUsageMetering)
 		r.With(s.requireSession).Get("/projects/{projectID}/api-keys", s.listProjectAPIKeys)
 		r.With(s.requireSession).Post("/projects/{projectID}/api-keys", s.createProjectAPIKey)
 		r.With(s.requireSession).Get("/projects/{projectID}/api-keys/{keyID}", s.getProjectAPIKey)
@@ -893,6 +896,67 @@ func (s *Server) updateProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]domain.Project{"project": item})
 }
 
+type deleteProjectRequest struct {
+	ConfirmName string `json:"confirm_name"`
+}
+
+// deleteProject permanently removes a project. Requiring the exact current
+// project name in the request body makes destructive automation explicit while
+// keeping the authorization decision in the repository transaction.
+func (s *Server) deleteProject(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := pathUUID(w, r, "projectID")
+	if !ok {
+		return
+	}
+	var req deleteProjectRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.ConfirmName) == "" {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "confirm_name must be the exact project name")
+		return
+	}
+	accountID := uuid.Must(uuid.Parse(accountFrom(r).ID))
+	if err := s.repo.DeleteProject(r.Context(), projectID, accountID, req.ConfirmName); err != nil {
+		switch {
+		case errors.Is(err, repository.ErrNotFound):
+			writeError(w, http.StatusNotFound, "not_found", "project was not found")
+		case errors.Is(err, repository.ErrForbidden):
+			writeError(w, http.StatusForbidden, "forbidden", "only the project owner can delete this project")
+		case errors.Is(err, repository.ErrConfirmationRequired):
+			writeError(w, http.StatusUnprocessableEntity, "validation_error", "confirm_name must be the exact project name")
+		default:
+			internalError(s, w, err)
+		}
+		return
+	}
+	// Database deletion is already committed. Filesystem cleanup is deliberately
+	// best-effort: an orphaned opaque artifact is unreachable without a live
+	// project row, while returning a 500 would make clients retry a completed
+	// destructive operation and obscure the actual state.
+	if s.storage != nil {
+		if err := s.storage.RemoveProject(projectID); err != nil {
+			s.logger.Warn("project storage cleanup failed", "project_id", projectID, "error", err)
+		}
+	}
+	if s.functions != nil {
+		if err := s.functions.RemoveProject(projectID); err != nil {
+			s.logger.Warn("project function artifact cleanup failed", "project_id", projectID, "error", err)
+		}
+	}
+	if s.siteArchives != nil {
+		if err := s.siteArchives.RemoveProject(projectID); err != nil {
+			s.logger.Warn("project site source cleanup failed", "project_id", projectID, "error", err)
+		}
+	}
+	if s.sites != nil {
+		if err := s.sites.RemoveProject(projectID); err != nil {
+			s.logger.Warn("project site artifact cleanup failed", "project_id", projectID, "error", err)
+		}
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (s *Server) listProjectUsers(w http.ResponseWriter, r *http.Request) {
 	projectID, ok := pathUUID(w, r, "projectID")
 	if !ok {
@@ -1076,6 +1140,36 @@ func (s *Server) updateProjectUserStatus(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]domain.ApplicationUser{"user": item})
+}
+
+func (s *Server) deleteProjectUser(w http.ResponseWriter, r *http.Request) {
+	projectID, ok := pathUUID(w, r, "projectID")
+	if !ok {
+		return
+	}
+	userID, ok := pathUUID(w, r, "userID")
+	if !ok {
+		return
+	}
+	actor := projectActorFrom(r)
+	var err error
+	if actor.kind == apiKeyProjectActor {
+		if !apikey.HasScope(actor.scopes, "users.write") {
+			writeError(w, http.StatusForbidden, "forbidden", "API key is missing the users.write scope")
+			return
+		}
+		err = s.repo.DeleteProjectUserByAPIKey(r.Context(), projectID, userID, actor.apiKeyID)
+	} else {
+		err = s.repo.DeleteProjectUser(r.Context(), projectID, userID, uuid.Must(uuid.Parse(accountFrom(r).ID)))
+	}
+	if projectResourceError(w, err) {
+		return
+	}
+	if err != nil {
+		internalError(s, w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 type projectAPIKeyRequest struct {

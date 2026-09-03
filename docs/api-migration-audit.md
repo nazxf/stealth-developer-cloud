@@ -77,8 +77,9 @@ simulated async behavior (timers standing in for network calls).
   full-text, bulk/import/export, and Messaging actions remain explicitly
   disabled until their backend modules exist. Project Settings now updates the
   project slug through an owner/admin API mutation and exposes stable project
-  and organization identifiers; destructive project deletion and billing
-  remain out of scope. Organization identity settings (name and slug) now use
+  and organization identifiers. Destructive project deletion is available
+  through the owner-only API; billing remains out of scope.
+  Organization identity settings (name and slug) now use
   the owner/admin organization API, while Console account session
   listing/revocation and current-password-verified password changes are
   available from the authenticated account API and Admin Settings without
@@ -86,8 +87,9 @@ simulated async behavior (timers standing in for network calls).
   management now supports adding existing Console accounts, role changes, and
   non-owner removal with owner/admin policy checks. Organization and project
   audit Logs now read durable events; request/trace telemetry remains separate.
-  Usage now reads live resource aggregates from PostgreSQL;
-  network egress, compute, and invoice metering remain future work.
+  Usage now reads live resource aggregates and rolling API/Function counters from
+  PostgreSQL; the daily metering API records request egress and Function compute
+  time durably. Invoice calculation and plan enforcement remain future work.
 
 ### Deployment overview — migrated
 - `/projects/[projectId]/deployments` now aggregates the real Site and Function
@@ -120,8 +122,9 @@ simulated async behavior (timers standing in for network calls).
   organization uniqueness, is idempotent, and emits a durable `project.update`
   audit/webhook event with the old and new name.
 - The page displays the immutable project ID, organization ID, and creation
-  date. Project deletion and billing still require separate APIs and are not
-  represented as enabled controls; organization invitations live in Admin
+  date. Project deletion is exposed as a separate owner-only API and is not yet
+  represented as an enabled UI control; billing still requires a separate API.
+  Organization invitations live in Admin
   Users rather than project settings.
 
 ### `src/features/projects/service-overview/use-service-overview.ts` — [LS][M][S]
@@ -153,7 +156,9 @@ simulated async behavior (timers standing in for network calls).
   rows, storage bytes, and function artifact usage from the PostgreSQL snapshot;
   it no longer imports hardcoded `usageRows` from `data.ts`.
 - The dedicated `/projects/{projectID}/usage` route remains the detailed view;
-  network egress, compute, and invoice metering are still future work.
+  rolling counters are now sourced from durable metering, while the daily
+  `/usage/metering` endpoint is available for API egress and Function compute.
+  Invoice calculation remains future work.
 
 ## Agents
 
@@ -279,9 +284,10 @@ still use deterministic preview data until authenticated query contracts exist.
   loads each visible agent's durable run page through the same authenticated
   API contract used by `/admin/runs`; failed agent reads are reported as
   unavailable rather than replaced with generated runs. The resource section
-  now shows current durable usage/quota aggregates; historical CPU,
-  memory/network time series remain unavailable until their query contracts
-  exist. Recent incidents are loaded from the organization incident API.
+  now shows current durable usage/quota aggregates; historical CPU and memory
+  time series remain unavailable until their query contracts exist. The project
+  metering API provides daily API egress and Function compute buckets. Recent
+  incidents are loaded from the organization incident API.
 
 ### Admin Agent Runs — migrated
 - `/admin/runs` loads the authenticated workspace's agents and their durable
@@ -289,7 +295,7 @@ still use deterministic preview data until authenticated query contracts exist.
 - Filters and detail drawers now use persisted status, prompt, timestamps,
   worker steps, output, errors, and file changes. Unknown token/cost,
   repository, and trace fields are not invented; they remain unavailable until
-  metering and telemetry contracts are added.
+  provider billing and telemetry query contracts are added.
 - If one agent's run list fails, the page shows the records that were read and
   reports the unavailable-agent count instead of substituting fixtures.
 
@@ -298,8 +304,9 @@ still use deterministic preview data until authenticated query contracts exist.
   so its users, database, storage, Functions, Sites, and webhook totals come
   from the same PostgreSQL-backed project usage snapshots.
 - Capacity bars use the durable artifact/file quota fields. Token spend,
-  sandbox compute, and historical time series stay unavailable and are not
-  displayed as estimates.
+  sandbox compute breakdowns, and historical charts are not yet rendered in
+  this page; the API metering endpoint remains available for exact daily
+  request/egress and Function compute data.
 
 ### Admin Status Page — migrated
 - `/admin/status` uses the authenticated health proxy for current API

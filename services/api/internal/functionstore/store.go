@@ -114,6 +114,15 @@ func (s *Store) RemoveRelative(relative string) error {
 	return s.inner.RemoveRelative(relative)
 }
 
+// RemoveProject removes all source/build artifacts belonging to a project.
+// The underlying store validates the UUID-derived namespace before deleting.
+func (s *Store) RemoveProject(projectID uuid.UUID) error {
+	if s == nil || s.inner == nil {
+		return ErrInvalidPath
+	}
+	return s.inner.RemoveProject(projectID)
+}
+
 func (s *Store) OpenRelative(relative string) (io.ReadCloser, error) {
 	if s == nil || s.inner == nil {
 		return nil, ErrInvalidPath

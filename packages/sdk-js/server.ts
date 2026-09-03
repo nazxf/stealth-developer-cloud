@@ -83,6 +83,7 @@ export class ServerStealthClient {
     get: (userID: string) => Promise<ApplicationUser>;
     create: (input: ServerCreateProjectUserInput) => Promise<ApplicationUser>;
     updateStatus: (userID: string, input: ServerUpdateProjectUserStatusInput) => Promise<ApplicationUser>;
+    delete: (userID: string) => Promise<void>;
   };
   readonly databases: {
     list: (options?: { limit?: number; cursor?: string }) => Promise<{ databases: ServerDatabase[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>;
@@ -218,6 +219,7 @@ export class ServerStealthClient {
       get: (userID) => this.getUser(userID),
       create: (input) => this.createUser(input),
       updateStatus: (userID, input) => this.updateUserStatus(userID, input),
+      delete: (userID) => this.deleteUser(userID),
     };
     this.databases = {
       list: (listOptions) => this.listDatabases(listOptions),
@@ -356,6 +358,10 @@ export class ServerStealthClient {
       body: JSON.stringify(input),
     });
     return response.user;
+  }
+
+  private async deleteUser(userID: string): Promise<void> {
+    await this.request<void>(`/users/${encodeURIComponent(userID)}`, { method: "DELETE" });
   }
 
   private pageQuery(options: { limit?: number; cursor?: string } = {}): string {

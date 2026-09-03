@@ -514,6 +514,12 @@ func TestProjectApplicationUsersIntegration(t *testing.T) {
 	requestJSON(t, ownerClient, http.MethodGet, server.URL+"/v1/projects/"+otherProject.Project.ID+"/users", nil, http.StatusNotFound, nil)
 	requestJSON(t, ownerClient, http.MethodPost, server.URL+"/v1/projects/"+otherProject.Project.ID+"/users", map[string]string{"email": "cross-tenant@example.test", "password": "application-user-password-4"}, http.StatusNotFound, nil)
 	requestJSON(t, ownerClient, http.MethodPatch, server.URL+"/v1/projects/"+otherProject.Project.ID+"/users/"+firstResponse.User.ID+"/status", map[string]string{"status": "active"}, http.StatusNotFound, nil)
+
+	// Owners can permanently remove an application identity. The operation
+	// revokes its sessions/tokens through the database cascade.
+	requestJSON(t, ownerClient, http.MethodDelete, server.URL+"/v1/projects/"+project.Project.ID+"/users/"+secondResponse.User.ID, nil, http.StatusNoContent, nil)
+	requestJSON(t, ownerClient, http.MethodGet, server.URL+"/v1/projects/"+project.Project.ID+"/users/"+secondResponse.User.ID, nil, http.StatusNotFound, nil)
+	requestJSON(t, ownerClient, http.MethodDelete, server.URL+"/v1/projects/"+project.Project.ID+"/users/"+secondResponse.User.ID, nil, http.StatusNotFound, nil)
 }
 
 func TestProjectApplicationAuthSessionsIntegration(t *testing.T) {

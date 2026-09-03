@@ -199,10 +199,49 @@ func TestFunctionsControlPlaneIntegration(t *testing.T) {
 	if !bytes.Contains(executionBody, []byte(`"status":"accepted"`)) || !bytes.Contains(executionBody, []byte(`"input_json":{"hello":"world"}`)) {
 		t.Fatalf("execution enqueue response was unexpected: %s", executionBody)
 	}
+	var executionResponse struct {
+		Execution struct {
+			ID string `json:"id"`
+		} `json:"execution"`
+	}
+	if err := json.Unmarshal(executionBody, &executionResponse); err != nil {
+		t.Fatal(err)
+	}
+	if executionResponse.Execution.ID == "" {
+		t.Fatalf("execution response did not include an id: %s", executionBody)
+	}
 	requestJSONWithHeaders(t, newIntegrationClient(t), http.MethodPatch, functionsURL, map[string]any{"execute_permissions": []string{"any"}}, http.StatusOK, writeHeaders)
 	anonymousExecution := requestJSONRawWithHeaders(t, newIntegrationClient(t), http.MethodPost, functionsURL+"/executions", map[string]any{"trigger": "public", "input": map[string]any{"anonymous": true}}, http.StatusAccepted, nil)
 	if !bytes.Contains(anonymousExecution, []byte(`"status":"accepted"`)) {
 		t.Fatalf("anonymous execution was not accepted with any permission: %s", anonymousExecution)
+	}
+	var anonymousExecutionResponse struct {
+		Execution struct {
+			ID string `json:"id"`
+		} `json:"execution"`
+	}
+	if err := json.Unmarshal(anonymousExecution, &anonymousExecutionResponse); err != nil {
+		t.Fatal(err)
+	}
+	functionRepository := repository.New(pool)
+	if _, err := functionRepository.TransitionFunctionExecution(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(executionResponse.Execution.ID)), "running", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := functionRepository.TransitionFunctionExecutionResult(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(executionResponse.Execution.ID)), "succeeded", "", nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := functionRepository.TransitionFunctionExecution(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(anonymousExecutionResponse.Execution.ID)), "failed", "test failure"); err != nil {
+		t.Fatal(err)
+	}
+	var usage struct {
+		Invocations int64
+		Failures    int64
+	}
+	if err := pool.QueryRow(ctx, `SELECT function_invocation_count,function_failure_count FROM project_usage_daily WHERE project_id=$1 AND usage_date=CURRENT_DATE`, project.Project.ID).Scan(&usage.Invocations, &usage.Failures); err != nil {
+		t.Fatal(err)
+	}
+	if usage.Invocations < 2 || usage.Failures < 1 {
+		t.Fatalf("function usage counters = %+v, want at least two invocations and one failure", usage)
 	}
 	requestJSONWithHeaders(t, newIntegrationClient(t), http.MethodDelete, functionsURL+"/deployments/"+deploymentID, nil, http.StatusConflict, writeHeaders)
 

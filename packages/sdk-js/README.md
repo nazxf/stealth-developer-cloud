@@ -71,6 +71,7 @@ const client = createServerStealthClient({
 const page = await client.users.list({ limit: 20 }); // users.read
 const user = await client.users.create({ email, password }); // users.write
 await client.users.updateStatus(user.id, { status: "blocked" }); // users.write
+await client.users.delete(user.id); // users.write
 const databases = await client.databases.list(); // databases.read
 const rows = await client.databases.rows.list(databaseID, tableID); // databases.read
 await client.databases.rows.create(databaseID, tableID, { data: { title: "hello" } }); // databases.write

@@ -217,6 +217,31 @@ type ProjectUsage struct {
 	SiteQuotaBytes        int64     `json:"site_quota_bytes"`
 	RealtimeEventCount    int64     `json:"realtime_event_count"`
 	WebhookDeliveryCount7 int64     `json:"webhook_delivery_count_7d"`
+	APIRequestCount30D    int64     `json:"api_request_count_30d"`
+	APIEgressBytes30D     int64     `json:"api_egress_bytes_30d"`
+	FunctionInvocationCount30D int64 `json:"function_invocation_count_30d"`
+	FunctionFailureCount30D    int64 `json:"function_failure_count_30d"`
+	FunctionComputeMS30D        int64 `json:"function_compute_ms_30d"`
+}
+
+// ProjectUsageDay is one durable UTC calendar bucket. Missing days are not
+// synthesized; callers can fill gaps when rendering charts without confusing
+// unavailable data with a measured zero.
+type ProjectUsageDay struct {
+	Date                       string `json:"date"`
+	APIRequestCount            int64  `json:"api_request_count"`
+	APIEgressBytes             int64  `json:"api_egress_bytes"`
+	FunctionInvocationCount    int64  `json:"function_invocation_count"`
+	FunctionFailureCount       int64  `json:"function_failure_count"`
+	FunctionComputeMS          int64  `json:"function_compute_ms"`
+}
+
+type ProjectUsageMetering struct {
+	ProjectID string            `json:"project_id"`
+	From      string            `json:"from"`
+	To        string            `json:"to"`
+	Days      []ProjectUsageDay `json:"days"`
+	Totals    ProjectUsageDay   `json:"totals"`
 }
 
 // ApplicationUser is a user belonging to a project application. It is

@@ -214,6 +214,32 @@ func (s *Store) RemoveRelative(relative string) error {
 	return nil
 }
 
+// RemoveProject removes every published site and staged source artifact under
+// a project namespace. The namespace is derived from a UUIDv7 and is checked
+// with Lstat before recursive removal so custom-domain serving paths cannot be
+// used to escape the store root.
+func (s *Store) RemoveProject(projectID uuid.UUID) error {
+	if s == nil || s.root == "" || projectID == uuid.Nil || projectID.Version() != uuid.Version(7) {
+		return ErrInvalidPath
+	}
+	destination := filepath.Join(s.root, projectID.String())
+	relative, err := filepath.Rel(s.root, destination)
+	if err != nil || relative == "." || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return ErrInvalidPath
+	}
+	info, err := os.Lstat(destination)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
+		return ErrInvalidPath
+	}
+	return os.RemoveAll(destination)
+}
+
 // OpenFile validates every path component with Lstat before opening. The
 // untrusted archive extractor rejects links, and this second check prevents a
 // manually introduced link from turning a public request into a file read.

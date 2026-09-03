@@ -1211,9 +1211,35 @@ func (r *Repository) FailFunctionDeploymentBuild(ctx context.Context, projectID,
 	// Invocations accepted while the build was queued must not remain stuck
 	// forever when the immutable artifact cannot be produced. They are fenced
 	// to this deployment and transition atomically with its failed state.
-	if _, err := tx.Exec(ctx, `UPDATE function_executions SET status='failed',error_message=$4,finished_at=now(),updated_at=now() WHERE project_id=$1 AND function_id=$2 AND deployment_id=$3 AND status='accepted'`, projectID, functionID, deploymentID, failureMessage); err != nil {
+	failedExecutions, err := tx.Query(ctx, `UPDATE function_executions SET status='failed',error_message=$4,finished_at=now(),updated_at=now() WHERE project_id=$1 AND function_id=$2 AND deployment_id=$3 AND status='accepted' RETURNING started_at,finished_at`, projectID, functionID, deploymentID, failureMessage)
+	if err != nil {
 		return domain.FunctionDeployment{}, err
 	}
+	for failedExecutions.Next() {
+		var startedAt, finishedAt *time.Time
+		if err := failedExecutions.Scan(&startedAt, &finishedAt); err != nil {
+			failedExecutions.Close()
+			return domain.FunctionDeployment{}, err
+		}
+		if finishedAt == nil {
+			continue
+		}
+		delta := UsageDelta{FunctionFailureCount: 1}
+		if startedAt != nil {
+			if computeMS := finishedAt.Sub(*startedAt).Milliseconds(); computeMS > 0 {
+				delta.FunctionComputeMS = computeMS
+			}
+		}
+		if err := incrementUsageTx(ctx, tx, projectID, *finishedAt, delta); err != nil {
+			failedExecutions.Close()
+			return domain.FunctionDeployment{}, err
+		}
+	}
+	if err := failedExecutions.Err(); err != nil {
+		failedExecutions.Close()
+		return domain.FunctionDeployment{}, err
+	}
+	failedExecutions.Close()
 	updated, err := scanFunctionDeploymentPublic(tx.QueryRow(ctx, `UPDATE function_deployments SET build_status='failed',build_worker_id=NULL,error_message=$4,updated_at=now() WHERE project_id=$1 AND function_id=$2 AND id=$3 RETURNING `+functionDeploymentProjection, projectID, functionID, deploymentID, failureMessage))
 	if err != nil {
 		return domain.FunctionDeployment{}, err
@@ -1506,6 +1532,9 @@ func (r *Repository) CreateFunctionExecutionWithInput(ctx context.Context, id, p
 	if err != nil {
 		return domain.FunctionExecution{}, mapError(err)
 	}
+	if err := incrementUsageTx(ctx, tx, projectID, execution.CreatedAt, UsageDelta{FunctionInvocationCount: 1}); err != nil {
+		return domain.FunctionExecution{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return domain.FunctionExecution{}, err
 	}
@@ -1555,6 +1584,9 @@ func (r *Repository) CreateFunctionExecutionForActor(ctx context.Context, id, pr
 	execution, err := scanFunctionExecution(tx.QueryRow(ctx, `INSERT INTO function_executions (id,deployment_id,function_id,project_id,trigger,input_json) VALUES ($1,$2,$3,$4,$5,$6) RETURNING `+functionExecutionProjection, id, deploymentID, functionID, projectID, trigger, []byte(input)))
 	if err != nil {
 		return domain.FunctionExecution{}, mapError(err)
+	}
+	if err := incrementUsageTx(ctx, tx, projectID, execution.CreatedAt, UsageDelta{FunctionInvocationCount: 1}); err != nil {
+		return domain.FunctionExecution{}, err
 	}
 	if err := r.auditFunction(ctx, tx, projectID, actor, "function_execution.accept", "function_execution", id, map[string]any{"trigger": trigger, "deployment_id": deploymentID}); err != nil {
 		return domain.FunctionExecution{}, err
@@ -1615,6 +1647,9 @@ func (r *Repository) CreateFunctionExecutionForApplication(ctx context.Context, 
 	execution, err := scanFunctionExecution(tx.QueryRow(ctx, `INSERT INTO function_executions (id,deployment_id,function_id,project_id,trigger,input_json) VALUES ($1,$2,$3,$4,$5,$6) RETURNING `+functionExecutionProjection, id, deploymentID, functionID, projectID, trigger, []byte(input)))
 	if err != nil {
 		return domain.FunctionExecution{}, mapError(err)
+	}
+	if err := incrementUsageTx(ctx, tx, projectID, execution.CreatedAt, UsageDelta{FunctionInvocationCount: 1}); err != nil {
+		return domain.FunctionExecution{}, err
 	}
 	if err := r.auditFunction(ctx, tx, projectID, actor, "function_execution.accept", "function_execution", id, map[string]any{"trigger": trigger, "deployment_id": deploymentID}); err != nil {
 		return domain.FunctionExecution{}, err
@@ -1687,6 +1722,24 @@ func (r *Repository) transitionFunctionExecutionResult(ctx context.Context, proj
 	}
 	if err != nil {
 		return domain.FunctionExecution{}, err
+	}
+	if next == "succeeded" || next == "failed" || next == "cancelled" {
+		usageAt := item.FinishedAt
+		if usageAt == nil {
+			usageAt = &item.UpdatedAt
+		}
+		delta := UsageDelta{}
+		if next == "failed" {
+			delta.FunctionFailureCount = 1
+		}
+		if current.StartedAt != nil && item.FinishedAt != nil {
+			if computeMS := item.FinishedAt.Sub(*current.StartedAt).Milliseconds(); computeMS > 0 {
+				delta.FunctionComputeMS = computeMS
+			}
+		}
+		if err := incrementUsageTx(ctx, tx, projectID, *usageAt, delta); err != nil {
+			return domain.FunctionExecution{}, err
+		}
 	}
 	metadata := map[string]any{"status": next}
 	if responseStatus != nil {

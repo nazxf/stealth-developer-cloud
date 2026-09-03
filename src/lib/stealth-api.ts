@@ -134,6 +134,26 @@ export type ProjectUsage = {
   site_quota_bytes: number;
   realtime_event_count: number;
   webhook_delivery_count_7d: number;
+  api_request_count_30d: number;
+  api_egress_bytes_30d: number;
+  function_invocation_count_30d: number;
+  function_failure_count_30d: number;
+  function_compute_ms_30d: number;
+};
+export type ProjectUsageDay = {
+  date: string;
+  api_request_count: number;
+  api_egress_bytes: number;
+  function_invocation_count: number;
+  function_failure_count: number;
+  function_compute_ms: number;
+};
+export type ProjectUsageMetering = {
+  project_id: string;
+  from: string;
+  to: string;
+  days: ProjectUsageDay[];
+  totals: ProjectUsageDay;
 };
 export type ProjectAPIKey = {
   id: string;
@@ -417,6 +437,8 @@ export const stealthAPI = {
   project: cache((projectID: string) => request<{ project: Project }>(`/v1/projects/${encodeURIComponent(projectID)}`)),
   updateProject: (projectID: string, input: { name: string }) =>
     request<{ project: Project }>(`/v1/projects/${encodeURIComponent(projectID)}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
+  deleteProject: (projectID: string, confirmName: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}`, { method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirm_name: confirmName }) }),
   projectAuditEvents: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
@@ -465,10 +487,19 @@ export const stealthAPI = {
     const query = params.toString();
     return request<{ users: ApplicationUser[]; pagination: Pagination; can_manage: boolean }>(`/v1/projects/${encodeURIComponent(projectID)}/users${query ? `?${query}` : ""}`);
   },
+  deleteProjectUser: (projectID: string, userID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/users/${encodeURIComponent(userID)}`, { method: "DELETE" }),
   projectAuthSettings: (projectID: string) =>
     request<{ settings: ProjectAuthSettings; can_manage: boolean }>(`/v1/projects/${encodeURIComponent(projectID)}/auth/settings`),
   projectUsage: (projectID: string) =>
     request<{ usage: ProjectUsage }>(`/v1/projects/${encodeURIComponent(projectID)}/usage`),
+  projectUsageMetering: (projectID: string, options: { from?: string; to?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.from) params.set("from", options.from);
+    if (options.to) params.set("to", options.to);
+    const query = params.toString();
+    return request<{ metering: ProjectUsageMetering }>(`/v1/projects/${encodeURIComponent(projectID)}/usage/metering${query ? `?${query}` : ""}`);
+  },
   projectAPIKeys: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
