@@ -8,14 +8,18 @@ import { ProjectStoragePage } from "@/features/console/project-storage-page";
 import { ProjectSitesPage } from "@/features/console/project-sites-page";
 import { ProjectWebhooksPage } from "@/features/console/project-webhooks-page";
 import { ProjectRealtimePage } from "@/features/console/project-realtime-page";
-import { ProjectUsagePage } from "@/features/console/project-usage-page";
+import { ProjectUsagePage, usageRangeFromQuery } from "@/features/console/project-usage-page";
 import { ProjectLogsPage } from "@/features/console/project-logs-page";
 import { ProjectSettingsPage } from "@/features/console/project-settings-page";
 import { isProjectResource, ProjectResourcePage } from "@/features/console/project-resource-page";
 
 export default async function ProjectResourceRoute({
   params,
-}: Readonly<{ params: Promise<{ projectId: string; resource: string }> }>) {
+  searchParams,
+}: Readonly<{
+  params: Promise<{ projectId: string; resource: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}>) {
   const { projectId, resource } = await params;
 
   if (!isProjectResource(resource)) notFound();
@@ -29,7 +33,10 @@ export default async function ProjectResourceRoute({
   if (resource === "deployments") return <ProjectDeploymentsPage projectId={projectId} />;
   if (resource === "webhooks") return <ProjectWebhooksPage projectId={projectId} />;
   if (resource === "realtime") return <ProjectRealtimePage projectId={projectId} />;
-  if (resource === "usage") return <ProjectUsagePage projectId={projectId} />;
+  if (resource === "usage") {
+    const query = await searchParams;
+    return <ProjectUsagePage projectId={projectId} rangeDays={usageRangeFromQuery(query.range)} />;
+  }
   if (resource === "logs") return <ProjectLogsPage projectId={projectId} />;
   if (resource === "settings") return <ProjectSettingsPage projectId={projectId} />;
 

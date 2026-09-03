@@ -1,10 +1,27 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { Activity, Clock3, Database, Download, FileText, HardDrive, Play, Radio, Server, Users, Webhook } from "lucide-react";
 import { StealthAPIError, stealthAPI, type ProjectUsage, type ProjectUsageMetering } from "@/lib/stealth-api";
+
+export const USAGE_RANGES = [7, 30, 90] as const;
+export type UsageRange = (typeof USAGE_RANGES)[number];
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const compactNumberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1 });
 const dateFormatter = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+
+export function usageRangeFromQuery(value: string | string[] | undefined): UsageRange {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate === "7" ? 7 : candidate === "90" ? 90 : 30;
+}
+
+function usageWindow(rangeDays: UsageRange) {
+  const now = new Date();
+  const to = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const from = new Date(to);
+  from.setUTCDate(from.getUTCDate() - rangeDays + 1);
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+}
 
 function formatBytes(value: number) {
   if (value < 1024) return `${value} B`;
@@ -98,7 +115,7 @@ function MeteringGrid({ usage }: { usage: ProjectUsage }) {
   );
 }
 
-function MeteringTable({ metering }: { metering: ProjectUsageMetering }) {
+function MeteringTable({ projectId, metering, rangeDays }: { projectId: string; metering: ProjectUsageMetering; rangeDays: UsageRange }) {
   return (
     <section className="mt-8 rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5" aria-labelledby="daily-metering-title">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--projects-divider)] pb-4">
@@ -106,7 +123,22 @@ function MeteringTable({ metering }: { metering: ProjectUsageMetering }) {
           <h2 id="daily-metering-title" className="m-0 text-[17px] font-semibold text-[var(--projects-text)]">Daily metering</h2>
           <p className="m-0 mt-1 text-[12px] leading-5 text-[var(--projects-muted)]">Exact non-empty UTC buckets from {metering.from} through {metering.to}.</p>
         </div>
-        <span className="rounded-full border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-1.5 text-[11px] text-[var(--projects-muted)]">{metering.days.length} active days</span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <nav aria-label="Usage range" className="flex items-center gap-0.5 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] p-0.5">
+            {USAGE_RANGES.map((days) => (
+              <Link
+                key={days}
+                href={`/projects/${encodeURIComponent(projectId)}/usage?range=${days}`}
+                scroll={false}
+                aria-current={days === rangeDays ? "page" : undefined}
+                className={`inline-flex h-7 items-center rounded-md px-2.5 text-[11px] font-medium transition-colors ${days === rangeDays ? "bg-[color-mix(in_srgb,var(--projects-accent)_14%,transparent)] text-[var(--projects-accent)]" : "text-[var(--projects-muted)] hover:text-[var(--projects-text)]"}`}
+              >
+                {days}d
+              </Link>
+            ))}
+          </nav>
+          <span className="rounded-full border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-1.5 text-[11px] text-[var(--projects-muted)]">{metering.days.length} active days</span>
+        </div>
       </div>
 
       {metering.days.length === 0 ? (
@@ -154,11 +186,12 @@ function MeteringTable({ metering }: { metering: ProjectUsageMetering }) {
   );
 }
 
-export async function ProjectUsagePage({ projectId }: { projectId: string }) {
+export async function ProjectUsagePage({ projectId, rangeDays = 30 }: { projectId: string; rangeDays?: UsageRange }) {
   try {
+    const meteringWindow = usageWindow(rangeDays);
     const [{ usage }, { metering }] = await Promise.all([
       stealthAPI.projectUsage(projectId),
-      stealthAPI.projectUsageMetering(projectId),
+      stealthAPI.projectUsageMetering(projectId, meteringWindow),
     ]);
     return (
       <section className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -168,7 +201,7 @@ export async function ProjectUsagePage({ projectId }: { projectId: string }) {
         </header>
         <UsageGrid usage={usage} />
         <MeteringGrid usage={usage} />
-        <MeteringTable metering={metering} />
+        <MeteringTable projectId={projectId} metering={metering} rangeDays={rangeDays} />
         <p className="m-0 mt-6 text-[11px] leading-5 text-[var(--projects-muted)]">Storage, Functions, and Sites percentages use the sum of project quotas. Metering values are usage facts; plan limits, invoices, and quota enforcement belong to the billing layer.</p>
       </section>
     );
