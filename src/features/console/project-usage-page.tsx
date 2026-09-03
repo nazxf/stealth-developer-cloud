@@ -124,6 +124,14 @@ function MeteringTable({ projectId, metering, rangeDays }: { projectId: string; 
           <p className="m-0 mt-1 text-[12px] leading-5 text-[var(--projects-muted)]">Exact non-empty UTC buckets from {metering.from} through {metering.to}.</p>
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2">
+          <a
+            href={`/api/stealth/projects/${encodeURIComponent(projectId)}/usage/metering?from=${encodeURIComponent(metering.from)}&to=${encodeURIComponent(metering.to)}&format=csv`}
+            download
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-2.5 text-[11px] font-semibold text-[var(--projects-text)] transition-colors hover:border-[var(--projects-border-hover)] hover:text-[var(--projects-accent)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--projects-accent)]"
+          >
+            <Download size={13} aria-hidden="true" />
+            Export CSV
+          </a>
           <nav aria-label="Usage range" className="flex items-center gap-0.5 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] p-0.5">
             {USAGE_RANGES.map((days) => (
               <Link

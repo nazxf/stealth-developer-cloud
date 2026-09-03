@@ -629,8 +629,9 @@ paths:
         - { $ref: '#/components/parameters/ProjectID' }
         - { name: from, in: query, required: false, description: Inclusive UTC start date. Defaults to 29 days before today., schema: { type: string, format: date } }
         - { name: to, in: query, required: false, description: Inclusive UTC end date. Defaults to today., schema: { type: string, format: date } }
+        - { name: format, in: query, required: false, description: Response format. CSV exports include the exact daily buckets followed by a TOTAL row., schema: { type: string, enum: [json, csv], default: json } }
       responses:
-        '200': { description: Daily project usage metering, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectUsageMeteringResponse' } } } }
+        '200': { description: Daily project usage metering, content: { application/json: { schema: { $ref: '#/components/schemas/ProjectUsageMeteringResponse' } }, text/csv: { schema: { type: string, format: binary } } } }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }

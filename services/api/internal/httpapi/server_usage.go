@@ -1,12 +1,17 @@
 package httpapi
 
 import (
+	"bytes"
+	"encoding/csv"
 	"errors"
+	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stealth-cloud/stealth/services/api/internal/domain"
 	"github.com/stealth-cloud/stealth/services/api/internal/repository"
 )
 
@@ -64,7 +69,59 @@ func (s *Server) getProjectUsageMetering(w http.ResponseWriter, r *http.Request)
 		internalError(s, w, err)
 		return
 	}
+	format := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("format")))
+	if format != "" && format != "json" && format != "csv" {
+		writeError(w, http.StatusUnprocessableEntity, "validation_error", "format must be json or csv")
+		return
+	}
+	if format == "csv" {
+		body, err := usageMeteringCSV(item)
+		if err != nil {
+			internalError(s, w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="stealth-usage-%s-%s-to-%s.csv"`, item.ProjectID, item.From, item.To))
+		_, _ = w.Write(body)
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{"metering": item})
+}
+
+func usageMeteringCSV(item domain.ProjectUsageMetering) ([]byte, error) {
+	var buffer bytes.Buffer
+	writer := csv.NewWriter(&buffer)
+	if err := writer.Write([]string{"date", "api_request_count", "api_egress_bytes", "function_invocation_count", "function_failure_count", "function_compute_ms"}); err != nil {
+		return nil, err
+	}
+	for _, day := range item.Days {
+		if err := writer.Write([]string{
+			day.Date,
+			strconv.FormatInt(day.APIRequestCount, 10),
+			strconv.FormatInt(day.APIEgressBytes, 10),
+			strconv.FormatInt(day.FunctionInvocationCount, 10),
+			strconv.FormatInt(day.FunctionFailureCount, 10),
+			strconv.FormatInt(day.FunctionComputeMS, 10),
+		}); err != nil {
+			return nil, err
+		}
+	}
+	totals := item.Totals
+	if err := writer.Write([]string{
+		"TOTAL",
+		strconv.FormatInt(totals.APIRequestCount, 10),
+		strconv.FormatInt(totals.APIEgressBytes, 10),
+		strconv.FormatInt(totals.FunctionInvocationCount, 10),
+		strconv.FormatInt(totals.FunctionFailureCount, 10),
+		strconv.FormatInt(totals.FunctionComputeMS, 10),
+	}); err != nil {
+		return nil, err
+	}
+	writer.Flush()
+	if err := writer.Error(); err != nil {
+		return nil, err
+	}
+	return buffer.Bytes(), nil
 }
 
 func parseUsageDate(raw string, fallback time.Time) (time.Time, error) {

@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,6 +137,22 @@ func TestProjectUsageIntegration(t *testing.T) {
 	if metering.Metering.Totals.APIRequestCount != 7 || metering.Metering.Totals.FunctionComputeMS != 50 {
 		t.Fatalf("unexpected metering totals: %+v", metering.Metering.Totals)
 	}
+	csvResponse, err := ownerClient.Get(projectURL + "/usage/metering?from=" + usageDate + "&to=" + usageDate + "&format=csv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	csvBody, readErr := io.ReadAll(csvResponse.Body)
+	_ = csvResponse.Body.Close()
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if csvResponse.StatusCode != http.StatusOK || !strings.HasPrefix(csvResponse.Header.Get("Content-Type"), "text/csv") {
+		t.Fatalf("CSV response status/content type = %d/%q", csvResponse.StatusCode, csvResponse.Header.Get("Content-Type"))
+	}
+	if !strings.Contains(csvResponse.Header.Get("Content-Disposition"), "stealth-usage-"+project.Project.ID) || !strings.Contains(string(csvBody), "TOTAL,7,700,2,1,50") {
+		t.Fatalf("unexpected CSV export: disposition=%q body=%q", csvResponse.Header.Get("Content-Disposition"), string(csvBody))
+	}
 	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage/metering?from=not-a-date", nil, http.StatusUnprocessableEntity, nil)
 	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage/metering?from=2020-01-01&to=2022-01-01", nil, http.StatusUnprocessableEntity, nil)
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/usage/metering?format=xml", nil, http.StatusUnprocessableEntity, nil)
 }

@@ -23,7 +23,9 @@ GET /v1/projects/{projectID}/usage/metering?from=YYYY-MM-DD&to=YYYY-MM-DD
 Both dates are optional UTC calendar dates (default: the last 30 days,
 inclusive); windows are capped at 367 days. Empty days are omitted, while the
 response contains exact totals for the returned buckets. Invoice calculation
-and plan enforcement remain a separate billing concern.
+and plan enforcement remain a separate billing concern. Add `format=csv` to
+download the same daily buckets as a CSV file with a final `TOTAL` row; JSON
+remains the default response format.
 
 The response includes `captured_at` so callers can label the live snapshot and
 refresh it when needed.
