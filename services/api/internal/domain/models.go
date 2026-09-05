@@ -126,6 +126,19 @@ type Project struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
+// ProjectServiceLayout stores the durable editor position for one resource in
+// a project's Services canvas. Resource IDs are validated against their
+// project-owned table by the repository because the four resource types are
+// intentionally represented by one polymorphic projection table.
+type ProjectServiceLayout struct {
+	ProjectID    string    `json:"project_id"`
+	ResourceType string    `json:"resource_type"`
+	ResourceID   string    `json:"resource_id"`
+	X            int       `json:"x"`
+	Y            int       `json:"y"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 // Agent is the persisted configuration for a project coding agent. Provider
 // credentials and execution output are deliberately not part of this
 // projection; execution output belongs to AgentRun resources.

@@ -70,6 +70,14 @@ const projectSchema = z.object({
   name: z.string(),
   created_at: z.string(),
 });
+const projectServiceLayoutSchema = z.object({
+  project_id: z.string(),
+  resource_type: z.enum(["function", "site", "database", "storage"]),
+  resource_id: z.string(),
+  x: z.number().int(),
+  y: z.number().int(),
+  updated_at: z.string(),
+});
 
 const paginationSchema = z.object({
   limit: z.number(),
@@ -485,6 +493,7 @@ export type BrowserOrganizationInvitation = z.infer<typeof organizationInvitatio
 export type BrowserOrganizationAuditEvent = z.infer<typeof organizationAuditEventSchema>;
 export type BrowserOrganization = z.infer<typeof organizationSchema>;
 export type BrowserProject = z.infer<typeof projectSchema>;
+export type BrowserProjectServiceLayout = z.infer<typeof projectServiceLayoutSchema>;
 export type BrowserOrganizationsResponse = z.infer<typeof organizationsResponseSchema>;
 export type BrowserProjectsResponse = z.infer<typeof projectsResponseSchema>;
 export type BrowserProjectUsage = z.infer<typeof projectUsageSchema>;
@@ -646,6 +655,17 @@ export const browserAPI = {
   },
   project: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema })),
+  projectServiceLayout: (projectID: string) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/service-layout`,
+      z.object({ layout: z.array(projectServiceLayoutSchema), can_manage: z.boolean() }),
+    ),
+  replaceProjectServiceLayout: (projectID: string, layout: Array<Pick<BrowserProjectServiceLayout, "resource_type" | "resource_id" | "x" | "y">>) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/service-layout`,
+      z.object({ layout: z.array(projectServiceLayoutSchema), can_manage: z.boolean() }),
+      { method: "PUT", body: JSON.stringify({ layout }) },
+    ),
   updateProject: (projectID: string, input: { name: string }) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema }), { method: "PATCH", body: JSON.stringify(input) }),
   deleteProject: (projectID: string, confirmName: string) =>

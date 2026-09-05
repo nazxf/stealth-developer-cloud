@@ -140,11 +140,16 @@ simulated async behavior (timers standing in for network calls).
 
 ### Services workspace — migrated in Vite
 - `/projects/{projectID}/services` fans out to the authenticated Function, Site,
-  Database, and Storage bucket APIs and renders a live service inventory.
-- The screen deliberately does not recreate the old localStorage canvas or
-  simulated deployment timers. Deployment state and artifacts remain owned by
-  their durable Go resources; the next canvas iteration can add persisted
-  coordinates without reintroducing browser-only product data.
+  Database, and Storage bucket APIs and renders a live service inventory plus an
+  interactive canvas with selection, resource links, pointer dragging, and
+  keyboard arrow movement.
+- Canvas positions are stored by the Go API in the project-scoped
+  `project_service_layouts` projection (`GET/PUT /v1/projects/{projectID}/service-layout`).
+  The repository validates every polymorphic resource ID against the current
+  project and atomically replaces the layout; stale rows for deleted resources
+  are hidden from reads. Only project owners/admins may save positions, while
+  all project members can inspect the canvas. No service data or coordinates are
+  authoritative in localStorage.
 
 ### `src/features/projects/pre-deploy/` — [S][LS]
 - `pre-deploy-model.ts` + `pre-deploy-flow.tsx`: simulated source/connect

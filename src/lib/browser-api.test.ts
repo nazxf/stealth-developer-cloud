@@ -112,4 +112,40 @@ describe("browser API boundary", () => {
     expect((init?.headers as Headers).get("content-type")).toBe("application/json");
     expect(init?.body).toBe(JSON.stringify({ name: "api" }));
   });
+
+  it("reads and replaces a project service layout with typed coordinates", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          layout: [
+            {
+              project_id: "project-1",
+              resource_type: "function",
+              resource_id: "function-1",
+              x: 160,
+              y: 48,
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+          ],
+          can_manage: true,
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const saved = await browserAPI.replaceProjectServiceLayout("project/one", [
+      { resource_type: "function", resource_id: "function-1", x: 160, y: 48 },
+    ]);
+
+    expect(saved.layout[0]?.x).toBe(160);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/service-layout");
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(init?.method).toBe("PUT");
+    expect((init?.headers as Headers).get("content-type")).toBe("application/json");
+    expect(init?.body).toBe(
+      JSON.stringify({
+        layout: [{ resource_type: "function", resource_id: "function-1", x: 160, y: 48 }],
+      }),
+    );
+  });
 });
