@@ -10,6 +10,7 @@ import {
   useParams,
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { m, useReducedMotion } from "motion/react";
 import { LogOut, Plus, Server, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
@@ -38,6 +39,7 @@ function RootLayout() {
   const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
   const account = accountQuery.data?.account;
   const location = useLocation();
+  const prefersReducedMotion = useReducedMotion();
   const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/);
   const projectId = projectMatch ? decodeURIComponent(projectMatch[1]) : null;
 
@@ -57,7 +59,16 @@ function RootLayout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">{projectId ? <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8"><ProjectShellNavigation projectId={projectId} /><div className="min-w-0"><Outlet /></div></div> : <Outlet />}</main>
+      <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        <m.div
+          key={location.pathname}
+          initial={prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.18, ease: "easeOut" }}
+        >
+          {projectId ? <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8"><ProjectShellNavigation projectId={projectId} /><div className="min-w-0"><Outlet /></div></div> : <Outlet />}
+        </m.div>
+      </main>
     </div>
   );
 }

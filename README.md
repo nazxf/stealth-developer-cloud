@@ -427,6 +427,7 @@ Stderr is retained only as redacted, bounded execution logs.
 npm install
 npm run dev          # Vite dev server
 npm run typecheck    # TypeScript check for the Vite application
+npm test             # Vitest browser API contract tests
 npm run build        # Vite production build
-npm run check        # typecheck + Vite build
+npm run check        # typecheck + tests + Vite build
 ```

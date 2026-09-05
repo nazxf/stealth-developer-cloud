@@ -27,6 +27,13 @@ npm run build
 npm run preview # local verification only
 ```
 
+The frontend smoke suite exercises the typed browser API boundary with a
+browser-like runtime:
+
+```bash
+npm test
+```
+
 Publish `dist/` behind a static host or reverse proxy with SPA fallback to
 `index.html`. Prefer serving the API and console from one origin; otherwise
 use an explicit exact-origin `CONSOLE_CORS_ORIGINS` list and HTTPS with

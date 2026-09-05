@@ -10,7 +10,9 @@
     "start": "vite preview",
     "typecheck": "tsc --noEmit",
     "typecheck:vite": "tsc --project tsconfig.vite.json --noEmit",
-    "check": "npm run typecheck && npm run build"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -35,9 +37,11 @@
     "@types/node": "26.2.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "jsdom": "^30.0.1",
     "postcss": "latest",
     "react-grab": "^0.2.0",
     "tailwindcss": "^4.3.3",
-    "typescript": "7.0.2"
+    "typescript": "7.0.2",
+    "vitest": "^5.0.0"
   }
 }

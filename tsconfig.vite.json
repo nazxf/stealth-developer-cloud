@@ -4,6 +4,6 @@
     "noEmit": true,
     "types": ["vite/client"]
   },
-  "include": ["src/main.tsx", "src/vite-env.d.ts", "src/vite/**/*.ts", "src/vite/**/*.tsx", "src/lib/browser-api.ts"],
+  "include": ["src/main.tsx", "src/vite-env.d.ts", "src/vite/**/*.ts", "src/vite/**/*.tsx", "src/lib/browser-api.ts", "src/**/*.test.ts"],
   "exclude": ["node_modules"]
 }
