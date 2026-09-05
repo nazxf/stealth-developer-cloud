@@ -56,6 +56,23 @@ const projectUsageSchema = z.object({
   site_count: z.number(),
   webhook_delivery_count_7d: z.number(),
 }).passthrough();
+const applicationUserSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  email: z.string().email(),
+  name: z.string().nullable(),
+  status: z.enum(["active", "blocked"]),
+  email_verified: z.boolean(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const projectAuthSettingsSchema = z.object({
+  project_id: z.string(),
+  registration_enabled: z.boolean(),
+  cors_origins: z.array(z.string()),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const projectAPIKeyScopeSchema = z.enum([
   "users.read",
   "users.write",
@@ -189,6 +206,8 @@ export type BrowserOrganization = z.infer<typeof organizationSchema>;
 export type BrowserProject = z.infer<typeof projectSchema>;
 export type BrowserOrganizationsResponse = z.infer<typeof organizationsResponseSchema>;
 export type BrowserProjectsResponse = z.infer<typeof projectsResponseSchema>;
+export type BrowserApplicationUser = z.infer<typeof applicationUserSchema>;
+export type BrowserProjectAuthSettings = z.infer<typeof projectAuthSettingsSchema>;
 export type BrowserProjectAPIKey = z.infer<typeof projectAPIKeySchema>;
 export type BrowserProjectAPIKeyScope = z.infer<typeof projectAPIKeyScopeSchema>;
 
@@ -260,6 +279,39 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema })),
   projectUsage: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/usage`, z.object({ usage: projectUsageSchema })),
+  projectUsers: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/users${query ? `?${query}` : ""}`,
+      z.object({ users: z.array(applicationUserSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough(),
+    );
+  },
+  createProjectUser: (projectID: string, input: { email: string; password: string; name?: string }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/users`,
+      z.object({ user: applicationUserSchema }),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  updateProjectUserStatus: (projectID: string, userID: string, status: "active" | "blocked") =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/users/${encodeURIComponent(userID)}/status`,
+      z.object({ user: applicationUserSchema }),
+      { method: "PATCH", body: JSON.stringify({ status }) },
+    ),
+  projectAuthSettings: (projectID: string) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/auth/settings`,
+      z.object({ settings: projectAuthSettingsSchema, can_manage: z.boolean() }).passthrough(),
+    ),
+  updateProjectAuthSettings: (projectID: string, input: { registration_enabled?: boolean; cors_origins?: string[] }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/auth/settings`,
+      z.object({ settings: projectAuthSettingsSchema, can_manage: z.boolean() }).passthrough(),
+      { method: "PATCH", body: JSON.stringify(input) },
+    ),
   projectAPIKeys: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
