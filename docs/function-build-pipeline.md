@@ -53,8 +53,9 @@ new version when source or build settings change.
 ## Operations
 
 Inspect `build_status`, `build_started_at`, `built_at`, and `error_message` from
-the deployment API. Build logs are available through the existing deployment
-build-log endpoint. Worker Prometheus metrics include
+the deployment API. Bounded, secret-redacted build logs are available from
+`GET /v1/projects/{projectID}/functions/{functionID}/deployments/{deploymentID}/logs`
+with `limit` and sequence-based `after` pagination. Worker Prometheus metrics include
 `stealth_functions_worker_builds_claimed_total`,
 `stealth_functions_worker_builds_completed_total`,
 `stealth_functions_worker_build_duration_seconds`, and stale-build requeues.

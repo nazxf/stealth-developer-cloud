@@ -395,6 +395,10 @@ the API starts; losing or rotating it without a migration makes existing
 variable values undecryptable. Store it in a deployment secret manager, never
 in the repository.
 
+Deployment metadata and bounded, secret-redacted build logs are available from
+the management API while the worker builds. Runtime execution metadata and
+bounded execution logs are available after invocation.
+
 The worker is a separately deployed `stealth-worker` process. Each deployment
 first leases a build job with PostgreSQL row locks, extracts the source in a
 trusted staging area, runs `commands` once in an isolated Docker container, and

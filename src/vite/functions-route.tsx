@@ -26,6 +26,7 @@ import {
   BrowserAPIError,
   browserAPI,
   type BrowserFunction,
+  type BrowserFunctionBuildLog,
   type BrowserFunctionRuntime,
   type BrowserFunctionExecutionLog,
   type BrowserFunctionVariable,
@@ -136,6 +137,7 @@ export default function FunctionsRoute() {
   const [variableDescription, setVariableDescription] = useState("");
   const [executionTrigger, setExecutionTrigger] = useState("manual");
   const [executionInput, setExecutionInput] = useState("{}");
+  const [selectedDeploymentID, setSelectedDeploymentID] = useState("");
   const [selectedExecutionID, setSelectedExecutionID] = useState("");
   const sourceInputRef = useRef<HTMLInputElement>(null);
   const functions = functionsQuery.data?.functions ?? [];
@@ -159,6 +161,7 @@ export default function FunctionsRoute() {
     setExecuteDraft(selected.execute_permissions.join(", "));
   }, [selected]);
   useEffect(() => {
+    setSelectedDeploymentID("");
     setSelectedExecutionID("");
   }, [selectedID]);
 
@@ -169,6 +172,12 @@ export default function FunctionsRoute() {
         limit: 50,
       }),
     enabled: Boolean(selectedID),
+    refetchInterval: tab === "deployments" ? 2500 : false,
+  });
+  const deploymentLogsQuery = useQuery({
+    queryKey: ["function-build-logs", projectId, selectedID, selectedDeploymentID],
+    queryFn: () => browserAPI.projectFunctionBuildLogs(projectId, selectedID, selectedDeploymentID, { limit: 100 }),
+    enabled: Boolean(selectedID && selectedDeploymentID && tab === "deployments"),
     refetchInterval: tab === "deployments" ? 2500 : false,
   });
   const variablesQuery = useQuery({
@@ -479,6 +488,11 @@ export default function FunctionsRoute() {
           setActivateUpload={setActivateUpload}
           deployments={deploymentsQuery.data?.deployments ?? []}
           loading={deploymentsQuery.isPending}
+          selectedDeploymentID={selectedDeploymentID}
+          onSelectDeployment={setSelectedDeploymentID}
+          buildLogs={deploymentLogsQuery.data?.logs ?? []}
+          buildLogsLoading={deploymentLogsQuery.isPending}
+          buildLogsError={deploymentLogsQuery.error}
           onUpload={uploadDeployment}
           onActivate={activateDeployment}
           onDelete={deleteDeployment}
@@ -827,6 +841,11 @@ function DeploymentsPanel({
   setActivateUpload,
   deployments,
   loading,
+  selectedDeploymentID,
+  onSelectDeployment,
+  buildLogs,
+  buildLogsLoading,
+  buildLogsError,
   onUpload,
   onActivate,
   onDelete,
@@ -851,6 +870,11 @@ function DeploymentsPanel({
     activated_at?: string | null;
   }>;
   loading: boolean;
+  selectedDeploymentID: string;
+  onSelectDeployment: (deploymentID: string) => void;
+  buildLogs: BrowserFunctionBuildLog[];
+  buildLogsLoading: boolean;
+  buildLogsError: unknown;
   onUpload: (event: FormEvent<HTMLFormElement>) => void;
   onActivate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -954,28 +978,36 @@ function DeploymentsPanel({
                     v{deployment.version}
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      <span
-                        className={`rounded-full border px-2 py-1 ${statusClass(deployment.status)}`}
-                      >
-                        {deployment.status}
-                      </span>
-                      {deployment.build_status !== deployment.status ? (
+                    <button
+                      type="button"
+                      onClick={() => onSelectDeployment(deployment.id)}
+                      aria-pressed={selectedDeploymentID === deployment.id}
+                      aria-label={`View build logs for deployment ${deployment.id}`}
+                      className={`rounded-md text-left ${selectedDeploymentID === deployment.id ? "ring-2 ring-[var(--projects-accent)]/50" : ""}`}
+                    >
+                      <div className="flex flex-wrap gap-1">
                         <span
-                          className={`rounded-full border px-2 py-1 ${statusClass(deployment.build_status)}`}
+                          className={`rounded-full border px-2 py-1 ${statusClass(deployment.status)}`}
                         >
-                          build {deployment.build_status}
+                          {deployment.status}
                         </span>
+                        {deployment.build_status !== deployment.status ? (
+                          <span
+                            className={`rounded-full border px-2 py-1 ${statusClass(deployment.build_status)}`}
+                          >
+                            build {deployment.build_status}
+                          </span>
+                        ) : null}
+                      </div>
+                      {deployment.error_message ? (
+                        <p
+                          className="m-0 mt-1 max-w-[220px] truncate text-[var(--projects-danger)]"
+                          title={deployment.error_message}
+                        >
+                          {deployment.error_message}
+                        </p>
                       ) : null}
-                    </div>
-                    {deployment.error_message ? (
-                      <p
-                        className="m-0 mt-1 max-w-[220px] truncate text-[var(--projects-danger)]"
-                        title={deployment.error_message}
-                      >
-                        {deployment.error_message}
-                      </p>
-                    ) : null}
+                    </button>
                   </td>
                   <td
                     className="max-w-[200px] truncate px-3 py-3 text-[var(--projects-muted)]"
@@ -1024,6 +1056,45 @@ function DeploymentsPanel({
           No deployments yet. Upload a source archive to create one.
         </p>
       )}
+      {selectedDeploymentID ? (
+        <section className="mt-5 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Terminal size={15} className="text-[var(--projects-accent)]" aria-hidden="true" />
+              <h4 className="m-0 text-sm font-semibold">Build logs</h4>
+            </div>
+            <span className="font-mono text-[10px] text-[var(--projects-muted)]">
+              deployment: {selectedDeploymentID}
+            </span>
+          </div>
+          <p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">
+            Secret-redacted output emitted by the trusted Function build worker.
+          </p>
+          {buildLogsLoading ? (
+            <p className="m-0 mt-4 text-xs text-[var(--projects-muted)]">Loading build logs…</p>
+          ) : buildLogsError ? (
+            <p role="alert" className="m-0 mt-4 text-xs text-rose-200">
+              {buildLogsError instanceof Error ? buildLogsError.message : "Unable to load build logs."}
+            </p>
+          ) : buildLogs.length ? (
+            <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">
+              {buildLogs.map((log) => (
+                <p key={log.id} className="m-0 border-b border-[var(--projects-divider)] py-1.5 font-mono text-[10px] leading-5 last:border-0">
+                  <span className={`mr-2 uppercase ${log.level === "error" ? "text-rose-200" : log.level === "warn" ? "text-amber-200" : "text-[var(--projects-accent)]"}`}>
+                    {log.level}
+                  </span>
+                  <span className="mr-2 text-[var(--projects-muted)]">#{log.sequence}</span>
+                  {log.message}
+                </p>
+              ))}
+            </div>
+          ) : (
+            <p className="m-0 mt-4 rounded-lg border border-dashed border-[var(--projects-border)] p-6 text-center text-xs text-[var(--projects-muted)]">
+              No build logs have been emitted for this deployment.
+            </p>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

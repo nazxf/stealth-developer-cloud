@@ -195,6 +195,21 @@ func TestFunctionsControlPlaneIntegration(t *testing.T) {
 	if !bytes.Contains(activationBody, []byte(`"function"`)) || !bytes.Contains(activationBody, []byte(`"deployment"`)) {
 		t.Fatalf("activation response did not contain both canonical resources: %s", activationBody)
 	}
+	functionRepository := repository.New(pool)
+	if _, err := functionRepository.AppendFunctionBuildLog(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(deploymentID)), uuid.Must(uuid.NewV7()), 0, "info", "worker build completed"); err != nil {
+		t.Fatal(err)
+	}
+	var buildLogs struct {
+		Logs []struct {
+			Sequence int64  `json:"sequence"`
+			Level    string `json:"level"`
+			Message  string `json:"message"`
+		} `json:"logs"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, functionsURL+"/deployments/"+deploymentID+"/logs?limit=100", nil, http.StatusOK, &buildLogs)
+	if len(buildLogs.Logs) != 1 || buildLogs.Logs[0].Sequence != 1 || buildLogs.Logs[0].Level != "info" || buildLogs.Logs[0].Message != "worker build completed" {
+		t.Fatalf("unexpected build logs: %+v", buildLogs.Logs)
+	}
 	executionBody := requestJSONRawWithHeaders(t, newIntegrationClient(t), http.MethodPost, functionsURL+"/executions", map[string]any{"trigger": "manual", "input": map[string]any{"hello": "world"}}, http.StatusAccepted, writeHeaders)
 	if !bytes.Contains(executionBody, []byte(`"status":"accepted"`)) || !bytes.Contains(executionBody, []byte(`"input_json":{"hello":"world"}`)) {
 		t.Fatalf("execution enqueue response was unexpected: %s", executionBody)
@@ -223,7 +238,6 @@ func TestFunctionsControlPlaneIntegration(t *testing.T) {
 	if err := json.Unmarshal(anonymousExecution, &anonymousExecutionResponse); err != nil {
 		t.Fatal(err)
 	}
-	functionRepository := repository.New(pool)
 	if _, err := functionRepository.TransitionFunctionExecution(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(executionResponse.Execution.ID)), "running", ""); err != nil {
 		t.Fatal(err)
 	}

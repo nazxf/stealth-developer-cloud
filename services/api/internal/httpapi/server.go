@@ -325,6 +325,7 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireProjectManagement).Get("/projects/{projectID}/functions/{functionID}/deployments/{deploymentID}", s.getFunctionDeployment)
 		r.With(s.requireProjectManagement).Delete("/projects/{projectID}/functions/{functionID}/deployments/{deploymentID}", s.deleteFunctionDeployment)
 		r.With(s.requireProjectManagement).Post("/projects/{projectID}/functions/{functionID}/deployments/{deploymentID}/activate", s.activateFunctionDeployment)
+		r.With(s.requireProjectManagement).Get("/projects/{projectID}/functions/{functionID}/deployments/{deploymentID}/logs", s.listFunctionBuildLogs)
 		r.With(s.requireFunctionExecutionActor).Post("/projects/{projectID}/functions/{functionID}/executions", s.createFunctionExecution)
 		r.With(s.requireProjectManagement).Get("/projects/{projectID}/functions/{functionID}/executions", s.listFunctionExecutions)
 		r.With(s.requireProjectManagement).Get("/projects/{projectID}/functions/{functionID}/executions/{executionID}", s.getFunctionExecution)

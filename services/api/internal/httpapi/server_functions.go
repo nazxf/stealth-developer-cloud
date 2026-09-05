@@ -931,6 +931,43 @@ func (s *Server) listFunctionExecutionLogs(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]any{"logs": items, "pagination": pagination{Limit: limit, NextCursor: nextCursor}})
 }
 
+func (s *Server) listFunctionBuildLogs(w http.ResponseWriter, r *http.Request) {
+	projectID, functionID, deploymentID, ok := functionDeploymentPathIDs(w, r)
+	if !ok {
+		return
+	}
+	limit, _, ok := page(w, r)
+	if !ok {
+		return
+	}
+	after := int64(0)
+	if raw := strings.TrimSpace(r.URL.Query().Get("after")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed < 0 {
+			writeError(w, http.StatusBadRequest, "validation_error", "after must be a non-negative integer")
+			return
+		}
+		after = parsed
+	}
+	items, err := s.repo.ListFunctionBuildLogs(r.Context(), projectID, functionID, deploymentID, functionActorFrom(r), limit, after)
+	if functionResourceError(w, err) {
+		return
+	}
+	if err != nil {
+		internalError(s, w, err)
+		return
+	}
+	next := ""
+	if len(items) == limit {
+		next = strconv.FormatInt(items[len(items)-1].Sequence, 10)
+	}
+	var nextCursor *string
+	if next != "" {
+		nextCursor = &next
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"logs": items, "pagination": pagination{Limit: limit, NextCursor: nextCursor}})
+}
+
 func functionPathIDs(w http.ResponseWriter, r *http.Request) (uuid.UUID, uuid.UUID, bool) {
 	projectID, ok := pathUUID(w, r, "projectID")
 	if !ok {

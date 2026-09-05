@@ -351,6 +351,16 @@ const functionExecutionLogSchema = z.object({
   message: z.string(),
   created_at: z.string(),
 }).passthrough();
+const functionBuildLogSchema = z.object({
+  id: z.string(),
+  deployment_id: z.string(),
+  function_id: z.string(),
+  project_id: z.string(),
+  sequence: z.number(),
+  level: z.string(),
+  message: z.string(),
+  created_at: z.string(),
+}).passthrough();
 const traceSchema = z.object({
   id: z.string(),
   trace_id: z.string(),
@@ -487,6 +497,7 @@ export type BrowserFunction = z.infer<typeof functionSchema>;
 export type BrowserFunctionVariable = z.infer<typeof functionVariableSchema>;
 export type BrowserFunctionExecution = z.infer<typeof functionExecutionSchema>;
 export type BrowserFunctionExecutionLog = z.infer<typeof functionExecutionLogSchema>;
+export type BrowserFunctionBuildLog = z.infer<typeof functionBuildLogSchema>;
 export type BrowserFunctionRuntime = z.infer<typeof functionRuntimeSchema>;
 export type BrowserSite = z.infer<typeof siteSchema>;
 export type BrowserSiteDomain = z.infer<typeof siteDomainSchema>;
@@ -852,6 +863,13 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}/activate`, z.object({ function: functionSchema, deployment: deploymentSchema }), { method: "POST" }),
   deleteProjectFunctionDeployment: (projectID: string, functionID: string, deploymentID: string) =>
     request<void>(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}`, z.undefined(), { method: "DELETE" }),
+  projectFunctionBuildLogs: (projectID: string, functionID: string, deploymentID: string, options: { limit?: number; after?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.after !== undefined) params.set("after", String(options.after));
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}/logs${query ? `?${query}` : ""}`, z.object({ logs: z.array(functionBuildLogSchema), pagination: paginationSchema }).passthrough());
+  },
   projectFunctionExecutions: (projectID: string, functionID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
