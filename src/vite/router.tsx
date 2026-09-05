@@ -17,6 +17,7 @@ import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 import { ProjectShellNavigation } from "./project-shell";
 import { LoginForm } from "./login-form";
+import { LogoutButton } from "./logout-button";
 
 const publicAuthPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation"]);
 
@@ -87,19 +88,7 @@ function RootLayout() {
 
 function LogoutControl() {
   const navigate = useNavigate();
-  const [pending, setPending] = useState(false);
-  async function logout() {
-    if (pending) return;
-    setPending(true);
-    try {
-      await browserAPI.logout();
-      await queryClient.clear();
-      await navigate({ to: "/login", replace: true });
-    } finally {
-      setPending(false);
-    }
-  }
-  return <button type="button" onClick={() => void logout()} disabled={pending} className="ml-2 inline-flex items-center rounded-md border border-[var(--projects-border)] px-2.5 py-1.5 text-xs text-[var(--projects-muted)] hover:text-[var(--projects-text)] disabled:opacity-60">{pending ? "…" : "Log out"}</button>;
+  return <LogoutButton onLoggedOut={async () => { await queryClient.clear(); await navigate({ to: "/login", replace: true }); }} />;
 }
 
 function LoginRoute() {

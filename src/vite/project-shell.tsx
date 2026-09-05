@@ -46,6 +46,29 @@ const linkClass =
 const activeClass =
   "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]";
 
+const explicitResources = new Set([
+  "deployments",
+  "usage",
+  "logs",
+  "auth",
+  "databases",
+  "storage",
+  "functions",
+  "sites",
+  "realtime",
+  "webhooks",
+  "messaging",
+  "api-keys",
+  "settings",
+]);
+
+export function projectNavigationPath(resource: string) {
+  if (resource === "__overview__") return "/projects/$projectId";
+  if (resource === "services") return "/projects/$projectId/services";
+  if (explicitResources.has(resource)) return `/projects/$projectId/${resource}`;
+  return "/projects/$projectId/$resource";
+}
+
 export function ProjectShellNavigation({ projectId }: { projectId: string }) {
   return (
     <aside className="mb-6 lg:mb-0">
@@ -80,10 +103,11 @@ function ProjectNavLink({
   projectId: string;
 }) {
   const Icon = item.icon;
+  const path = projectNavigationPath(item.resource);
   if (item.resource === "__overview__") {
     return (
       <Link
-        to="/projects/$projectId"
+        to={path}
         params={{ projectId }}
         activeOptions={{ exact: true }}
         activeProps={{ className: activeClass }}
@@ -98,7 +122,7 @@ function ProjectNavLink({
   if (item.resource === "services") {
     return (
       <Link
-        to="/projects/$projectId/services"
+        to={path}
         params={{ projectId }}
         activeProps={{ className: activeClass }}
         className={linkClass}
@@ -109,25 +133,10 @@ function ProjectNavLink({
     );
   }
 
-  const explicitResources = new Set([
-    "deployments",
-    "usage",
-    "logs",
-    "auth",
-    "databases",
-    "storage",
-    "functions",
-    "sites",
-    "realtime",
-    "webhooks",
-    "messaging",
-    "api-keys",
-    "settings",
-  ]);
   if (explicitResources.has(item.resource)) {
     return (
       <Link
-        to={`/projects/$projectId/${item.resource}` as never}
+        to={path as never}
         params={{ projectId } as never}
         activeProps={{ className: activeClass }}
         className={linkClass}

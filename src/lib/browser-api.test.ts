@@ -78,4 +78,38 @@ describe("browser API boundary", () => {
       message: "not allowed",
     });
   });
+
+  it("keeps organization project listing pagination URL encoded", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          projects: [{ id: "project-1", organization_id: "org/one", name: "console", created_at: "2026-09-05T00:00:00Z" }],
+          pagination: { limit: 20, next_cursor: null },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await browserAPI.projects("org/one", { limit: 20, cursor: "cursor one" });
+
+    expect(result.projects[0]?.name).toBe("console");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/organizations/org%2Fone/projects?limit=20&cursor=cursor+one");
+  });
+
+  it("posts a project to the selected organization with JSON headers", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({ project: { id: "project-2", organization_id: "org-1", name: "api", created_at: "2026-09-05T00:00:00Z" } }),
+        { status: 201 },
+      ),
+    );
+
+    const result = await browserAPI.createProject("org-1", { name: "api" });
+
+    expect(result.project.id).toBe("project-2");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/organizations/org-1/projects");
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect((init?.headers as Headers).get("content-type")).toBe("application/json");
+    expect(init?.body).toBe(JSON.stringify({ name: "api" }));
+  });
 });
