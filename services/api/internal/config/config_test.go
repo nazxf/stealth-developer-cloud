@@ -78,6 +78,27 @@ func TestLoadAuthDeliveryConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadConsoleCORSOrigins(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://example.invalid/stealth")
+	t.Setenv("CONSOLE_CORS_ORIGINS", "http://localhost:5173, https://console.example.test:443")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.ConsoleCORSOrigins) != 2 || cfg.ConsoleCORSOrigins[0] != "http://localhost:5173" || cfg.ConsoleCORSOrigins[1] != "https://console.example.test" {
+		t.Fatalf("ConsoleCORSOrigins = %#v", cfg.ConsoleCORSOrigins)
+	}
+
+	t.Setenv("CONSOLE_CORS_ORIGINS", "https://console.example.test/path")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CONSOLE_CORS_ORIGINS") {
+		t.Fatalf("path-bearing console origin returned %v", err)
+	}
+	t.Setenv("CONSOLE_CORS_ORIGINS", "https://console.example.test,https://CONSOLE.example.test")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CONSOLE_CORS_ORIGINS") {
+		t.Fatalf("duplicate console origin returned %v", err)
+	}
+}
+
 func TestLoadRequiresDatabaseURL(t *testing.T) {
 	t.Setenv("DATABASE_URL", "")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DATABASE_URL is required") {

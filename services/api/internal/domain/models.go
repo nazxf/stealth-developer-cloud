@@ -360,6 +360,42 @@ type MessagingSubscriber struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// MessagingMessage is a safe delivery projection. The message body, subject,
+// and optional data are encrypted at rest and are intentionally omitted from
+// API responses.
+type MessagingMessage struct {
+	ID             string     `json:"id"`
+	ProjectID      string     `json:"project_id"`
+	TopicID        *string    `json:"topic_id"`
+	Channel        string     `json:"channel"`
+	Status         string     `json:"status"`
+	RecipientCount int64      `json:"recipient_count"`
+	SucceededCount int64      `json:"succeeded_count"`
+	FailedCount    int64      `json:"failed_count"`
+	CancelledAt    *time.Time `json:"cancelled_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+// MessagingDelivery is a safe per-recipient status projection. The recipient
+// address is represented only by the masked preview captured at enqueue time.
+type MessagingDelivery struct {
+	ID             string     `json:"id"`
+	ProjectID      string     `json:"project_id"`
+	MessageID      string     `json:"message_id"`
+	SubscriberID   *string    `json:"subscriber_id,omitempty"`
+	ProviderID     *string    `json:"provider_id,omitempty"`
+	Channel        string     `json:"channel"`
+	AddressPreview string     `json:"address_preview"`
+	Status         string     `json:"status"`
+	AttemptCount   int        `json:"attempt_count"`
+	LastStatusCode *int       `json:"last_status_code,omitempty"`
+	LastError      *string    `json:"last_error,omitempty"`
+	DeliveredAt    *time.Time `json:"delivered_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
 // RealtimeEvent is the short-lived project event envelope consumed by the
 // Realtime SSE transport. Payload contains the exact JSON envelope persisted
 // in the transactional outbox and is kept out of ordinary JSON projections so

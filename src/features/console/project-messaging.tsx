@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, ChevronDown, ChevronRight, LoaderCircle, Mail, MessageSquare, Plus, ShieldCheck, Smartphone, Trash2, Users, X } from "lucide-react";
 import type { ProjectMessagingProvider, ProjectMessagingSubscriber, ProjectMessagingTopic } from "@/lib/stealth-api";
+import { ProjectMessagingMessages } from "./project-messaging-messages";
 
 type Props = {
   projectId: string;
@@ -11,6 +12,8 @@ type Props = {
   initialProviderCursor: string | null;
   initialTopics: ProjectMessagingTopic[];
   initialTopicCursor: string | null;
+  initialMessages: import("@/lib/stealth-api").ProjectMessagingMessage[];
+  initialMessageCursor: string | null;
   initialCanManage: boolean;
 };
 
@@ -70,7 +73,7 @@ function errorText(reason: unknown, fallback: string) {
   return reason instanceof Error ? reason.message : fallback;
 }
 
-export function ProjectMessaging({ projectId, initialProviders, initialProviderCursor, initialTopics, initialTopicCursor, initialCanManage }: Props) {
+export function ProjectMessaging({ projectId, initialProviders, initialProviderCursor, initialTopics, initialTopicCursor, initialMessages, initialMessageCursor, initialCanManage }: Props) {
   const router = useRouter();
   const [providers, setProviders] = useState(initialProviders);
   const [providerCursor, setProviderCursor] = useState(initialProviderCursor);
@@ -329,7 +332,7 @@ export function ProjectMessaging({ projectId, initialProviders, initialProviderC
         <div>
           <p className="m-0 font-mono text-[12px] text-[var(--projects-muted)]">project: {projectId}</p>
           <h1 className="m-0 mt-2 text-[28px] font-semibold tracking-[-0.035em] text-[var(--projects-text)]">Messaging</h1>
-          <p className="m-0 mt-2 max-w-2xl text-[14px] leading-6 text-[var(--projects-muted)]">Configure email, SMS, and push providers, then organize recipients into topics. Credentials and addresses are encrypted at rest and never shown again.</p>
+          <p className="m-0 mt-2 max-w-2xl text-[14px] leading-6 text-[var(--projects-muted)]">Configure providers, organize recipients into topics, and queue messages for the trusted delivery worker. Credentials, addresses, and message content are encrypted at rest and never shown again.</p>
         </div>
         {canManage ? <div className="flex flex-wrap gap-2"><button type="button" onClick={() => { setError(null); setDialog("provider"); }} className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-accent-border)] bg-[var(--projects-accent-strong)] px-4 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(0,0,0,0.4)] hover:bg-[var(--projects-accent-hover)]"><Plus size={15} aria-hidden="true" />Add provider</button><button type="button" onClick={() => { setError(null); setDialog("topic"); }} className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--projects-border)] bg-[var(--projects-control)] px-4 text-[13px] font-semibold text-[var(--projects-text)]"><Plus size={15} aria-hidden="true" />Create topic</button></div> : null}
       </header>
@@ -349,6 +352,8 @@ export function ProjectMessaging({ projectId, initialProviders, initialProviderC
           {topicCursor ? <button type="button" onClick={() => void loadMoreTopics()} disabled={busy !== null} className="mx-auto mt-4 flex h-8 items-center gap-2 rounded-md border border-[var(--projects-border)] px-3 text-[11px] font-semibold text-[var(--projects-text)] disabled:opacity-50">{busy === "topics-page" ? <LoaderCircle size={13} className="animate-spin" aria-hidden="true" /> : null}Load more topics</button> : null}
         </section>
       </div>
+
+      <ProjectMessagingMessages projectId={projectId} topics={topics} canManage={canManage} initialMessages={initialMessages} initialMessageCursor={initialMessageCursor} />
 
       {dialog === "provider" ? <div className="fixed inset-0 z-50 grid place-items-center bg-black/70 p-4" role="presentation"><div role="dialog" aria-modal="true" aria-labelledby="messaging-provider-dialog-title" className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5 shadow-2xl"><div className="flex items-start justify-between gap-4"><div><h2 id="messaging-provider-dialog-title" className="m-0 text-[17px] font-semibold text-[var(--projects-text)]">Add messaging provider</h2><p className="m-0 mt-1 text-[12px] leading-5 text-[var(--projects-muted)]">Credentials are encrypted before they are stored. They will not be returned by the API.</p></div><button type="button" onClick={closeDialog} aria-label="Close" className="rounded-md p-1 text-[var(--projects-muted)] hover:bg-[var(--projects-control)]"><X size={16} aria-hidden="true" /></button></div><form onSubmit={(event) => void createProvider(event)} className="mt-5 space-y-4"><label className="block text-[12px] font-medium text-[var(--projects-muted)]">Name<input value={providerName} onChange={(event) => setProviderName(event.target.value)} required minLength={2} maxLength={120} placeholder="Transactional email" className="mt-1 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2 text-[13px] text-[var(--projects-text)]" /></label><div className="grid gap-4 sm:grid-cols-2"><label className="block text-[12px] font-medium text-[var(--projects-muted)]">Channel<select value={providerChannel} onChange={(event) => setProviderChannel(event.target.value as ProjectMessagingProvider["channel"])} className="mt-1 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2 text-[13px] text-[var(--projects-text)]">{channels.map((channel) => <option key={channel} value={channel}>{channelLabel(channel)}</option>)}</select></label><label className="block text-[12px] font-medium text-[var(--projects-muted)]">Provider<input value={providerType} onChange={(event) => setProviderType(event.target.value)} required maxLength={64} placeholder="ses, twilio, fcm" className="mt-1 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2 font-mono text-[12px] text-[var(--projects-text)]" /></label></div><label className="block text-[12px] font-medium text-[var(--projects-muted)]">Credentials JSON <span className="font-normal">(values are strings)</span><textarea value={providerCredentials} onChange={(event) => setProviderCredentials(event.target.value)} rows={7} spellCheck={false} className="mt-1 w-full rounded-md border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 py-2 font-mono text-[12px] leading-5 text-[var(--projects-text)]" placeholder={'{"api_key":"…"}'} /></label><div className="flex justify-end gap-2 border-t border-[var(--projects-divider)] pt-4"><button type="button" onClick={closeDialog} disabled={busy !== null} className="inline-flex h-9 items-center rounded-md border border-[var(--projects-border)] px-3 text-[12px] font-semibold text-[var(--projects-text)]">Cancel</button><button type="submit" disabled={busy !== null} className="inline-flex h-9 items-center gap-2 rounded-md bg-[var(--projects-accent-strong)] px-3 text-[12px] font-semibold text-white">{busy === "create-provider" ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Plus size={14} aria-hidden="true" />}Add provider</button></div></form></div></div> : null}
 

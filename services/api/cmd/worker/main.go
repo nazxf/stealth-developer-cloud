@@ -19,6 +19,7 @@ import (
 	"github.com/stealth-cloud/stealth/services/api/internal/functionrunner"
 	"github.com/stealth-cloud/stealth/services/api/internal/functionsecret"
 	"github.com/stealth-cloud/stealth/services/api/internal/functionstore"
+	"github.com/stealth-cloud/stealth/services/api/internal/messagingrunner"
 	"github.com/stealth-cloud/stealth/services/api/internal/migrate"
 	"github.com/stealth-cloud/stealth/services/api/internal/observability"
 	"github.com/stealth-cloud/stealth/services/api/internal/repository"
@@ -97,12 +98,40 @@ func main() {
 	}
 	webhookWorker.PollInterval = cfg.FunctionsRunnerPoll
 	webhookWorker.LeaseAge = cfg.FunctionsRunnerLeaseAge
+	messagingWorker, err := messagingrunner.New(repo, cipher, cfg.FunctionsWorkerID, logger)
+	if err != nil {
+		logger.Error("messaging worker configuration error", "error", err)
+		os.Exit(1)
+	}
+	messagingWorker.PollInterval = cfg.FunctionsRunnerPoll
+	messagingWorker.LeaseAge = cfg.FunctionsRunnerLeaseAge
 	if !cfg.FunctionsRunnerEnabled {
-		logger.Info("functions runner is disabled; webhook runner remains active")
+		logger.Info("functions runner is disabled; webhook and messaging runners remain active")
 		workerContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		if err := webhookWorker.Run(workerContext); err != nil && !errors.Is(err, context.Canceled) {
-			logger.Error("webhook worker stopped with error", "error", err)
+		webhookWorkerErr := make(chan error, 1)
+		go func() { webhookWorkerErr <- webhookWorker.Run(workerContext) }()
+		messagingWorkerErr := make(chan error, 1)
+		go func() { messagingWorkerErr <- messagingWorker.Run(workerContext) }()
+		var runErr error
+		select {
+		case runErr = <-webhookWorkerErr:
+			stop()
+			if messagingErr := <-messagingWorkerErr; messagingErr != nil && !errors.Is(messagingErr, context.Canceled) && runErr == nil {
+				runErr = messagingErr
+			}
+		case runErr = <-messagingWorkerErr:
+			stop()
+			if webhookErr := <-webhookWorkerErr; webhookErr != nil && !errors.Is(webhookErr, context.Canceled) && runErr == nil {
+				runErr = webhookErr
+			}
+		case <-workerContext.Done():
+			stop()
+			<-webhookWorkerErr
+			<-messagingWorkerErr
+		}
+		if runErr != nil && !errors.Is(runErr, context.Canceled) {
+			logger.Error("worker stopped with error", "error", runErr)
 			os.Exit(1)
 		}
 		return
@@ -155,6 +184,8 @@ func main() {
 	go func() { siteWorkerErr <- siteWorker.Run(workerContext) }()
 	webhookWorkerErr := make(chan error, 1)
 	go func() { webhookWorkerErr <- webhookWorker.Run(workerContext) }()
+	messagingWorkerErr := make(chan error, 1)
+	go func() { messagingWorkerErr <- messagingWorker.Run(workerContext) }()
 
 	var runErr, metricsFailure error
 	select {
@@ -172,6 +203,12 @@ func main() {
 				runErr = webhookErr
 			}
 		}
+		if messagingErr := <-messagingWorkerErr; messagingErr != nil && !errors.Is(messagingErr, context.Canceled) {
+			logger.Error("messaging worker stopped with error", "error", messagingErr)
+			if runErr == nil {
+				runErr = messagingErr
+			}
+		}
 	case siteErr := <-siteWorkerErr:
 		if siteErr != nil && !errors.Is(siteErr, context.Canceled) {
 			logger.Error("site worker stopped with error", "error", siteErr)
@@ -182,6 +219,12 @@ func main() {
 			logger.Error("webhook worker stopped with error", "error", webhookErr)
 			if runErr == nil {
 				runErr = webhookErr
+			}
+		}
+		if messagingErr := <-messagingWorkerErr; messagingErr != nil && !errors.Is(messagingErr, context.Canceled) {
+			logger.Error("messaging worker stopped with error", "error", messagingErr)
+			if runErr == nil {
+				runErr = messagingErr
 			}
 		}
 	case webhookErr := <-webhookWorkerErr:
@@ -196,16 +239,36 @@ func main() {
 		if siteFailure := <-siteWorkerErr; siteFailure != nil && !errors.Is(siteFailure, context.Canceled) && runErr == nil {
 			runErr = siteFailure
 		}
+		if messagingFailure := <-messagingWorkerErr; messagingFailure != nil && !errors.Is(messagingFailure, context.Canceled) && runErr == nil {
+			runErr = messagingFailure
+		}
+	case messagingErr := <-messagingWorkerErr:
+		if messagingErr != nil && !errors.Is(messagingErr, context.Canceled) {
+			logger.Error("messaging worker stopped with error", "error", messagingErr)
+			runErr = messagingErr
+		}
+		stop()
+		if workerFailure := <-workerErr; workerFailure != nil && !errors.Is(workerFailure, context.Canceled) && runErr == nil {
+			runErr = workerFailure
+		}
+		if siteFailure := <-siteWorkerErr; siteFailure != nil && !errors.Is(siteFailure, context.Canceled) && runErr == nil {
+			runErr = siteFailure
+		}
+		if webhookFailure := <-webhookWorkerErr; webhookFailure != nil && !errors.Is(webhookFailure, context.Canceled) && runErr == nil {
+			runErr = webhookFailure
+		}
 	case metricsFailure = <-metricsErr:
 		logger.Error("worker metrics server error", "error", metricsFailure)
 		stop()
 		runErr = <-workerErr
 		<-siteWorkerErr
 		<-webhookWorkerErr
+		<-messagingWorkerErr
 	case <-workerContext.Done():
 		runErr = <-workerErr
 		<-siteWorkerErr
 		<-webhookWorkerErr
+		<-messagingWorkerErr
 	}
 	shutdownContext, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()

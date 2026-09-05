@@ -72,12 +72,13 @@ func (s LogSender) Send(_ context.Context, message Message) error {
 // non-local connection. Implicit-TLS port 465 is intentionally not guessed;
 // use a relay that supports STARTTLS on its submission port.
 type SMTP struct {
-	Host     string
-	Port     int
-	Username string
-	Password string
-	From     string
-	Timeout  time.Duration
+	Host        string
+	Port        int
+	Username    string
+	Password    string
+	From        string
+	Timeout     time.Duration
+	DialContext func(context.Context, string, string) (net.Conn, error)
 }
 
 func (s *SMTP) Send(ctx context.Context, message Message) error {
@@ -103,9 +104,13 @@ func (s *SMTP) Send(ctx context.Context, message Message) error {
 	if timeout <= 0 {
 		timeout = 10 * time.Second
 	}
-	dialer := &net.Dialer{Timeout: timeout}
+	dialContext := s.DialContext
+	if dialContext == nil {
+		dialer := &net.Dialer{Timeout: timeout}
+		dialContext = dialer.DialContext
+	}
 	address := net.JoinHostPort(s.Host, fmt.Sprintf("%d", s.Port))
-	conn, err := dialer.DialContext(ctx, "tcp", address)
+	conn, err := dialContext(ctx, "tcp", address)
 	if err != nil {
 		return fmt.Errorf("dial smtp relay: %w", err)
 	}

@@ -24,3 +24,19 @@ an unconfigured origin receive no CORS access and unsafe requests are rejected
 with `cors_forbidden`.
 The Console same-origin bridge strips `Origin` and continues to use the
 HttpOnly Console session independently.
+
+## Vite Console
+
+The Vite build calls the management API with `credentials: include`. When the
+static Console is served from a different origin than Go, set the API's
+`CONSOLE_CORS_ORIGINS` to a comma-separated exact-origin list, for example:
+
+```
+CONSOLE_CORS_ORIGINS=https://console.example.com,http://localhost:5173
+```
+
+This allowlist is separate from project `cors_origins`: it authorizes only the
+trusted management UI and never accepts wildcards, paths, credentials, or
+unvalidated request origins. `Idempotency-Key` and `Authorization` are exposed
+for browser preflight because the Console's message queue and SDK clients use
+them where appropriate.

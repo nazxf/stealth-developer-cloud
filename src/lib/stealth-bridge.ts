@@ -39,6 +39,10 @@ const projectMessagingTopicsPath = new RegExp(`^projects/${canonicalUUID}/messag
 const projectMessagingTopicPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics/${canonicalUUID}$`);
 const projectMessagingSubscribersPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics/${canonicalUUID}/subscribers$`);
 const projectMessagingSubscriberPath = new RegExp(`^projects/${canonicalUUID}/messaging/topics/${canonicalUUID}/subscribers/${canonicalUUID}$`);
+const projectMessagingMessagesPath = new RegExp(`^projects/${canonicalUUID}/messaging/messages$`);
+const projectMessagingMessagePath = new RegExp(`^projects/${canonicalUUID}/messaging/messages/${canonicalUUID}$`);
+const projectMessagingMessageCancelPath = new RegExp(`^projects/${canonicalUUID}/messaging/messages/${canonicalUUID}/cancel$`);
+const projectMessagingMessageDeliveriesPath = new RegExp(`^projects/${canonicalUUID}/messaging/messages/${canonicalUUID}/deliveries$`);
 const projectDatabasesPath = new RegExp(`^projects/${canonicalUUID}/databases$`);
 const projectDatabasePath = new RegExp(`^projects/${canonicalUUID}/databases/${canonicalUUID}$`);
 const projectDatabaseTablesPath = new RegExp(`^projects/${canonicalUUID}/databases/${canonicalUUID}/tables$`);
@@ -120,6 +124,10 @@ export function isAllowedStealthPath(path: string[], method: string) {
     (projectMessagingTopicPath.test(joined) && ["GET", "PATCH", "DELETE"].includes(method)) ||
     (projectMessagingSubscribersPath.test(joined) && ["GET", "POST"].includes(method)) ||
     (projectMessagingSubscriberPath.test(joined) && ["GET", "DELETE"].includes(method)) ||
+    (projectMessagingMessagesPath.test(joined) && ["GET", "POST"].includes(method)) ||
+    (projectMessagingMessagePath.test(joined) && method === "GET") ||
+    (projectMessagingMessageCancelPath.test(joined) && method === "POST") ||
+    (projectMessagingMessageDeliveriesPath.test(joined) && method === "GET") ||
     (projectRealtimePath.test(joined) && method === "GET") ||
     (projectDatabasesPath.test(joined) && ["GET", "POST"].includes(method)) ||
     (projectDatabasePath.test(joined) && ["GET", "DELETE"].includes(method)) ||
@@ -161,7 +169,7 @@ export function isAllowedStealthPath(path: string[], method: string) {
 
 export function forwardHeaders(source: Headers) {
   const headers = new Headers();
-  for (const name of ["content-type", "content-length", "accept", "last-event-id"]) {
+  for (const name of ["content-type", "content-length", "accept", "last-event-id", "idempotency-key"]) {
     const value = source.get(name);
     if (value) headers.set(name, value);
   }

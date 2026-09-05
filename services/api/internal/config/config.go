@@ -32,6 +32,10 @@ type Config struct {
 	AuthVerificationTTL      time.Duration
 	AuthPasswordResetTTL     time.Duration
 	PublicAppURL             string
+	// ConsoleCORSOrigins is the explicit allowlist for the browser-hosted
+	// management console. Project application origins remain tenant-scoped and
+	// are handled by httpapi's project CORS policy.
+	ConsoleCORSOrigins       []string
 	EmailDeliveryMode        string
 	SMTPHost                 string
 	SMTPPort                 int
@@ -97,6 +101,10 @@ func Load() (Config, error) {
 	publicAppURL := value("PUBLIC_APP_URL", "http://localhost:3000")
 	if !isPublicAppURL(publicAppURL) {
 		return Config{}, fmt.Errorf("PUBLIC_APP_URL must be an absolute HTTP(S) URL without credentials, query, or fragment")
+	}
+	consoleCORSOrigins, err := parseConsoleCORSOrigins(os.Getenv("CONSOLE_CORS_ORIGINS"))
+	if err != nil {
+		return Config{}, err
 	}
 	emailDeliveryMode := strings.ToLower(value("EMAIL_DELIVERY_MODE", "disabled"))
 	if emailDeliveryMode != "disabled" && emailDeliveryMode != "log" && emailDeliveryMode != "smtp" {
@@ -282,6 +290,7 @@ func Load() (Config, error) {
 		AuthVerificationTTL:           verificationTTL,
 		AuthPasswordResetTTL:          passwordResetTTL,
 		PublicAppURL:                  strings.TrimRight(publicAppURL, "/"),
+		ConsoleCORSOrigins:            consoleCORSOrigins,
 		EmailDeliveryMode:             emailDeliveryMode,
 		SMTPHost:                      smtpHost,
 		SMTPPort:                      smtpPort,
@@ -478,6 +487,64 @@ func isPublicAppURL(value string) bool {
 		}
 	}
 	return true
+}
+
+// parseConsoleCORSOrigins parses a comma-separated, exact-origin allowlist.
+// It deliberately does not fall back to PUBLIC_APP_URL: that value may point
+// at an email route (and a missing allowlist must fail closed for browsers).
+func parseConsoleCORSOrigins(raw string) ([]string, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return []string{}, nil
+	}
+	parts := strings.Split(raw, ",")
+	if len(parts) > 32 {
+		return nil, fmt.Errorf("CONSOLE_CORS_ORIGINS must contain at most 32 origins")
+	}
+	seen := make(map[string]struct{}, len(parts))
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		origin, err := normalizeConsoleOrigin(part)
+		if err != nil {
+			return nil, fmt.Errorf("CONSOLE_CORS_ORIGINS contains an invalid origin")
+		}
+		if _, exists := seen[origin]; exists {
+			return nil, fmt.Errorf("CONSOLE_CORS_ORIGINS contains a duplicate origin")
+		}
+		seen[origin] = struct{}{}
+		origins = append(origins, origin)
+	}
+	return origins, nil
+}
+
+func normalizeConsoleOrigin(raw string) (string, error) {
+	value := strings.TrimSpace(raw)
+	if value == "" || len(value) > 2048 || strings.ContainsAny(value, "\x00\r\n\t ") {
+		return "", fmt.Errorf("invalid origin")
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Opaque != "" || parsed.User != nil || parsed.Host == "" || parsed.Path != "" || parsed.RawPath != "" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" {
+		return "", fmt.Errorf("invalid origin")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return "", fmt.Errorf("invalid origin")
+	}
+	hostname := parsed.Hostname()
+	if hostname == "" || strings.ContainsAny(hostname, "*%/") {
+		return "", fmt.Errorf("invalid origin")
+	}
+	if port := parsed.Port(); port != "" {
+		parsedPort, parseErr := strconv.Atoi(port)
+		if parseErr != nil || parsedPort < 1 || parsedPort > 65535 {
+			return "", fmt.Errorf("invalid origin")
+		}
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	host := strings.ToLower(parsed.Host)
+	if (scheme == "http" && parsed.Port() == "80") || (scheme == "https" && parsed.Port() == "443") {
+		host = strings.TrimSuffix(host, ":"+parsed.Port())
+	}
+	return scheme + "://" + host, nil
 }
 
 // parseBytes accepts plain bytes and binary IEC suffixes. Keeping this parser

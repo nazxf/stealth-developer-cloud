@@ -185,6 +185,9 @@ export type CreateProjectMessagingTopicInput = { name: string; description?: str
 export type UpdateProjectMessagingTopicInput = Partial<CreateProjectMessagingTopicInput>;
 export type ProjectMessagingSubscriber = { id: string; project_id: string; topic_id: string; channel: ProjectMessagingProvider["channel"]; address_preview: string; enabled: boolean; created_at: string; updated_at: string };
 export type CreateProjectMessagingSubscriberInput = { channel: ProjectMessagingProvider["channel"]; address: string; enabled?: boolean };
+export type ProjectMessagingMessage = { id: string; project_id: string; topic_id: string | null; channel: ProjectMessagingProvider["channel"]; status: "queued" | "processing" | "succeeded" | "failed" | "cancelled"; recipient_count: number; succeeded_count: number; failed_count: number; cancelled_at?: string; created_at: string; updated_at: string };
+export type CreateProjectMessagingMessageInput = { topic_id: string; channel: ProjectMessagingProvider["channel"]; subject?: string; body: string; data?: Record<string, string> };
+export type ProjectMessagingDelivery = { id: string; project_id: string; message_id: string; subscriber_id?: string; provider_id?: string; channel: ProjectMessagingProvider["channel"]; address_preview: string; status: "pending" | "running" | "succeeded" | "failed" | "cancelled"; attempt_count: number; last_status_code?: number; last_error?: string; delivered_at?: string; created_at: string; updated_at: string };
 
 export type DatabaseColumnType = "varchar" | "text" | "integer" | "double" | "boolean" | "datetime" | "json";
 export type DatabasePermission = "any" | "users" | `user:${string}`;
@@ -592,6 +595,26 @@ export const stealthAPI = {
     request<{ subscriber: ProjectMessagingSubscriber }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}/subscribers`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) }),
   deleteProjectMessagingSubscriber: (projectID: string, topicID: string, subscriberID: string) =>
     request<void>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/topics/${encodeURIComponent(topicID)}/subscribers/${encodeURIComponent(subscriberID)}`, { method: "DELETE" }),
+  projectMessagingMessages: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request<{ messages: ProjectMessagingMessage[]; pagination: Pagination; can_manage: boolean }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/messages${query ? `?${query}` : ""}`);
+  },
+  projectMessagingMessage: (projectID: string, messageID: string) =>
+    request<{ message: ProjectMessagingMessage }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/messages/${encodeURIComponent(messageID)}`),
+  createProjectMessagingMessage: (projectID: string, input: CreateProjectMessagingMessageInput, idempotencyKey?: string) =>
+    request<{ message: ProjectMessagingMessage }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/messages`, { method: "POST", headers: { "content-type": "application/json", ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}) }, body: JSON.stringify(input) }),
+  cancelProjectMessagingMessage: (projectID: string, messageID: string) =>
+    request<{ message: ProjectMessagingMessage }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/messages/${encodeURIComponent(messageID)}/cancel`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }),
+  projectMessagingDeliveries: (projectID: string, messageID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request<{ deliveries: ProjectMessagingDelivery[]; pagination: Pagination }>(`/v1/projects/${encodeURIComponent(projectID)}/messaging/messages/${encodeURIComponent(messageID)}/deliveries${query ? `?${query}` : ""}`);
+  },
   projectDatabases: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

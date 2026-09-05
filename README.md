@@ -6,7 +6,8 @@ and requests, and run AI agents against your projects.
 
 ## Stack
 
-- Next.js (App Router) + React + TypeScript
+- React + TypeScript + Vite (TanStack Router/Query); the legacy Next App
+  Router remains available through `dev:next`/`build:next` during migration
 - Tailwind CSS 4 with a token-based theme in `src/styles/`
 - motion/react for interaction animation, recharts for admin telemetry charts
 - Geist, Inter Variable, and Source Code Pro as the font stack
@@ -14,17 +15,23 @@ and requests, and run AI agents against your projects.
 - Prometheus-compatible API/worker metrics, with an optional Compose scrape profile
 - Docker Compose provisions PostgreSQL and Redis for the API and public Auth protection
 
-## Architecture target
+## Architecture
 
 ```
-Stealth Console (Next.js)
+Stealth Console (Vite SPA)
         ↓
-Stealth JavaScript SDK / API client
+browser API client (credentials + runtime schemas)
         ↓
-Stealth API
+Go API (cookie session, CORS, OpenAPI)
         ↓
-Stealth backend
 ```
+
+The Vite entry point is the default `dev`, `build`, and `start` path. It uses
+TanStack Router for route state, TanStack Query for server state, and Zod at
+the API boundary. Set `VITE_API_URL` when the static console is hosted on a
+different origin; configure the API's exact `CONSOLE_CORS_ORIGINS` allowlist in
+that deployment. Next remains an explicit compatibility path while the
+feature-first console pages are moved route by route.
 
 The connected identity, project console, deployment timeline, and Agent
 configuration/run surfaces use the Stealth API. The shared Agent sidebar also
@@ -52,6 +59,7 @@ authenticated query contracts are implemented.
 - `src/components/` — cross-feature shell (`application-shell.tsx`, `top-bar.tsx`) and primitives
 - `src/features/` — feature-first modules: `projects/` (list, detail, service-overview, pre-deploy), `console/` (project Auth, Databases, Storage, Functions, Sites, Messaging, and Webhooks control planes), `agents/` (API-backed configuration plus staged run workspace), `navigation/`, `auth/`, `admin/`
 - `src/lib/`, `src/styles/` — shared utilities and stylesheets
+- `src/vite/`, `src/main.tsx` — Vite entry, TanStack Router route tree, Query client, and migrated shell
 - `services/api/cmd/api` — API process entry point and graceful shutdown
 - `services/api/internal/auth` — Argon2id password and opaque session helpers
 - `services/api/internal/apikey` — high-entropy project API key generation, hashing, scope, and expiry validation
@@ -64,6 +72,7 @@ authenticated query contracts are implemented.
 - `docs/sites.md` — static publication, immutable rollout, quota, and serving contract
 - `docs/realtime.md` — authenticated SSE subscriptions, cursors, and permission filtering
 - `docs/cors.md` — per-project browser origin allowlists and credential rules
+- `docs/frontend-vite.md` — Vite deployment, proxy, and migration contract
 - `docs/usage.md` — live project resource aggregates and metering boundary
 - `docs/auth.md` — one-time verification, recovery, organization invitations, and SMTP delivery
 - `docs/agents.md` — project-scoped Agent configuration, run queue, and execution boundary
@@ -311,12 +320,15 @@ example.
 
 Project Messaging is managed at `/v1/projects/{projectID}/messaging`. The
 control plane stores email, SMS, and push provider metadata, encrypted
-credentials, topics, and encrypted recipient addresses. Owners/admins or
-`messaging.write` keys can mutate the resources; `messaging.read` is independent
-and returns only safe metadata and masked subscriber previews. Mutations emit
-audit/outbox events. A trusted delivery worker and provider adapters are
-intentionally not implied by this configuration API. See
-[`docs/messaging.md`](docs/messaging.md) for the request contract.
+credentials, topics, encrypted recipient addresses, and an asynchronous
+send/status/cancel queue. Owners/admins or `messaging.write` keys can mutate the
+resources; `messaging.read` is independent and returns only safe metadata and
+masked subscriber previews. The trusted worker ships SMTP and Twilio adapters
+plus explicit development log adapters; message content and full addresses
+never leave the worker boundary. Push currently requires a real provider
+adapter beyond the built-in `push/log` development adapter. See
+[`docs/messaging.md`](docs/messaging.md) for the queue, retry, and provider
+contract.
 
 ### Sites contract
 
@@ -413,8 +425,10 @@ Stderr is retained only as redacted, bounded execution logs.
 
 ```bash
 npm install
-npm run dev        # start dev server
-npm run typecheck  # tsc --noEmit
-npm run build      # production build
-npm run check      # typecheck + build
+npm run dev          # Vite dev server
+npm run typecheck    # full compatibility typecheck
+npm run build        # Vite production build
+npm run check        # typecheck + Vite build
+npm run dev:next     # legacy Next compatibility server
+npm run build:next   # legacy Next compatibility build
 ```

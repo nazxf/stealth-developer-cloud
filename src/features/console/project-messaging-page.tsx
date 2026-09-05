@@ -4,9 +4,10 @@ import { ProjectMessaging } from "./project-messaging";
 
 export async function ProjectMessagingPage({ projectId }: { projectId: string }) {
   try {
-    const [{ providers, pagination: providerPagination, can_manage: providerCanManage }, { topics, pagination: topicPagination, can_manage: topicCanManage }] = await Promise.all([
+    const [{ providers, pagination: providerPagination, can_manage: providerCanManage }, { topics, pagination: topicPagination, can_manage: topicCanManage }, { messages, pagination: messagePagination }] = await Promise.all([
       stealthAPI.projectMessagingProviders(projectId, { limit: 20 }),
       stealthAPI.projectMessagingTopics(projectId, { limit: 20 }),
+      stealthAPI.projectMessagingMessages(projectId, { limit: 20 }),
     ]);
 
     return (
@@ -16,6 +17,8 @@ export async function ProjectMessagingPage({ projectId }: { projectId: string })
         initialProviderCursor={providerPagination.next_cursor}
         initialTopics={topics}
         initialTopicCursor={topicPagination.next_cursor}
+        initialMessages={messages}
+        initialMessageCursor={messagePagination.next_cursor}
         initialCanManage={providerCanManage && topicCanManage}
       />
     );

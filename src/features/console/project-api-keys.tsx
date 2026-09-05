@@ -37,8 +37,8 @@ const scopeOptions = [
   { value: "webhooks.read" as const, label: "Webhooks read", description: "Inspect webhook configurations and delivery history." },
   { value: "webhooks.write" as const, label: "Webhooks write", description: "Create, update, rotate, and delete project webhooks." },
   { value: "realtime.read" as const, label: "Realtime read", description: "Consume the authenticated project Server-Sent Events stream." },
-  { value: "messaging.read" as const, label: "Messaging read", description: "Inspect messaging providers, topics, and masked subscribers." },
-  { value: "messaging.write" as const, label: "Messaging write", description: "Create, update, and delete messaging providers, topics, and subscribers." },
+  { value: "messaging.read" as const, label: "Messaging read", description: "Inspect providers, topics, messages, deliveries, and masked subscribers." },
+  { value: "messaging.write" as const, label: "Messaging write", description: "Manage providers, topics, subscribers, and queue or cancel messages." },
 ];
 
 class APIKeysBridgeError extends Error {

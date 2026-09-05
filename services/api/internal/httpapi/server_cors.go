@@ -10,7 +10,7 @@ import (
 )
 
 const corsAllowedMethods = "GET, POST, PATCH, DELETE, OPTIONS"
-const corsAllowedHeaders = "Accept, Content-Type, Last-Event-ID, X-Requested-With"
+const corsAllowedHeaders = "Accept, Authorization, Content-Type, Idempotency-Key, Last-Event-ID, X-Requested-With"
 
 // cors applies a per-project, credentialed origin allowlist. The Console
 // bridge intentionally strips Origin, so Console requests remain same-origin
@@ -28,11 +28,32 @@ func (s *Server) cors(next http.Handler) http.Handler {
 			corsDenied(w, r)
 			return
 		}
+		// The browser-hosted management Console is a trusted application
+		// surface, not a tenant's public application. Its origins are explicit
+		// deployment configuration so credentials are never enabled for an
+		// arbitrary origin. This check also covers project routes, allowing the
+		// Console to use its management session without copying its origin into
+		// every project's public Auth CORS setting.
+		if containsCORSOrigin(s.config.ConsoleCORSOrigins, origin) {
+			setCORSHeaders(w, origin, r)
+			if r.Method == http.MethodOptions {
+				if !corsMethodAllowed(r.Header.Get("Access-Control-Request-Method")) {
+					corsDenied(w, r)
+					return
+				}
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+			next.ServeHTTP(w, r)
+			return
+		}
 		projectID, ok := projectIDFromCORSPath(r.URL.Path)
 		if !ok {
-			// Non-project endpoints keep their existing authentication and
-			// response behavior; they simply do not opt into project CORS.
-			next.ServeHTTP(w, r)
+			// Management endpoints have no tenant policy to consult. Reject an
+			// unconfigured browser origin before it can perform a credentialed
+			// request; same-origin and non-browser requests have no Origin header
+			// and took the early return above.
+			corsDenied(w, r)
 			return
 		}
 		origins, err := s.repo.ProjectCORSOrigins(r.Context(), projectID)
