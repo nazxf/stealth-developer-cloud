@@ -231,9 +231,10 @@
     "project": "stealth-console",
     "kind": "aggregate",
     "total": 1460000000,
-    "input": null,
-    "output": null,
+    "input": 1314000000,
+    "output": 146000000,
+    "breakdown": "estimated",
     "source": "codex-usage",
-    "note": "Total project terverifikasi dari /usage; rincian input dan output belum tersedia"
+    "note": "Total project dari /usage; breakdown diperkirakan 90% input dan 10% output"
   }
 ]

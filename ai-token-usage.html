@@ -283,8 +283,8 @@ const SEED_ENTRIES = [
   { id: "seed-24-agent",        date: "2026-08-30", model: "glm-5.3-flash", project: "stealth-console", input: 620000, output: 75000, note: "Redesign total fitur Agent jadi AI coding agent: overview + workspace 5 tab (chat/steps animasi, changes, activity) + dialog create, 15 file baru/rewrite, hapus UI lama" },
   // Estimasi manual sesi terbaru; token telemetry provider tidak tersedia di repo.
   { id: "seed-25-tanstack-start", date: "2026-09-05", model: "gpt-5.6-luna", project: "stealth-console", input: 420000, output: 36000, note: "Migrasi frontend React/Vite ke TanStack Start SPA-first: route tree file-based, auth boundary, QueryClient, build/deployment, test dan Docker smoke test" },
-  // Total project dari indikator /usage; input/output belum dipisahkan.
-  { id: "verified-project-total-2026-09-05", date: "2026-09-05", model: "project-total", project: "stealth-console", kind: "aggregate", total: 1460000000, input: null, output: null, source: "codex-usage", note: "Total project terverifikasi dari /usage; rincian input dan output belum tersedia" },
+  // Total project dari indikator /usage; breakdown input/output adalah perkiraan 90/10.
+  { id: "verified-project-total-2026-09-05", date: "2026-09-05", model: "project-total", project: "stealth-console", kind: "aggregate", total: 1460000000, input: 1314000000, output: 146000000, breakdown: "estimated", source: "codex-usage", note: "Total project dari /usage; breakdown diperkirakan 90% input dan 10% output" },
 ];
 
 function load() {
@@ -300,10 +300,21 @@ function load() {
     // Ini membuat pembaruan tracker tetap terlihat setelah file dibuka ulang.
     const knownIds = new Set(entries.map((e) => e.id));
     const missingSeeds = SEED_ENTRIES.filter((e) => !knownIds.has(e.id)).map((e) => ({ ...e }));
+    const aggregateSeedUpdates = SEED_ENTRIES.filter((seed) => {
+      const current = entries.find((entry) => entry.id === seed.id);
+      return current && isAggregate(seed) && hasBreakdown(seed) && !hasBreakdown(current);
+    });
+    let changed = false;
     if (missingSeeds.length) {
       entries.push(...missingSeeds);
-      save();
+      changed = true;
     }
+    if (aggregateSeedUpdates.length) {
+      const updates = new Map(aggregateSeedUpdates.map((entry) => [entry.id, entry]));
+      entries = entries.map((entry) => updates.get(entry.id) ?? entry);
+      changed = true;
+    }
+    if (changed) save();
     budget = parseFloat(localStorage.getItem(BUDGET_KEY)) || 0;
   } catch { entries = SEED_ENTRIES.map((e) => ({ ...e })); }
 }
@@ -330,6 +341,7 @@ function parseTokenNum(raw) {
   return parseInt(m[1].replace(/[.,]/g, ""), 10) || 0;
 }
 function isAggregate(e) { return e?.kind === "aggregate" || Number.isFinite(e?.total); }
+function hasBreakdown(e) { return isAggregate(e) && Number.isFinite(e?.input) && Number.isFinite(e?.output); }
 function entryTokens(e) { return isAggregate(e) ? e.total : e.input + e.output; }
 function entryCost(e) {
   if (isAggregate(e)) return 0;
@@ -367,6 +379,7 @@ function normalizeEntry(raw) {
       total,
       input,
       output,
+      breakdown: str(raw.breakdown),
       source: str(raw.source),
       note: str(raw.note),
     };
@@ -475,16 +488,19 @@ function render() {
   const totalCostLabel = document.getElementById("totalCostLabel");
   const verifiedNote = document.getElementById("verifiedNote");
   if (aggregate) {
+    const aggregateHasBreakdown = hasBreakdown(aggregate);
     totalTokensLabel.textContent = "Total Project (terverifikasi)";
     document.getElementById("totalTokens").textContent = fmt(aggregate.total);
-    totalInputLabel.textContent = "Input (belum tersedia)";
-    document.getElementById("totalInput").textContent = "N/A";
-    totalOutputLabel.textContent = "Output (belum tersedia)";
-    document.getElementById("totalOutput").textContent = "N/A";
+    totalInputLabel.textContent = aggregateHasBreakdown ? "Input (perkiraan)" : "Input (belum tersedia)";
+    document.getElementById("totalInput").textContent = aggregateHasBreakdown ? fmt(aggregate.input) : "N/A";
+    totalOutputLabel.textContent = aggregateHasBreakdown ? "Output (perkiraan)" : "Output (belum tersedia)";
+    document.getElementById("totalOutput").textContent = aggregateHasBreakdown ? fmt(aggregate.output) : "N/A";
     totalCostLabel.textContent = "Biaya (belum tersedia)";
     document.getElementById("totalCost").textContent = "N/A";
     verifiedNote.style.display = "block";
-    verifiedNote.textContent = `Total project terverifikasi dari /usage: ${fmt(aggregate.total)} token. Input/output belum dipisahkan; baris histori lama tetap berupa estimasi detail dan tidak ditambahkan ke angka ini.`;
+    verifiedNote.textContent = aggregateHasBreakdown
+      ? `Total project dari /usage: ${fmt(aggregate.total)} token. Breakdown input ${fmt(aggregate.input)} dan output ${fmt(aggregate.output)} adalah perkiraan 90%/10%; histori lama tidak ditambahkan ke angka ini.`
+      : `Total project terverifikasi dari /usage: ${fmt(aggregate.total)} token. Input/output belum dipisahkan; baris histori lama tetap berupa estimasi detail dan tidak ditambahkan ke angka ini.`;
   } else {
     totalTokensLabel.textContent = "Total Token";
     document.getElementById("totalTokens").textContent = fmt(totalInput + totalOutput);
@@ -563,9 +579,10 @@ function render() {
   const rows = [...list].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   document.getElementById("rows").innerHTML = rows.map((e) => {
     const aggregateRow = isAggregate(e);
+    const aggregateHasBreakdown = hasBreakdown(e);
     const modelName = aggregateRow ? "Total project" : modelById(e.model).name;
-    const inputValue = aggregateRow ? "N/A" : fmt(e.input);
-    const outputValue = aggregateRow ? "N/A" : fmt(e.output);
+    const inputValue = aggregateRow ? (aggregateHasBreakdown ? fmt(e.input) : "N/A") : fmt(e.input);
+    const outputValue = aggregateRow ? (aggregateHasBreakdown ? fmt(e.output) : "N/A") : fmt(e.output);
     const costValue = aggregateRow ? "N/A" : fmtCost(entryCost(e));
     return `<tr>
       <td>${esc(e.date)}</td>
