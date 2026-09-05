@@ -148,4 +148,57 @@ describe("browser API boundary", () => {
       }),
     );
   });
+
+  it("keeps database schema paths, JSON bodies, and typed responses aligned", async () => {
+    const column = {
+      id: "column-1",
+      table_id: "table/one",
+      key: "email",
+      type: "varchar",
+      required: true,
+      varchar_size: 255,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ columns: [column], pagination: { limit: 100, next_cursor: null } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ column }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    const listed = await browserAPI.projectDatabaseColumns("project/one", "database one", "table/one", { limit: 100, cursor: "cursor one" });
+    expect(listed.columns[0]?.key).toBe("email");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/columns?limit=100&cursor=cursor+one");
+
+    await browserAPI.createProjectDatabaseColumn("project/one", "database one", "table/one", { key: "email", type: "varchar", required: true, varchar_size: 255, default: "guest@example.test" });
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ key: "email", type: "varchar", required: true, varchar_size: 255, default: "guest@example.test" }));
+    await browserAPI.deleteProjectDatabaseColumn("project/one", "database one", "table/one", "column/one");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/columns/column%2Fone");
+  });
+
+  it("serializes database row filters and update requests", async () => {
+    const row = {
+      id: "row-1",
+      table_id: "table-1",
+      project_id: "project-1",
+      data: { email: "owner@example.test", active: true },
+      read_permissions: ["any"],
+      update_permissions: ["users"],
+      delete_permissions: ["users"],
+      creator_project_user_id: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ rows: [row], pagination: { limit: 50, next_cursor: null } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ row }), { status: 200 }));
+
+    const listed = await browserAPI.projectDatabaseRows("project/one", "database one", "table/one", { limit: 50, order_by: "email", order_direction: "desc", filters: { email: "owner@example.test" } });
+    expect(listed.rows[0]?.data.email).toBe("owner@example.test");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows?limit=50&order_by=email&order_direction=desc&filter.email=owner%40example.test");
+
+    await browserAPI.updateProjectDatabaseRow("project/one", "database one", "table/one", "row/one", { data: { active: false } });
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows/row%2Fone");
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("PATCH");
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ data: { active: false } }));
+  });
 });

@@ -220,6 +220,40 @@ const databaseTableSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const databaseColumnTypeSchema = z.enum(["varchar", "text", "integer", "double", "boolean", "datetime", "json"]);
+const databaseColumnSchema = z.object({
+  id: z.string(),
+  table_id: z.string(),
+  key: z.string(),
+  type: databaseColumnTypeSchema,
+  required: z.boolean(),
+  varchar_size: z.number().nullable().optional(),
+  default: z.unknown().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const databaseIndexSchema = z.object({
+  id: z.string(),
+  table_id: z.string(),
+  name: z.string(),
+  type: z.enum(["key", "unique"]),
+  column_keys: z.array(z.string()),
+  directions: z.array(z.enum(["asc", "desc"])),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const databaseRowSchema = z.object({
+  id: z.string(),
+  table_id: z.string(),
+  project_id: z.string(),
+  data: z.record(z.string(), z.unknown()),
+  read_permissions: z.array(z.string()),
+  update_permissions: z.array(z.string()),
+  delete_permissions: z.array(z.string()),
+  creator_project_user_id: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const storageBucketSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -511,6 +545,10 @@ export type BrowserProjectWebhook = z.infer<typeof projectWebhookSchema>;
 export type BrowserProjectWebhookDelivery = z.infer<typeof projectWebhookDeliverySchema>;
 export type BrowserProjectDatabase = z.infer<typeof projectDatabaseSchema>;
 export type BrowserDatabaseTable = z.infer<typeof databaseTableSchema>;
+export type BrowserDatabaseColumnType = z.infer<typeof databaseColumnTypeSchema>;
+export type BrowserDatabaseColumn = z.infer<typeof databaseColumnSchema>;
+export type BrowserDatabaseIndex = z.infer<typeof databaseIndexSchema>;
+export type BrowserDatabaseRow = z.infer<typeof databaseRowSchema>;
 export type BrowserStorageBucket = z.infer<typeof storageBucketSchema>;
 export type BrowserStorageFile = z.infer<typeof storageFileSchema>;
 export type BrowserFunction = z.infer<typeof functionSchema>;
@@ -783,6 +821,86 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables`, z.object({ table: databaseTableSchema }), { method: "POST", body: JSON.stringify(input) }),
   deleteProjectDatabaseTable: (projectID: string, databaseID: string, tableID: string) =>
     request<void>(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}`, z.undefined(), { method: "DELETE" }),
+  projectDatabaseColumns: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/columns${query ? `?${query}` : ""}`,
+      z.object({ columns: z.array(databaseColumnSchema), pagination: paginationSchema }).passthrough(),
+    );
+  },
+  createProjectDatabaseColumn: (projectID: string, databaseID: string, tableID: string, input: { key: string; type: BrowserDatabaseColumnType; required?: boolean; varchar_size?: number; default?: unknown }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/columns`,
+      z.object({ column: databaseColumnSchema }),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  deleteProjectDatabaseColumn: (projectID: string, databaseID: string, tableID: string, columnID: string) =>
+    request<void>(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/columns/${encodeURIComponent(columnID)}`,
+      z.undefined(),
+      { method: "DELETE" },
+    ),
+  projectDatabaseIndexes: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/indexes${query ? `?${query}` : ""}`,
+      z.object({ indexes: z.array(databaseIndexSchema), pagination: paginationSchema }).passthrough(),
+    );
+  },
+  createProjectDatabaseIndex: (projectID: string, databaseID: string, tableID: string, input: { name: string; type: "key" | "unique"; column_keys: string[]; directions?: Array<"asc" | "desc"> }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/indexes`,
+      z.object({ index: databaseIndexSchema }),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  deleteProjectDatabaseIndex: (projectID: string, databaseID: string, tableID: string, indexID: string) =>
+    request<void>(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/indexes/${encodeURIComponent(indexID)}`,
+      z.undefined(),
+      { method: "DELETE" },
+    ),
+  projectDatabaseRows: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; filters?: Record<string, string> } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    if (options.order_by) params.set("order_by", options.order_by);
+    if (options.order_direction) params.set("order_direction", options.order_direction);
+    for (const [key, value] of Object.entries(options.filters ?? {})) params.set(`filter.${key}`, value);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows${query ? `?${query}` : ""}`,
+      z.object({ rows: z.array(databaseRowSchema), pagination: paginationSchema }).passthrough(),
+    );
+  },
+  createProjectDatabaseRow: (projectID: string, databaseID: string, tableID: string, input: { data: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows`,
+      z.object({ row: databaseRowSchema }),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  getProjectDatabaseRow: (projectID: string, databaseID: string, tableID: string, rowID: string) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/${encodeURIComponent(rowID)}`,
+      z.object({ row: databaseRowSchema }),
+    ),
+  updateProjectDatabaseRow: (projectID: string, databaseID: string, tableID: string, rowID: string, input: Partial<{ data: Record<string, unknown>; read_permissions: string[]; update_permissions: string[]; delete_permissions: string[] }>) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/${encodeURIComponent(rowID)}`,
+      z.object({ row: databaseRowSchema }),
+      { method: "PATCH", body: JSON.stringify(input) },
+    ),
+  deleteProjectDatabaseRow: (projectID: string, databaseID: string, tableID: string, rowID: string) =>
+    request<void>(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/${encodeURIComponent(rowID)}`,
+      z.undefined(),
+      { method: "DELETE" },
+    ),
   projectStorageBuckets: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

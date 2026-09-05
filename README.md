@@ -287,9 +287,10 @@ indexes, and permission-aware row CRUD. Database `write` does not imply
 `read`; callers must grant both scopes when they need both. Realtime is
 available as an authenticated, cursor-aware Server-Sent Events stream; see
 [`docs/realtime.md`](docs/realtime.md) for its permission and reconnect
-contract. Messaging configuration is available for providers, topics, and
-masked subscribers; delivery adapters and the trusted sending worker remain a
-separate milestone. Relationships, transactions, backups, full-text,
+  contract. Messaging configuration is available for providers, topics, and
+  masked subscribers, and the trusted delivery worker is wired end to end;
+  production push delivery still depends on configuring a real provider.
+  Relationships, transactions, backups, full-text,
 bulk/import/export, and other future modules remain unavailable.
 
 ### Webhooks contract

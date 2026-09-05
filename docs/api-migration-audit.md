@@ -76,11 +76,14 @@ simulated async behavior (timers standing in for network calls).
   retries,
   project-scoped API/Console controls, and the Webhooks Console page. Realtime
   is now available as a permission-filtered, cursor-aware SSE stream backed by
-  the same seven-day event outbox. Relationships, transactions, backups,
-  full-text, bulk/import/export, and message delivery actions remain explicitly
-  disabled until their backend modules exist. Messaging provider/topic/subscriber
-  configuration is now connected end to end, while the trusted sending worker
-  remains a separate milestone. Project Settings now updates the
+  the same seven-day event outbox. The Databases workspace now exposes typed
+  columns, real key/unique indexes, permission-filtered rows, and row CRUD
+  through the same centralized browser API. Relationships, transactions,
+  backups, full-text, and bulk/import/export remain explicitly disabled until
+  their backend modules exist. Messaging provider/topic/subscriber
+  configuration and the trusted delivery worker are connected end to end;
+  production push delivery still depends on configuring a real provider.
+  Project Settings now updates the
   project slug through an owner/admin API mutation and exposes stable project
   and organization identifiers. Destructive project deletion is available
   through the owner-only API; billing remains out of scope.
