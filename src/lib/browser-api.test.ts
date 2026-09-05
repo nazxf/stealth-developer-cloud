@@ -230,4 +230,31 @@ describe("browser API boundary", () => {
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("PATCH");
     expect(fetchMock.mock.calls[1]?.[1]?.body).toBe(JSON.stringify({ data: { active: false } }));
   });
+
+  it("keeps database export and atomic import paths typed", async () => {
+    const row = {
+      id: "row-exported",
+      table_id: "table-1",
+      project_id: "project-1",
+      data: { email: "imported@example.test" },
+      read_permissions: [],
+      update_permissions: [],
+      delete_permissions: [],
+      creator_project_user_id: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ rows: [row], count: 1 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ rows: [row], count: 1 }), { status: 201 }));
+
+    const exported = await browserAPI.projectDatabaseRowsExport("project/one", "database one", "table/one", { limit: 500 });
+    expect(exported.count).toBe(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/export?format=json&limit=500");
+
+    const imported = await browserAPI.importProjectDatabaseRows("project/one", "database one", "table/one", { rows: [{ data: { email: "imported@example.test" } }] });
+    expect(imported.rows[0]?.id).toBe("row-exported");
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows/import");
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("POST");
+  });
 });

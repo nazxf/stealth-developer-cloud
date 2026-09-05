@@ -81,9 +81,10 @@ simulated async behavior (timers standing in for network calls).
   is now available as a permission-filtered, cursor-aware SSE stream backed by
   the same seven-day event outbox. The Databases workspace now exposes typed
   columns, real key/unique indexes, permission-filtered rows, and row CRUD
-  through the same centralized browser API. Relationships, transactions,
-  backups, full-text, and bulk/import/export remain explicitly disabled until
-  their backend modules exist. Messaging provider/topic/subscriber
+  through the same centralized browser API. Permission-filtered table export
+  and atomic typed-row import (up to 1,000 rows) are now available. Relationships,
+  transactions, backups, and full-text remain explicitly disabled until their
+  backend modules exist. Messaging provider/topic/subscriber
   configuration and the trusted delivery worker are connected end to end;
   production push delivery still depends on configuring a real provider.
   Project Settings now updates the
@@ -286,7 +287,9 @@ simulated async behavior (timers standing in for network calls).
   code. It now exposes the database/table/column/index/row methods with
   independent Database, Storage, Functions, and Sites read/write
   authorization, including cursor-based Function and Site build-log reads.
-  Advanced database features and other modules remain unavailable.
+  Table export and atomic typed-row import are available through the database
+  endpoints; relationships, transactions, backups, and full-text remain
+  unavailable until their backend modules exist.
 
 ## Admin (Vite route tree)
 

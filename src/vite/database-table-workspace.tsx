@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { Columns3, KeyRound, LoaderCircle, Pencil, Plus, Table2, Trash2, X } from "lucide-react";
+import { Columns3, Download, KeyRound, LoaderCircle, Pencil, Plus, Table2, Trash2, X } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import {
   browserAPI,
@@ -298,6 +298,28 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     }
   }
 
+  async function exportRows() {
+    if (pending) return;
+    setPending("export");
+    setError("");
+    try {
+      const blob = await browserAPI.downloadProjectDatabaseRowsCSV(projectID, databaseID, table.id, { limit: 10_000 });
+      const objectURL = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      const safeName = table.name.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase() || table.id;
+      anchor.href = objectURL;
+      anchor.download = `${safeName}-rows.csv`;
+      document.body.append(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectURL), 0);
+    } catch (requestError) {
+      setError(errorMessage(requestError, "The table export could not be downloaded."));
+    } finally {
+      setPending(null);
+    }
+  }
+
   const tabs: Array<{ id: WorkspaceTab; label: string; count: number; icon: typeof Table2 }> = [
     { id: "rows", label: "Rows", count: rows.length, icon: Table2 },
     { id: "schema", label: "Schema", count: columns.length, icon: Columns3 },
@@ -333,7 +355,7 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     </div> : null}
 
     {activeTab === "rows" ? <div className={panelClass}>
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="m-0 text-lg font-semibold">Rows</h4><p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">Showing up to 50 rows from the permission-filtered API.</p></div>{canManage ? <button type="button" onClick={() => { resetRowForm(); setError(""); }} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--projects-accent-strong)] px-3 text-xs font-semibold text-white"><Plus size={14} aria-hidden="true" />New row</button> : null}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3"><div><h4 className="m-0 text-lg font-semibold">Rows</h4><p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">Showing up to 50 rows from the permission-filtered API.</p></div><div className="flex flex-wrap gap-2">{canManage ? <button type="button" onClick={() => void exportRows()} disabled={Boolean(pending)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--projects-border)] px-3 text-xs font-semibold text-[var(--projects-muted)] hover:text-[var(--projects-text)] disabled:opacity-60">{pending === "export" ? <LoaderCircle size={14} className="animate-spin" aria-hidden="true" /> : <Download size={14} aria-hidden="true" />}{pending === "export" ? "Exporting…" : "Download CSV"}</button> : null}{canManage ? <button type="button" onClick={() => { resetRowForm(); setError(""); }} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--projects-accent-strong)] px-3 text-xs font-semibold text-white"><Plus size={14} aria-hidden="true" />New row</button> : null}</div></div>
       {canManage ? <form onSubmit={(event) => void saveRow(event)} className="mt-4 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] p-4"><div className="flex items-start justify-between gap-3"><div><h5 className="m-0 text-sm font-semibold">{editingRowID ? "Edit row" : "Create row"}</h5><p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">Enter a JSON object whose keys match the typed columns.</p></div>{editingRowID ? <button type="button" onClick={resetRowForm} disabled={Boolean(pending)} aria-label="Cancel row edit" className="inline-flex size-8 items-center justify-center rounded-md text-[var(--projects-muted)] hover:bg-[var(--projects-card-bg)]"><X size={16} aria-hidden="true" /></button> : null}</div><label className="mt-3 block text-xs text-[var(--projects-muted)]">Data<textarea required value={rowJSON} onChange={(event) => setRowJSON(event.target.value)} disabled={Boolean(pending)} className="mt-1 block min-h-32 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3 font-mono text-xs" spellCheck={false} /></label><div className="mt-3 grid gap-3 md:grid-cols-3"><label className="text-xs text-[var(--projects-muted)]">Read permissions<input value={rowReadPermissions} onChange={(event) => setRowReadPermissions(event.target.value)} disabled={Boolean(pending)} className={`${inputClass} font-mono text-xs`} placeholder="any, users" /></label><label className="text-xs text-[var(--projects-muted)]">Update permissions<input value={rowUpdatePermissions} onChange={(event) => setRowUpdatePermissions(event.target.value)} disabled={Boolean(pending)} className={`${inputClass} font-mono text-xs`} placeholder="users" /></label><label className="text-xs text-[var(--projects-muted)]">Delete permissions<input value={rowDeletePermissions} onChange={(event) => setRowDeletePermissions(event.target.value)} disabled={Boolean(pending)} className={`${inputClass} font-mono text-xs`} placeholder="users" /></label></div><div className="mt-3 flex justify-end"><button type="submit" disabled={Boolean(pending)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-[var(--projects-accent-strong)] px-3 text-xs font-semibold text-white disabled:opacity-60">{pending?.startsWith("row") ? <LoaderCircle size={13} className="animate-spin" aria-hidden="true" /> : null}{pending?.startsWith("row") ? (editingRowID ? "Saving…" : "Creating…") : (editingRowID ? "Save row" : "Create row")}</button></div></form> : null}
       {rowsQuery.isPending ? <p className="m-0 mt-5 text-sm text-[var(--projects-muted)]">Loading rows…</p> : rows.length ? <div className="mt-4 overflow-x-auto rounded-lg border border-[var(--projects-border)]"><table className="w-full min-w-[760px] text-left text-xs"><caption className="sr-only">Rows in {table.name}</caption><thead className="border-b border-[var(--projects-divider)] bg-[var(--projects-control)] uppercase tracking-[0.08em] text-[var(--projects-muted)]"><tr><th scope="col" className="px-3 py-2">ID</th>{columns.map((column) => <th key={column.id} scope="col" className="px-3 py-2">{column.key}</th>)}{canManage ? <th scope="col" className="px-3 py-2 text-right">Action</th> : null}</tr></thead><tbody className="divide-y divide-[var(--projects-divider)]">{rows.map((row) => <tr key={row.id}><td className="max-w-[180px] truncate px-3 py-3 font-mono text-[10px] text-[var(--projects-muted)]" title={row.id}>{row.id}</td>{columns.map((column) => <td key={column.id} className="max-w-[220px] truncate px-3 py-3" title={formatDatabaseCell(row.data[column.key])}>{formatDatabaseCell(row.data[column.key])}</td>)}{canManage ? <td className="whitespace-nowrap px-3 py-3 text-right"><div className="inline-flex gap-2"><button type="button" onClick={() => editRow(row)} disabled={Boolean(pending)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-[var(--projects-border)] px-2.5 text-[var(--projects-muted)] disabled:opacity-50"><Pencil size={13} aria-hidden="true" />Edit</button><button type="button" onClick={() => void deleteRow(row)} disabled={Boolean(pending)} className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-500/30 px-2.5 text-rose-200 disabled:opacity-50"><Trash2 size={13} aria-hidden="true" />Delete</button></div></td> : null}</tr>)}</tbody></table></div> : <div className="mt-5"><EmptyPanel>No rows yet. Create the first typed row for this table.</EmptyPanel></div>}
       {rowsQuery.hasNextPage ? <div className="mt-4 flex justify-center"><button type="button" onClick={() => void rowsQuery.fetchNextPage()} disabled={rowsQuery.isFetchingNextPage} className="inline-flex h-9 items-center gap-2 rounded-lg border border-[var(--projects-border)] px-3 text-xs font-semibold text-[var(--projects-muted)] hover:text-[var(--projects-text)] disabled:opacity-50">{rowsQuery.isFetchingNextPage ? <LoaderCircle size={13} className="animate-spin" aria-hidden="true" /> : null}{rowsQuery.isFetchingNextPage ? "Loading…" : "Load more rows"}</button></div> : null}

@@ -307,8 +307,10 @@ available as an authenticated, cursor-aware Server-Sent Events stream; see
   contract. Messaging configuration is available for providers, topics, and
   masked subscribers, and the trusted delivery worker is wired end to end;
   production push delivery still depends on configuring a real provider.
-  Relationships, transactions, backups, full-text,
-bulk/import/export, and other future modules remain unavailable.
+  Table exports are available as bounded, permission-filtered JSON or CSV
+  streams (`GET .../tables/{tableID}/export`), and up to 1,000 typed rows can
+  be imported atomically (`POST .../tables/{tableID}/rows/import`);
+  relationships, transactions, backups, and full-text remain future modules.
 
 ### Webhooks contract
 

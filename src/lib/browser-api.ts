@@ -257,6 +257,8 @@ const databaseRowSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const databaseRowsExportSchema = z.object({ rows: z.array(databaseRowSchema), count: z.number().int().nonnegative() });
+const databaseRowsImportSchema = z.object({ rows: z.array(databaseRowSchema), count: z.number().int().positive() });
 const storageBucketSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -562,6 +564,8 @@ export type BrowserDatabaseColumnType = z.infer<typeof databaseColumnTypeSchema>
 export type BrowserDatabaseColumn = z.infer<typeof databaseColumnSchema>;
 export type BrowserDatabaseIndex = z.infer<typeof databaseIndexSchema>;
 export type BrowserDatabaseRow = z.infer<typeof databaseRowSchema>;
+export type BrowserDatabaseRowsExport = z.infer<typeof databaseRowsExportSchema>;
+export type BrowserDatabaseRowsImportResponse = z.infer<typeof databaseRowsImportSchema>;
 export type BrowserStorageBucket = z.infer<typeof storageBucketSchema>;
 export type BrowserStorageFile = z.infer<typeof storageFileSchema>;
 export type BrowserFunction = z.infer<typeof functionSchema>;
@@ -834,6 +838,25 @@ export const browserAPI = {
       z.object({ rows: z.array(databaseRowSchema), pagination: paginationSchema }).passthrough(),
     );
   },
+  projectDatabaseRowsExport: (projectID: string, databaseID: string, tableID: string, options: { limit?: number } = {}) => {
+    const params = new URLSearchParams({ format: "json" });
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/export?${params.toString()}`,
+      databaseRowsExportSchema,
+    );
+  },
+  downloadProjectDatabaseRowsCSV: (projectID: string, databaseID: string, tableID: string, options: { limit?: number } = {}) => {
+    const params = new URLSearchParams({ format: "csv" });
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    return download(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/export?${params.toString()}`);
+  },
+  importProjectDatabaseRows: (projectID: string, databaseID: string, tableID: string, input: { rows: Array<{ id?: string; data: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] }> }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/import`,
+      databaseRowsImportSchema,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
   createProjectDatabaseRow: (projectID: string, databaseID: string, tableID: string, input: { data: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] }) =>
     request(
       `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows`,

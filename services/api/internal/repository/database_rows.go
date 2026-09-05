@@ -18,16 +18,39 @@ import (
 const rowProjection = `r.id,r.table_id,r.project_id,r.data,r.read_permissions,r.update_permissions,r.delete_permissions,r.creator_project_user_id,r.created_at,r.updated_at`
 const rowProjectionNoAlias = `id,table_id,project_id,data,read_permissions,update_permissions,delete_permissions,creator_project_user_id,created_at,updated_at`
 
-// DatabaseTableSchema loads only schema metadata and performs the same
-// project-membership check used by row reads for management actors. Application
-// actors are checked by the row grant in the operation itself.
+const (
+	// DatabaseRowExportDefaultLimit keeps an accidental export from turning
+	// into an unbounded database and response-buffer operation.
+	DatabaseRowExportDefaultLimit = 1000
+	DatabaseRowExportMaxLimit     = 10000
+	DatabaseRowBulkImportMaxRows  = 1000
+)
+
+type DatabaseBulkRowInput struct {
+	ID                uuid.UUID
+	Data              map[string]any
+	ReadPermissions   *[]string
+	UpdatePermissions *[]string
+	DeletePermissions *[]string
+}
+
+// DatabaseTableSchema loads schema metadata and performs the same project and
+// table-read checks used by row reads. When row security is enabled, the
+// operation may still narrow results further using each row's grant.
 func (r *Repository) DatabaseTableSchema(ctx context.Context, projectID, databaseID, tableID uuid.UUID, actor DatabaseActor) (DatabaseTableSchema, error) {
 	if actor.IsManagement() {
 		if _, err := r.requireDatabaseRead(ctx, projectID, actor); err != nil {
 			return DatabaseTableSchema{}, err
 		}
 	}
-	return loadTableSchema(ctx, r.pool, projectID, databaseID, tableID)
+	schema, err := loadTableSchema(ctx, r.pool, projectID, databaseID, tableID)
+	if err != nil {
+		return DatabaseTableSchema{}, err
+	}
+	if err := authorizeDatabaseRowRead(schema, actor); err != nil {
+		return DatabaseTableSchema{}, err
+	}
+	return schema, nil
 }
 
 func loadTableSchema(ctx context.Context, txOrPool interface {
@@ -58,6 +81,13 @@ func loadTableSchema(ctx context.Context, txOrPool interface {
 		return DatabaseTableSchema{}, err
 	}
 	return DatabaseTableSchema{Table: item, Columns: columns}, nil
+}
+
+func authorizeDatabaseRowRead(schema DatabaseTableSchema, actor DatabaseActor) error {
+	if actor.IsApplication() && !tablePermission(schema.Table.ReadPermissions, actor) && !schema.Table.RowSecurity {
+		return ErrForbidden
+	}
+	return nil
 }
 
 func rowSQLExpression(prefix string, column DatabaseColumnSchema) string {
@@ -101,10 +131,10 @@ func (r *Repository) ListDatabaseRows(ctx context.Context, projectID, databaseID
 	if err != nil {
 		return nil, "", err
 	}
-	tableReadGranted := tablePermission(schema.Table.ReadPermissions, actor)
-	if actor.IsApplication() && !tableReadGranted && !schema.Table.RowSecurity {
+	if err := authorizeDatabaseRowRead(schema, actor); err != nil {
 		return nil, "", ErrForbidden
 	}
+	tableReadGranted := tablePermission(schema.Table.ReadPermissions, actor)
 	indexKeys := make([]string, 0, len(query.Filters)+1)
 	for _, filter := range query.Filters {
 		indexKeys = append(indexKeys, filter.Column.Key)
@@ -191,6 +221,57 @@ func (r *Repository) ListDatabaseRows(ctx context.Context, projectID, databaseID
 	return items, next, nil
 }
 
+// StreamDatabaseRows emits rows in stable id order while applying the same
+// table and row permission rules as ListDatabaseRows. The callback runs while
+// the PostgreSQL cursor is open, so callers can write an export without first
+// materialising the entire table in memory.
+func (r *Repository) StreamDatabaseRows(ctx context.Context, projectID, databaseID, tableID uuid.UUID, actor DatabaseActor, limit int, emit func(domain.DatabaseRow) error) (int, error) {
+	if limit < 1 || limit > DatabaseRowExportMaxLimit {
+		return 0, fmt.Errorf("%w: export limit must be between 1 and %d", ErrInvalidQuery, DatabaseRowExportMaxLimit)
+	}
+	if emit == nil {
+		return 0, fmt.Errorf("%w: export callback is required", ErrInvalidQuery)
+	}
+	if _, err := r.requireDatabaseRead(ctx, projectID, actor); err != nil && actor.IsManagement() {
+		return 0, err
+	}
+	schema, err := loadTableSchema(ctx, r.pool, projectID, databaseID, tableID)
+	if err != nil {
+		return 0, err
+	}
+	if err := authorizeDatabaseRowRead(schema, actor); err != nil {
+		return 0, err
+	}
+	tableReadGranted := tablePermission(schema.Table.ReadPermissions, actor)
+	args := []any{projectID, tableID}
+	where := []string{"r.project_id=$1", "r.table_id=$2"}
+	if actor.IsApplication() && schema.Table.RowSecurity && !tableReadGranted {
+		where = append(where, rowPermissionSQL("r.read_permissions", actor, &args))
+	}
+	args = append(args, limit)
+	query := `SELECT ` + rowProjection + ` FROM database_rows r WHERE ` + strings.Join(where, " AND ") + ` ORDER BY r.id ASC LIMIT $` + strconv.Itoa(len(args))
+	rows, err := r.pool.Query(ctx, query, args...)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	count := 0
+	for rows.Next() {
+		item, scanErr := scanRow(rows)
+		if scanErr != nil {
+			return count, scanErr
+		}
+		if callbackErr := emit(item); callbackErr != nil {
+			return count, callbackErr
+		}
+		count++
+	}
+	if err := rows.Err(); err != nil {
+		return count, err
+	}
+	return count, nil
+}
+
 func (r *Repository) GetDatabaseRow(ctx context.Context, projectID, databaseID, tableID, rowID uuid.UUID, actor DatabaseActor) (domain.DatabaseRow, error) {
 	if _, err := r.requireDatabaseRead(ctx, projectID, actor); err != nil && actor.IsManagement() {
 		return domain.DatabaseRow{}, err
@@ -199,10 +280,10 @@ func (r *Repository) GetDatabaseRow(ctx context.Context, projectID, databaseID, 
 	if err != nil {
 		return domain.DatabaseRow{}, err
 	}
-	tableReadGranted := tablePermission(schema.Table.ReadPermissions, actor)
-	if actor.IsApplication() && !tableReadGranted && !schema.Table.RowSecurity {
-		return domain.DatabaseRow{}, ErrForbidden
+	if err := authorizeDatabaseRowRead(schema, actor); err != nil {
+		return domain.DatabaseRow{}, err
 	}
+	tableReadGranted := tablePermission(schema.Table.ReadPermissions, actor)
 	sql := `SELECT ` + rowProjection + ` FROM database_rows r WHERE r.project_id=$1 AND r.table_id=$2 AND r.id=$3`
 	args := []any{projectID, tableID, rowID}
 	if actor.IsApplication() && schema.Table.RowSecurity && !tableReadGranted {
@@ -228,6 +309,54 @@ func (r *Repository) CreateDatabaseRow(ctx context.Context, id, projectID, datab
 	if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "create"); err != nil {
 		return domain.DatabaseRow{}, err
 	}
+	item, err := r.createDatabaseRowTx(ctx, tx, projectID, tableID, schema, id, actor, input)
+	if err != nil {
+		return domain.DatabaseRow{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.DatabaseRow{}, err
+	}
+	return item, nil
+}
+
+func (r *Repository) CreateDatabaseRows(ctx context.Context, projectID, databaseID, tableID uuid.UUID, actor DatabaseActor, inputs []DatabaseBulkRowInput) ([]domain.DatabaseRow, error) {
+	if len(inputs) == 0 || len(inputs) > DatabaseRowBulkImportMaxRows {
+		return nil, fmt.Errorf("%w: import rows must contain between 1 and %d items", dbcore.ErrInvalidRow, DatabaseRowBulkImportMaxRows)
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	schema, err := loadTableSchema(ctx, tx, projectID, databaseID, tableID)
+	if err != nil {
+		return nil, err
+	}
+	if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "create"); err != nil {
+		return nil, err
+	}
+	items := make([]domain.DatabaseRow, 0, len(inputs))
+	for _, input := range inputs {
+		id := input.ID
+		if id == uuid.Nil {
+			id = uuid.Must(uuid.NewV7())
+		}
+		item, err := r.createDatabaseRowTx(ctx, tx, projectID, tableID, schema, id, actor, DatabaseRowInput{
+			Data: input.Data, ReadPermissions: input.ReadPermissions,
+			UpdatePermissions: input.UpdatePermissions, DeletePermissions: input.DeletePermissions,
+		})
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+func (r *Repository) createDatabaseRowTx(ctx context.Context, tx pgx.Tx, projectID, tableID uuid.UUID, schema DatabaseTableSchema, id uuid.UUID, actor DatabaseActor, input DatabaseRowInput) (domain.DatabaseRow, error) {
 	data, err := dbcore.NormalizeCreate(input.Data, columnDefinitions(schema.Columns))
 	if err != nil {
 		return domain.DatabaseRow{}, err
@@ -265,9 +394,6 @@ func (r *Repository) CreateDatabaseRow(ctx context.Context, id, projectID, datab
 	}
 	metadata := buildDatabaseRowEventMetadata(actor, schema.Table, item.ReadPermissions, changed)
 	if err := r.auditDatabase(ctx, tx, projectID, actor, "database_row.create", "database_row", id, metadata); err != nil {
-		return domain.DatabaseRow{}, err
-	}
-	if err := tx.Commit(ctx); err != nil {
 		return domain.DatabaseRow{}, err
 	}
 	return item, nil

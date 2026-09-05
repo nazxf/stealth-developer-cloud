@@ -51,6 +51,10 @@ export type ApplicationRowInput = {
   delete_permissions?: string[];
 };
 
+export type DatabaseRowImportInput = ApplicationRowInput & { id?: string };
+export type DatabaseRowsExport = { rows: DatabaseRow[]; count: number };
+export type DatabaseRowsImportResponse = { rows: DatabaseRow[]; count: number };
+
 export type ApplicationRowPatch = {
   data?: Record<string, unknown>;
 };
@@ -160,6 +164,8 @@ export class StealthClient {
   /** Application-facing rows only. Console and server-key management stays in server.ts. */
   readonly rows: {
     list: (databaseID: string, tableID: string, options?: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; filters?: Record<string, string> }) => Promise<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>;
+    export: (databaseID: string, tableID: string, options?: { limit?: number }) => Promise<DatabaseRowsExport>;
+    import: (databaseID: string, tableID: string, input: { rows: DatabaseRowImportInput[] }) => Promise<DatabaseRowsImportResponse>;
     get: (databaseID: string, tableID: string, rowID: string) => Promise<DatabaseRow>;
     create: (databaseID: string, tableID: string, input: ApplicationRowInput) => Promise<DatabaseRow>;
     update: (databaseID: string, tableID: string, rowID: string, input: ApplicationRowPatch) => Promise<DatabaseRow>;
@@ -216,6 +222,8 @@ export class StealthClient {
     };
     this.rows = {
       list: (databaseID, tableID, listOptions) => this.listRows(databaseID, tableID, listOptions),
+      export: (databaseID, tableID, exportOptions) => this.exportRows(databaseID, tableID, exportOptions),
+      import: (databaseID, tableID, input) => this.importRows(databaseID, tableID, input),
       get: (databaseID, tableID, rowID) => this.getRow(databaseID, tableID, rowID),
       create: (databaseID, tableID, input) => this.createRow(databaseID, tableID, input),
       update: (databaseID, tableID, rowID, input) => this.updateRow(databaseID, tableID, rowID, input),
@@ -303,6 +311,16 @@ export class StealthClient {
     for (const [key, value] of Object.entries(options.filters ?? {})) query.set(`filter.${key}`, value);
     const suffix = `/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows${query.toString() ? `?${query.toString()}` : ""}`;
     return this.request<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>(suffix);
+  }
+
+  private async exportRows(databaseID: string, tableID: string, options: { limit?: number } = {}): Promise<DatabaseRowsExport> {
+    const query = new URLSearchParams({ format: "json" });
+    if (options.limit !== undefined) query.set("limit", String(options.limit));
+    return this.request<DatabaseRowsExport>(`/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/export?${query.toString()}`);
+  }
+
+  private async importRows(databaseID: string, tableID: string, input: { rows: DatabaseRowImportInput[] }): Promise<DatabaseRowsImportResponse> {
+    return this.request<DatabaseRowsImportResponse>(`/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/import`, { method: "POST", body: JSON.stringify(input) });
   }
 
   private async getRow(databaseID: string, tableID: string, rowID: string): Promise<DatabaseRow> {

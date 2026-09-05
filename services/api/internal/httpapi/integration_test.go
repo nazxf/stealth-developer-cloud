@@ -1307,6 +1307,31 @@ func TestProjectDatabasesCoreIntegration(t *testing.T) {
 	}
 	duplicateBody := map[string]any{"data": map[string]any{"title": "first"}}
 	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/rows", duplicateBody, http.StatusConflict, nil)
+	var exportedRows struct {
+		Rows []struct {
+			Data map[string]any `json:"data"`
+		} `json:"rows"`
+		Count int `json:"count"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/export?format=json&limit=10", nil, http.StatusOK, &exportedRows)
+	if exportedRows.Count != 1 || len(exportedRows.Rows) != 1 || exportedRows.Rows[0].Data["title"] != "first" {
+		t.Fatalf("JSON export = %#v", exportedRows)
+	}
+	csvExport := requestJSONRaw(t, ownerClient, http.MethodGet, tableURL+"/export?format=csv&limit=10", nil, http.StatusOK)
+	if !bytes.Contains(csvExport, []byte("id,project_id,table_id,created_at,updated_at,title,count")) || !bytes.Contains(csvExport, []byte("first")) {
+		t.Fatalf("CSV export = %s", csvExport)
+	}
+	var importedRows struct {
+		Rows []struct {
+			Data map[string]any `json:"data"`
+		} `json:"rows"`
+		Count int `json:"count"`
+	}
+	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/rows/import", map[string]any{"rows": []any{map[string]any{"data": map[string]any{"title": "imported"}}}}, http.StatusCreated, &importedRows)
+	if importedRows.Count != 1 || len(importedRows.Rows) != 1 || importedRows.Rows[0].Data["title"] != "imported" {
+		t.Fatalf("bulk import = %#v", importedRows)
+	}
+	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/rows/import", map[string]any{"rows": []any{map[string]any{"data": map[string]any{"title": "atomic"}}, map[string]any{"data": map[string]any{"title": "imported"}}}}, http.StatusConflict, nil)
 	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/rows?filter.count=2", nil, http.StatusUnprocessableEntity, nil)
 	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/indexes", map[string]any{"name": "count key", "type": "key", "column_keys": []string{"count"}}, http.StatusCreated, &struct{}{})
 	var rowsPage struct {

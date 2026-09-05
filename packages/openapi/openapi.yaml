@@ -1410,6 +1410,26 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /v1/projects/{projectID}/databases/{databaseID}/tables/{tableID}/export:
+    get:
+      operationId: exportDatabaseRows
+      description: Stream a permission-filtered table snapshot as JSON or CSV. JSON preserves the DatabaseRow shape; CSV uses JSON literals for declared data columns. Exports are bounded by the limit query parameter.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }, { projectAppCookie: [] }, {}]
+      parameters:
+        - { $ref: '#/components/parameters/ProjectID' }
+        - { $ref: '#/components/parameters/DatabaseID' }
+        - { $ref: '#/components/parameters/TableID' }
+        - { name: format, in: query, schema: { type: string, enum: [json, csv], default: json } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+      responses:
+        '200': { description: Permission-filtered table export, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRowsExport' } }, text/csv: { schema: { type: string, format: binary } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /v1/projects/{projectID}/databases/{databaseID}/tables/{tableID}/rows:
     get:
       operationId: listDatabaseRows
@@ -1434,6 +1454,26 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateDatabaseRowRequest' } } } }
       responses:
         '201': { description: Typed row created, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRowResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/projects/{projectID}/databases/{databaseID}/tables/{tableID}/rows/import:
+    post:
+      operationId: importDatabaseRows
+      description: Atomically create up to 1000 typed rows. If any row fails schema, permission, or index validation, the transaction rolls back and no imported row remains.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }, { projectAppCookie: [] }, {}]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/DatabaseID' }, { $ref: '#/components/parameters/TableID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ImportDatabaseRowsRequest' } } } }
+      responses:
+        '201': { description: Imported rows, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRowsImportResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -2000,6 +2040,8 @@ components:
     CreateDatabaseIndexRequest: { type: object, additionalProperties: false, required: [name, type, column_keys], properties: { name: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, type: { type: string, enum: [key, unique] }, column_keys: { type: array, minItems: 1, maxItems: 16, items: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' } }, directions: { type: array, minItems: 1, maxItems: 16, items: { type: string, enum: [asc, desc] }, description: Optional; omitted directions default to asc for every column. } } }
     CreateDatabaseRowRequest: { type: object, additionalProperties: false, required: [data], properties: { data: { type: object, description: Typed row data; its keys must match declared columns. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
     UpdateDatabaseRowRequest: { type: object, additionalProperties: false, minProperties: 1, properties: { data: { type: object, description: Partial typed row data; omitted values remain unchanged. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
+    ImportDatabaseRow: { type: object, additionalProperties: false, required: [data], properties: { id: { type: string, format: uuid, description: Optional stable row id; omitted ids are generated. }, table_id: { type: string, format: uuid, readOnly: true, description: Optional exported metadata; ignored on import. }, project_id: { type: string, format: uuid, readOnly: true, description: Optional exported metadata; ignored on import. }, data: { type: object, description: Typed row data; its keys must match declared columns. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, creator_project_user_id: { type: [string, 'null'], format: uuid, readOnly: true, description: Optional exported metadata; ignored on import. }, created_at: { type: string, format: date-time, readOnly: true, description: Optional exported metadata; ignored on import. }, updated_at: { type: string, format: date-time, readOnly: true, description: Optional exported metadata; ignored on import. } } }
+    ImportDatabaseRowsRequest: { type: object, additionalProperties: false, required: [rows], properties: { rows: { type: array, minItems: 1, maxItems: 1000, items: { $ref: '#/components/schemas/ImportDatabaseRow' } } } }
     ProjectDatabaseResponse: { type: object, additionalProperties: false, required: [database], properties: { database: { $ref: '#/components/schemas/ProjectDatabase' } } }
     DatabaseTableResponse: { type: object, additionalProperties: false, required: [table], properties: { table: { $ref: '#/components/schemas/DatabaseTable' } } }
     DatabaseColumnResponse: { type: object, additionalProperties: false, required: [column], properties: { column: { $ref: '#/components/schemas/DatabaseColumn' } } }
@@ -2010,3 +2052,5 @@ components:
     DatabaseColumnsPage: { type: object, additionalProperties: false, required: [columns, pagination], properties: { columns: { type: array, items: { $ref: '#/components/schemas/DatabaseColumn' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
     DatabaseIndexesPage: { type: object, additionalProperties: false, required: [indexes, pagination], properties: { indexes: { type: array, items: { $ref: '#/components/schemas/DatabaseIndex' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
     DatabaseRowsPage: { type: object, additionalProperties: false, required: [rows, pagination], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
+    DatabaseRowsExport: { type: object, additionalProperties: false, required: [rows, count], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, count: { type: integer, minimum: 0, maximum: 10000 } } }
+    DatabaseRowsImportResponse: { type: object, additionalProperties: false, required: [rows, count], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, count: { type: integer, minimum: 1, maximum: 1000 } } }
