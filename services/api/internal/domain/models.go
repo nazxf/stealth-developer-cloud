@@ -675,3 +675,17 @@ type SiteDeployment struct {
 	CreatedAt          time.Time  `json:"created_at"`
 	UpdatedAt          time.Time  `json:"updated_at"`
 }
+
+// SiteBuildLog is a bounded, secret-safe lifecycle message emitted by the
+// trusted Site build worker. Deployment and tenant identifiers are included
+// so callers can safely render logs without joining private storage paths.
+type SiteBuildLog struct {
+	ID           string    `json:"id"`
+	DeploymentID string    `json:"deployment_id"`
+	SiteID       string    `json:"site_id"`
+	ProjectID    string    `json:"project_id"`
+	Sequence     int64     `json:"sequence"`
+	Level        string    `json:"level"`
+	Message      string    `json:"message"`
+	CreatedAt    time.Time `json:"created_at"`
+}

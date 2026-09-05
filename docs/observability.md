@@ -29,8 +29,9 @@ API/Worker ── OTLP/HTTP ──▶ Tempo ────────────
   Console database.
 - **Logs** remain structured JSON on stdout. Grafana Alloy tails Docker's log
   stream, preserves `service`, `container`, and `level` labels, and forwards
-  entries to Loki. Function output is still bounded and redacted before it is
-  persisted or logged.
+  entries to Loki. Function and Site build lifecycle output is bounded and
+  redacted before it is persisted or logged; Site build logs are available per
+  deployment through the project API.
 
 ## Local stack
 

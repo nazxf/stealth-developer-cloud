@@ -90,6 +90,7 @@ func TestGitSiteDeploymentQueuesValidatedSourceIntegration(t *testing.T) {
 
 	var created struct {
 		Deployment struct {
+			ID            string  `json:"id"`
 			Source        string  `json:"source"`
 			Repository    *string `json:"git_repository"`
 			Ref           *string `json:"git_ref"`
@@ -116,6 +117,29 @@ func TestGitSiteDeploymentQueuesValidatedSourceIntegration(t *testing.T) {
 	if countRegularFiles(filepath.Join(root, "site-archives")) != 1 {
 		t.Fatalf("expected one immutable Git source archive in site-archives")
 	}
+	deploymentID := uuid.Must(uuid.Parse(created.Deployment.ID))
+	if _, err := repository.New(pool).AppendSiteBuildLog(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(site.Site.ID)), deploymentID, uuid.Must(uuid.NewV7()), 0, "info", "source archive queued"); err != nil {
+		t.Fatal(err)
+	}
+	var logs struct {
+		Logs []struct {
+			DeploymentID string `json:"deployment_id"`
+			SiteID       string `json:"site_id"`
+			ProjectID    string `json:"project_id"`
+			Sequence     int64  `json:"sequence"`
+			Level        string `json:"level"`
+			Message      string `json:"message"`
+		} `json:"logs"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/sites/"+site.Site.ID+"/deployments/"+created.Deployment.ID+"/logs?limit=10", nil, http.StatusOK, &logs)
+	if len(logs.Logs) != 1 || logs.Logs[0].DeploymentID != created.Deployment.ID || logs.Logs[0].SiteID != site.Site.ID || logs.Logs[0].ProjectID != project.Project.ID || logs.Logs[0].Sequence != 1 || logs.Logs[0].Level != "info" || logs.Logs[0].Message != "source archive queued" {
+		t.Fatalf("unexpected Site build logs: %+v", logs.Logs)
+	}
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/sites/"+site.Site.ID+"/deployments/"+created.Deployment.ID+"/logs?after=1", nil, http.StatusOK, &struct {
+		Logs []struct {
+			ID string `json:"id"`
+		} `json:"logs"`
+	}{})
 }
 
 type fakeGitFetcher struct {

@@ -1575,6 +1575,13 @@ paths:
       security: [{ sessionCookie: [] }, { projectApiKey: [] }]
       parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/SiteID' }, { $ref: '#/components/parameters/DeploymentID' }]
       responses: { '200': { description: Activated Site and deployment, content: { application/json: { schema: { $ref: '#/components/schemas/ActivateSiteDeploymentResponse' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' }, '409': { $ref: '#/components/responses/Conflict' } }
+  /v1/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}/logs:
+    get:
+      operationId: listSiteBuildLogs
+      description: List bounded, secret-redacted lifecycle messages emitted by the trusted Site build worker. The after cursor is the last returned sequence.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/SiteID' }, { $ref: '#/components/parameters/DeploymentID' }, { $ref: '#/components/parameters/Limit' }, { name: after, in: query, required: false, schema: { type: integer, format: int64, minimum: 0 } }]
+      responses: { '200': { description: Site build logs, content: { application/json: { schema: { $ref: '#/components/schemas/SiteBuildLogsPage' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } }
   /v1/sites/{siteID}:
     get:
       operationId: serveSiteIndex
@@ -1923,6 +1930,8 @@ components:
     SiteDomainResponse: { type: object, additionalProperties: false, required: [domain], properties: { domain: { $ref: '#/components/schemas/SiteDomain' } } }
     SiteDomainsPage: { type: object, additionalProperties: false, required: [domains, pagination, can_manage], properties: { domains: { type: array, items: { $ref: '#/components/schemas/SiteDomain' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
     SiteDeploymentResponse: { type: object, additionalProperties: false, required: [deployment], properties: { deployment: { $ref: '#/components/schemas/SiteDeployment' } } }
+    SiteBuildLog: { type: object, additionalProperties: false, required: [id, deployment_id, site_id, project_id, sequence, level, message, created_at], properties: { id: { type: string, format: uuid }, deployment_id: { type: string, format: uuid }, site_id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, sequence: { type: integer, format: int64, minimum: 1 }, level: { type: string, enum: [debug, info, warn, error] }, message: { type: string, minLength: 1, maxLength: 16000 }, created_at: { type: string, format: date-time } } }
+    SiteBuildLogsPage: { type: object, additionalProperties: false, required: [logs, pagination], properties: { logs: { type: array, items: { $ref: '#/components/schemas/SiteBuildLog' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
     ActivateSiteDeploymentResponse: { type: object, additionalProperties: false, required: [site, deployment], properties: { site: { $ref: '#/components/schemas/Site' }, deployment: { $ref: '#/components/schemas/SiteDeployment' } } }
     SitesPage: { type: object, additionalProperties: false, required: [sites, pagination, can_manage], properties: { sites: { type: array, items: { $ref: '#/components/schemas/Site' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
     SiteDeploymentsPage: { type: object, additionalProperties: false, required: [deployments, pagination, can_manage], properties: { deployments: { type: array, items: { $ref: '#/components/schemas/SiteDeployment' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }

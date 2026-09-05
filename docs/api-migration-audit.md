@@ -107,6 +107,9 @@ simulated async behavior (timers standing in for network calls).
 - The browser API client exposes typed `projectSiteDeployments` and
   `projectFunctionDeployments` list methods and keeps the same project-scoped
   authorization boundary as the resource pages.
+- Site deployment rows open a live, sequence-cursor build-log viewer backed by
+  `GET /v1/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}/logs`;
+  the worker emits only bounded lifecycle messages and failures are redacted.
 
 ### Project Logs — migrated
 - `/projects/{projectID}/logs` loads project-scoped audit events through

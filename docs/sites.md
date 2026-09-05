@@ -23,6 +23,12 @@ worker; the API process never executes uploaded code.
    succeeds. A later ready deployment can be activated with
    `POST .../deployments/{deploymentID}/activate`.
 
+While a source deployment is queued or running, the Console can stream its
+bounded lifecycle messages from
+`GET /v1/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}/logs`.
+The `after` query parameter is the last sequence received; messages are
+ordered, capped, and secret-redacted before they are persisted.
+
 ## Git deployments
 
 Use `POST /v1/projects/{projectID}/sites/{siteID}/deployments/git` with a JSON

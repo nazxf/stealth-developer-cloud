@@ -9,6 +9,7 @@ import {
   LoaderCircle,
   Plus,
   Save,
+  Terminal,
   Trash2,
   Upload,
   X,
@@ -25,6 +26,7 @@ import {
   BrowserAPIError,
   browserAPI,
   type BrowserSite,
+  type BrowserSiteBuildLog,
   type BrowserSiteDomain,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
@@ -57,7 +59,7 @@ function formatBytes(value: number) {
   return `${(value / 1024 ** 3).toFixed(2)} GiB`;
 }
 function statusClass(status: string) {
-  if (["active", "ready", "verified"].includes(status))
+  if (["active", "ready", "verified", "succeeded"].includes(status))
     return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
   if (["failed", "cancelled", "disabled"].includes(status))
     return "border-rose-500/30 bg-rose-500/10 text-rose-200";
@@ -110,6 +112,7 @@ export default function SitesRoute() {
   const [gitOutputDirectory, setGitOutputDirectory] = useState("dist");
   const [activateGit, setActivateGit] = useState(true);
   const [hostname, setHostname] = useState("");
+  const [selectedDeploymentID, setSelectedDeploymentID] = useState("");
   const sourceInputRef = useRef<HTMLInputElement>(null);
   const sites = sitesQuery.data?.sites ?? [];
   const selected = sites.find((item) => item.id === selectedID) ?? null;
@@ -124,12 +127,27 @@ export default function SitesRoute() {
     setQuotaDraft(String(selected.artifact_quota_bytes));
     setEnabledDraft(selected.enabled);
   }, [selected]);
+  useEffect(() => {
+    setSelectedDeploymentID("");
+  }, [selectedID]);
   const deploymentsQuery = useQuery({
     queryKey: ["site-deployments", projectId, selectedID],
     queryFn: () =>
       browserAPI.projectSiteDeployments(projectId, selectedID, { limit: 50 }),
     enabled: Boolean(selectedID),
     refetchInterval: selectedID ? 2500 : false,
+  });
+  const deploymentLogsQuery = useQuery({
+    queryKey: ["site-build-logs", projectId, selectedID, selectedDeploymentID],
+    queryFn: () =>
+      browserAPI.projectSiteBuildLogs(
+        projectId,
+        selectedID,
+        selectedDeploymentID,
+        { limit: 100 },
+      ),
+    enabled: Boolean(selectedID && selectedDeploymentID),
+    refetchInterval: selectedDeploymentID ? 2500 : false,
   });
   const domainsQuery = useQuery({
     queryKey: ["site-domains", projectId, selectedID],
@@ -530,6 +548,11 @@ export default function SitesRoute() {
               onGitDeploy={createGitDeployment}
               deployments={deploymentsQuery.data?.deployments ?? []}
               deploymentsLoading={deploymentsQuery.isPending}
+              selectedDeploymentID={selectedDeploymentID}
+              onSelectDeployment={setSelectedDeploymentID}
+              buildLogs={deploymentLogsQuery.data?.logs ?? []}
+              buildLogsLoading={deploymentLogsQuery.isPending}
+              buildLogsError={deploymentLogsQuery.error}
               onActivate={activateDeployment}
               onDeleteDeployment={deleteDeployment}
               domains={domainsQuery.data?.domains ?? []}
@@ -702,6 +725,11 @@ function SiteWorkspace({
   onGitDeploy,
   deployments,
   deploymentsLoading,
+  selectedDeploymentID,
+  onSelectDeployment,
+  buildLogs,
+  buildLogsLoading,
+  buildLogsError,
   onActivate,
   onDeleteDeployment,
   domains,
@@ -759,6 +787,11 @@ function SiteWorkspace({
     created_at: string;
   }>;
   deploymentsLoading: boolean;
+  selectedDeploymentID: string;
+  onSelectDeployment: (deploymentID: string) => void;
+  buildLogs: BrowserSiteBuildLog[];
+  buildLogsLoading: boolean;
+  buildLogsError: unknown;
   onActivate: (id: string) => void;
   onDeleteDeployment: (id: string) => void;
   domains: BrowserSiteDomain[];
@@ -1083,19 +1116,36 @@ function SiteWorkspace({
                       v{deployment.version}
                     </td>
                     <td className="px-3 py-3">
-                      <span
-                        className={`rounded-full border px-2 py-1 ${statusClass(deployment.status)}`}
+                      <button
+                        type="button"
+                        onClick={() => onSelectDeployment(deployment.id)}
+                        aria-pressed={selectedDeploymentID === deployment.id}
+                        aria-label={`View build logs for deployment ${deployment.id}`}
+                        className={`rounded-md text-left ${selectedDeploymentID === deployment.id ? "ring-2 ring-[var(--projects-accent)]/50" : ""}`}
                       >
-                        {deployment.status}
-                      </span>
-                      {deployment.error_message ? (
-                        <p
-                          className="m-0 mt-1 max-w-[220px] truncate text-[var(--projects-danger)]"
-                          title={deployment.error_message}
-                        >
-                          {deployment.error_message}
-                        </p>
-                      ) : null}
+                        <div className="flex flex-wrap gap-1">
+                          <span
+                            className={`rounded-full border px-2 py-1 ${statusClass(deployment.status)}`}
+                          >
+                            {deployment.status}
+                          </span>
+                          {deployment.build_status !== deployment.status ? (
+                            <span
+                              className={`rounded-full border px-2 py-1 ${statusClass(deployment.build_status)}`}
+                            >
+                              build {deployment.build_status}
+                            </span>
+                          ) : null}
+                        </div>
+                        {deployment.error_message ? (
+                          <p
+                            className="m-0 mt-1 max-w-[220px] truncate text-[var(--projects-danger)]"
+                            title={deployment.error_message}
+                          >
+                            {deployment.error_message}
+                          </p>
+                        ) : null}
+                      </button>
                     </td>
                     <td
                       className="max-w-[220px] truncate px-3 py-3 text-[var(--projects-muted)]"
@@ -1141,6 +1191,60 @@ function SiteWorkspace({
             No deployments yet.
           </p>
         )}
+        {selectedDeploymentID ? (
+          <section className="mt-5 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Terminal
+                  size={15}
+                  className="text-[var(--projects-accent)]"
+                  aria-hidden="true"
+                />
+                <h4 className="m-0 text-sm font-semibold">Build logs</h4>
+              </div>
+              <span className="font-mono text-[10px] text-[var(--projects-muted)]">
+                deployment: {selectedDeploymentID}
+              </span>
+            </div>
+            <p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">
+              Secret-redacted lifecycle output emitted by the trusted Site build worker.
+            </p>
+            {buildLogsLoading ? (
+              <p className="m-0 mt-4 text-xs text-[var(--projects-muted)]">
+                Loading build logs…
+              </p>
+            ) : buildLogsError ? (
+              <p role="alert" className="m-0 mt-4 text-xs text-rose-200">
+                {buildLogsError instanceof Error
+                  ? buildLogsError.message
+                  : "Unable to load build logs."}
+              </p>
+            ) : buildLogs.length ? (
+              <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">
+                {buildLogs.map((log) => (
+                  <p
+                    key={log.id}
+                    className="m-0 border-b border-[var(--projects-divider)] py-1.5 font-mono text-[10px] leading-5 last:border-0"
+                  >
+                    <span
+                      className={`mr-2 uppercase ${log.level === "error" ? "text-rose-200" : log.level === "warn" ? "text-amber-200" : "text-[var(--projects-accent)]"}`}
+                    >
+                      {log.level}
+                    </span>
+                    <span className="mr-2 text-[var(--projects-muted)]">
+                      #{log.sequence}
+                    </span>
+                    {log.message}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="m-0 mt-4 rounded-lg border border-dashed border-[var(--projects-border)] p-6 text-center text-xs text-[var(--projects-muted)]">
+                No build logs have been emitted for this deployment.
+              </p>
+            )}
+          </section>
+        ) : null}
       </div>
       <div className="mt-5 rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5">
         <div className="flex items-start gap-3">
