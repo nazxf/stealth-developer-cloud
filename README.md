@@ -74,6 +74,7 @@ authenticated query contracts are implemented.
 - `docs/usage.md` — live project resource aggregates and metering boundary
 - `docs/auth.md` — one-time verification, recovery, organization invitations, and SMTP delivery
 - `docs/agents.md` — project-scoped Agent configuration, run queue, and execution boundary
+- `docs/deployment.md` — production Compose rollout, security checklist, smoke tests, and rollback
 
 ## Local API development
 
