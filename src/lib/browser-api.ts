@@ -245,6 +245,18 @@ const databaseIndexSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const databaseRelationshipSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  database_id: z.string(),
+  source_table_id: z.string(),
+  source_column_key: z.string(),
+  target_table_id: z.string(),
+  type: z.literal("many_to_one"),
+  on_delete: z.literal("restrict"),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const databaseRowSchema = z.object({
   id: z.string(),
   table_id: z.string(),
@@ -259,6 +271,7 @@ const databaseRowSchema = z.object({
 });
 const databaseRowsExportSchema = z.object({ rows: z.array(databaseRowSchema), count: z.number().int().nonnegative() });
 const databaseRowsImportSchema = z.object({ rows: z.array(databaseRowSchema), count: z.number().int().positive() });
+const databaseRowsTransactionSchema = z.object({ rows: z.array(databaseRowSchema), deleted_ids: z.array(z.string()), count: z.number().int().positive().max(100) });
 const storageBucketSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -563,9 +576,11 @@ export type BrowserDatabaseTable = z.infer<typeof databaseTableSchema>;
 export type BrowserDatabaseColumnType = z.infer<typeof databaseColumnTypeSchema>;
 export type BrowserDatabaseColumn = z.infer<typeof databaseColumnSchema>;
 export type BrowserDatabaseIndex = z.infer<typeof databaseIndexSchema>;
+export type BrowserDatabaseRelationship = z.infer<typeof databaseRelationshipSchema>;
 export type BrowserDatabaseRow = z.infer<typeof databaseRowSchema>;
 export type BrowserDatabaseRowsExport = z.infer<typeof databaseRowsExportSchema>;
 export type BrowserDatabaseRowsImportResponse = z.infer<typeof databaseRowsImportSchema>;
+export type BrowserDatabaseRowsTransactionResponse = z.infer<typeof databaseRowsTransactionSchema>;
 export type BrowserStorageBucket = z.infer<typeof storageBucketSchema>;
 export type BrowserStorageFile = z.infer<typeof storageFileSchema>;
 export type BrowserFunction = z.infer<typeof functionSchema>;
@@ -825,6 +840,33 @@ export const browserAPI = {
       z.undefined(),
       { method: "DELETE" },
     ),
+  projectDatabaseRelationships: (projectID: string, databaseID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/relationships${query ? `?${query}` : ""}`,
+      z.object({ relationships: z.array(databaseRelationshipSchema), pagination: paginationSchema }).passthrough(),
+    );
+  },
+  getProjectDatabaseRelationship: (projectID: string, databaseID: string, relationshipID: string) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/relationships/${encodeURIComponent(relationshipID)}`,
+      z.object({ relationship: databaseRelationshipSchema }),
+    ),
+  createProjectDatabaseRelationship: (projectID: string, databaseID: string, input: { source_table_id: string; source_column_key: string; target_table_id: string; type?: "many_to_one"; on_delete?: "restrict" }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/relationships`,
+      z.object({ relationship: databaseRelationshipSchema }),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  deleteProjectDatabaseRelationship: (projectID: string, databaseID: string, relationshipID: string) =>
+    request<void>(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/relationships/${encodeURIComponent(relationshipID)}`,
+      z.undefined(),
+      { method: "DELETE" },
+    ),
   projectDatabaseRows: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
@@ -857,6 +899,12 @@ export const browserAPI = {
     request(
       `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/import`,
       databaseRowsImportSchema,
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  transactProjectDatabaseRows: (projectID: string, databaseID: string, tableID: string, input: { operations: Array<{ action: "create" | "update" | "delete"; id?: string; data?: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] }> }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/transaction`,
+      databaseRowsTransactionSchema,
       { method: "POST", body: JSON.stringify(input) },
     ),
   createProjectDatabaseRow: (projectID: string, databaseID: string, tableID: string, input: { data: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] }) =>

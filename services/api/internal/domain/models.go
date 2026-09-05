@@ -469,6 +469,22 @@ type DatabaseIndex struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
+// DatabaseRelationship is a tenant-scoped many-to-one reference. The source
+// value is the UUID of a row in TargetTableID; the repository validates that
+// target on every source-row write and protects it from deletion while used.
+type DatabaseRelationship struct {
+	ID               string    `json:"id"`
+	ProjectID        string    `json:"project_id"`
+	DatabaseID       string    `json:"database_id"`
+	SourceTableID    string    `json:"source_table_id"`
+	SourceColumnKey  string    `json:"source_column_key"`
+	TargetTableID    string    `json:"target_table_id"`
+	RelationshipType string    `json:"type"`
+	OnDelete         string    `json:"on_delete"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
 type DatabaseRow struct {
 	ID                   string         `json:"id"`
 	TableID              string         `json:"table_id"`

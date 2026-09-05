@@ -311,7 +311,10 @@ available as an authenticated, cursor-aware Server-Sent Events stream; see
   streams (`GET .../tables/{tableID}/export`), and up to 1,000 typed rows can
   be imported atomically (`POST .../tables/{tableID}/rows/import`);
   full-text search is available on explicitly declared PostgreSQL GIN indexes;
-  relationships, transactions, and backups remain future modules.
+  many-to-one relationships are enforced transactionally between text/varchar
+  row-id columns and target rows (target deletion is restricted), and bounded
+  create/update/delete row transactions are atomic; backups remain a future
+  module.
 
 ### Webhooks contract
 

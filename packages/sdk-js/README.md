@@ -147,7 +147,10 @@ responses.
 
 The Database core currently supports typed columns, key/unique/full-text
 indexes, rows, equality filters, indexed search, bounded JSON/CSV export,
-atomic row import, and permission grants (`any`, `users`, and `user:<uuid>`).
+atomic row import and create/update/delete row transactions, enforced
+many-to-one relationships, and permission grants
+(`any`, `users`, and `user:<uuid>`). Relationship source values are target row
+UUIDs; target deletion is restricted while a source row points at it.
 The server client also exposes the Functions control plane with
 `functions.read`/`functions.write`. Function variable values are write-only,
 source archives are uploaded as multipart data, and one ready deployment can
@@ -172,6 +175,5 @@ server-only client because they require a project API key. Git deployments
 accept only public HTTPS GitHub/GitLab repositories and run their build in the
 same isolated worker as uploaded source archives.
 
-Relationships, transactions, backups, full-text search,
-bulk/import/export, S3 adapters, resumable uploads, image transforms, and
+Backups, resumable uploads, image transforms, and
 antivirus/CDN integration remain later milestones.

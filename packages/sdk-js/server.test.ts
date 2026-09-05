@@ -61,4 +61,25 @@ describe("server SDK build-log boundary", () => {
       "https://api.example.test/v1/projects/project-1/functions/function%2Fone/deployments/deployment%2Fone/logs",
     );
   });
+
+  it("posts atomic database row transactions with the server key", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ rows: [], deleted_ids: ["row-1"], count: 1 }), { status: 200 }),
+    );
+    const client = createServerStealthClient({
+      endpoint: "https://api.example.test",
+      projectID: "project-1",
+      apiKey: "sk_test_write",
+    });
+
+    const result = await client.databases.rows.transaction("database/one", "table/one", {
+      operations: [{ action: "delete", id: "row-1" }],
+    });
+
+    expect(result.deleted_ids).toEqual(["row-1"]);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      "https://api.example.test/v1/projects/project-1/databases/database%2Fone/tables/table%2Fone/rows/transaction",
+    );
+    expect((fetchMock.mock.calls[0]?.[1]?.headers as Headers).get("x-stealth-key")).toBe("sk_test_write");
+  });
 });

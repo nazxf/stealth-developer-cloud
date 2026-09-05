@@ -944,6 +944,9 @@ func databaseResourceError(w http.ResponseWriter, err error) bool {
 	case errors.Is(err, repository.ErrConflict):
 		writeError(w, http.StatusConflict, "conflict", "database resource conflicts with an existing resource")
 		return true
+	case errors.Is(err, repository.ErrReferenceViolation):
+		writeError(w, http.StatusConflict, "reference_violation", "database row is still referenced by another row")
+		return true
 	case errors.Is(err, repository.ErrSchemaConflict):
 		writeError(w, http.StatusConflict, "schema_conflict", "schema change conflicts with existing rows or indexes")
 		return true

@@ -591,6 +591,13 @@ func (r *Repository) DeleteDatabaseColumn(ctx context.Context, projectID, databa
 	if dependentIndex {
 		return ErrSchemaConflict
 	}
+	var dependentRelationship bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM database_relationships WHERE source_table_id=$1 AND source_column_key=$2)`, tableID, key).Scan(&dependentRelationship); err != nil {
+		return err
+	}
+	if dependentRelationship {
+		return ErrSchemaConflict
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM database_columns WHERE id=$1 AND table_id=$2`, columnID, tableID); err != nil {
 		return err
 	}

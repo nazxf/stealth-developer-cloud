@@ -24,6 +24,7 @@ const (
 	DatabaseRowExportDefaultLimit = 1000
 	DatabaseRowExportMaxLimit     = 10000
 	DatabaseRowBulkImportMaxRows  = 1000
+	DatabaseRowTransactionMaxOps  = 100
 )
 
 type DatabaseBulkRowInput struct {
@@ -32,6 +33,24 @@ type DatabaseBulkRowInput struct {
 	ReadPermissions   *[]string
 	UpdatePermissions *[]string
 	DeletePermissions *[]string
+}
+
+// DatabaseRowTransactionOperation is one atomic row mutation. Create and
+// update return rows in the transaction result; delete returns its id in
+// DeletedIDs. The repository evaluates permissions and relationships for every
+// operation before committing any of them.
+type DatabaseRowTransactionOperation struct {
+	Action            string
+	ID                uuid.UUID
+	Data              map[string]any
+	ReadPermissions   *[]string
+	UpdatePermissions *[]string
+	DeletePermissions *[]string
+}
+
+type DatabaseRowTransactionResult struct {
+	Rows       []domain.DatabaseRow
+	DeletedIDs []string
 }
 
 // DatabaseTableSchema loads schema metadata and performs the same project and
@@ -327,6 +346,9 @@ func (r *Repository) CreateDatabaseRow(ctx context.Context, id, projectID, datab
 		return domain.DatabaseRow{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockDatabaseNamespace(ctx, tx, databaseID); err != nil {
+		return domain.DatabaseRow{}, err
+	}
 	schema, err := loadTableSchema(ctx, tx, projectID, databaseID, tableID)
 	if err != nil {
 		return domain.DatabaseRow{}, err
@@ -353,6 +375,9 @@ func (r *Repository) CreateDatabaseRows(ctx context.Context, projectID, database
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockDatabaseNamespace(ctx, tx, databaseID); err != nil {
+		return nil, err
+	}
 	schema, err := loadTableSchema(ctx, tx, projectID, databaseID, tableID)
 	if err != nil {
 		return nil, err
@@ -381,9 +406,89 @@ func (r *Repository) CreateDatabaseRows(ctx context.Context, projectID, database
 	return items, nil
 }
 
+// TransactDatabaseRows applies a bounded sequence of creates, updates, and
+// deletes under one database transaction. The database namespace lock also
+// serializes this batch with relationship creation and target-row deletion.
+func (r *Repository) TransactDatabaseRows(ctx context.Context, projectID, databaseID, tableID uuid.UUID, actor DatabaseActor, operations []DatabaseRowTransactionOperation) (DatabaseRowTransactionResult, error) {
+	if len(operations) == 0 || len(operations) > DatabaseRowTransactionMaxOps {
+		return DatabaseRowTransactionResult{}, fmt.Errorf("%w: transaction operations must contain between 1 and %d items", dbcore.ErrInvalidRow, DatabaseRowTransactionMaxOps)
+	}
+	tx, err := r.pool.Begin(ctx)
+	if err != nil {
+		return DatabaseRowTransactionResult{}, err
+	}
+	defer tx.Rollback(ctx)
+	if err := lockDatabaseNamespace(ctx, tx, databaseID); err != nil {
+		return DatabaseRowTransactionResult{}, err
+	}
+	schema, err := loadTableSchema(ctx, tx, projectID, databaseID, tableID)
+	if err != nil {
+		return DatabaseRowTransactionResult{}, err
+	}
+	result := DatabaseRowTransactionResult{
+		Rows:       make([]domain.DatabaseRow, 0, len(operations)),
+		DeletedIDs: make([]string, 0),
+	}
+	for _, operation := range operations {
+		switch operation.Action {
+		case "create":
+			if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "create"); err != nil {
+				return DatabaseRowTransactionResult{}, err
+			}
+			id := operation.ID
+			if id == uuid.Nil {
+				id = uuid.Must(uuid.NewV7())
+			}
+			item, err := r.createDatabaseRowTx(ctx, tx, projectID, tableID, schema, id, actor, DatabaseRowInput{
+				Data: operation.Data, ReadPermissions: operation.ReadPermissions,
+				UpdatePermissions: operation.UpdatePermissions, DeletePermissions: operation.DeletePermissions,
+			})
+			if err != nil {
+				return DatabaseRowTransactionResult{}, err
+			}
+			result.Rows = append(result.Rows, item)
+		case "update":
+			if operation.ID == uuid.Nil {
+				return DatabaseRowTransactionResult{}, fmt.Errorf("%w: update operation requires id", dbcore.ErrInvalidRow)
+			}
+			if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "update"); err != nil {
+				return DatabaseRowTransactionResult{}, err
+			}
+			item, err := r.updateDatabaseRowTx(ctx, tx, projectID, tableID, operation.ID, actor, schema, DatabaseRowPatch{
+				Data: operation.Data, ReadPermissions: operation.ReadPermissions,
+				UpdatePermissions: operation.UpdatePermissions, DeletePermissions: operation.DeletePermissions,
+			})
+			if err != nil {
+				return DatabaseRowTransactionResult{}, err
+			}
+			result.Rows = append(result.Rows, item)
+		case "delete":
+			if operation.ID == uuid.Nil {
+				return DatabaseRowTransactionResult{}, fmt.Errorf("%w: delete operation requires id", dbcore.ErrInvalidRow)
+			}
+			if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "delete"); err != nil {
+				return DatabaseRowTransactionResult{}, err
+			}
+			if err := r.deleteDatabaseRowTx(ctx, tx, projectID, tableID, operation.ID, actor, schema); err != nil {
+				return DatabaseRowTransactionResult{}, err
+			}
+			result.DeletedIDs = append(result.DeletedIDs, operation.ID.String())
+		default:
+			return DatabaseRowTransactionResult{}, fmt.Errorf("%w: transaction action must be create, update, or delete", dbcore.ErrInvalidRow)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return DatabaseRowTransactionResult{}, err
+	}
+	return result, nil
+}
+
 func (r *Repository) createDatabaseRowTx(ctx context.Context, tx pgx.Tx, projectID, tableID uuid.UUID, schema DatabaseTableSchema, id uuid.UUID, actor DatabaseActor, input DatabaseRowInput) (domain.DatabaseRow, error) {
 	data, err := dbcore.NormalizeCreate(input.Data, columnDefinitions(schema.Columns))
 	if err != nil {
+		return domain.DatabaseRow{}, err
+	}
+	if err := validateDatabaseRowRelationshipsTx(ctx, tx, tableID, data); err != nil {
 		return domain.DatabaseRow{}, err
 	}
 	if actor.Kind == DatabaseAnonymousActor && (input.ReadPermissions == nil || input.UpdatePermissions == nil || input.DeletePermissions == nil) {
@@ -430,6 +535,9 @@ func (r *Repository) UpdateDatabaseRow(ctx context.Context, projectID, databaseI
 		return domain.DatabaseRow{}, err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockDatabaseNamespace(ctx, tx, databaseID); err != nil {
+		return domain.DatabaseRow{}, err
+	}
 	schema, err := loadTableSchema(ctx, tx, projectID, databaseID, tableID)
 	if err != nil {
 		return domain.DatabaseRow{}, err
@@ -437,6 +545,17 @@ func (r *Repository) UpdateDatabaseRow(ctx context.Context, projectID, databaseI
 	if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "update"); err != nil {
 		return domain.DatabaseRow{}, err
 	}
+	item, err := r.updateDatabaseRowTx(ctx, tx, projectID, tableID, rowID, actor, schema, input)
+	if err != nil {
+		return domain.DatabaseRow{}, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return domain.DatabaseRow{}, err
+	}
+	return item, nil
+}
+
+func (r *Repository) updateDatabaseRowTx(ctx context.Context, tx pgx.Tx, projectID, tableID, rowID uuid.UUID, actor DatabaseActor, schema DatabaseTableSchema, input DatabaseRowPatch) (domain.DatabaseRow, error) {
 	selectSQL := `SELECT ` + rowProjection + ` FROM database_rows r WHERE r.project_id=$1 AND r.table_id=$2 AND r.id=$3`
 	selectArgs := []any{projectID, tableID, rowID}
 	if actor.IsApplication() && schema.Table.RowSecurity && !tablePermission(schema.Table.UpdatePermissions, actor) {
@@ -452,6 +571,9 @@ func (r *Repository) UpdateDatabaseRow(ctx context.Context, projectID, databaseI
 	}
 	data, changed, err := dbcore.NormalizeUpdate(existing.Data, input.Data, columnDefinitions(schema.Columns))
 	if err != nil {
+		return domain.DatabaseRow{}, err
+	}
+	if err := validateDatabaseRowRelationshipsTx(ctx, tx, tableID, data); err != nil {
 		return domain.DatabaseRow{}, err
 	}
 	readPermissions := existing.ReadPermissions
@@ -496,9 +618,6 @@ func (r *Repository) UpdateDatabaseRow(ctx context.Context, projectID, databaseI
 	if err := r.auditDatabase(ctx, tx, projectID, actor, "database_row.update", "database_row", rowID, metadata); err != nil {
 		return domain.DatabaseRow{}, err
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return domain.DatabaseRow{}, err
-	}
 	return item, nil
 }
 
@@ -519,6 +638,9 @@ func (r *Repository) DeleteDatabaseRow(ctx context.Context, projectID, databaseI
 		return err
 	}
 	defer tx.Rollback(ctx)
+	if err := lockDatabaseNamespace(ctx, tx, databaseID); err != nil {
+		return err
+	}
 	schema, err := loadTableSchema(ctx, tx, projectID, databaseID, tableID)
 	if err != nil {
 		return err
@@ -526,6 +648,13 @@ func (r *Repository) DeleteDatabaseRow(ctx context.Context, projectID, databaseI
 	if err := authorizeRowOperationTx(ctx, tx, schema.Table, actor, "delete"); err != nil {
 		return err
 	}
+	if err := r.deleteDatabaseRowTx(ctx, tx, projectID, tableID, rowID, actor, schema); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (r *Repository) deleteDatabaseRowTx(ctx context.Context, tx pgx.Tx, projectID, tableID, rowID uuid.UUID, actor DatabaseActor, schema DatabaseTableSchema) error {
 	selectSQL := `SELECT ` + rowProjection + ` FROM database_rows r WHERE r.project_id=$1 AND r.table_id=$2 AND r.id=$3`
 	selectArgs := []any{projectID, tableID, rowID}
 	if actor.IsApplication() && schema.Table.RowSecurity && !tablePermission(schema.Table.DeletePermissions, actor) {
@@ -538,6 +667,9 @@ func (r *Repository) DeleteDatabaseRow(ctx context.Context, projectID, databaseI
 	if err != nil {
 		return err
 	}
+	if err := ensureNoDatabaseRowReferencesTx(ctx, tx, tableID, rowID); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `DELETE FROM database_rows WHERE project_id=$1 AND table_id=$2 AND id=$3`, projectID, tableID, rowID); err != nil {
 		return err
 	}
@@ -545,7 +677,7 @@ func (r *Repository) DeleteDatabaseRow(ctx context.Context, projectID, databaseI
 	if err := r.auditDatabase(ctx, tx, projectID, actor, "database_row.delete", "database_row", rowID, metadata); err != nil {
 		return err
 	}
-	return tx.Commit(ctx)
+	return nil
 }
 
 func authorizeRowOperationTx(ctx context.Context, tx pgx.Tx, table domain.DatabaseTable, actor DatabaseActor, operation string) error {

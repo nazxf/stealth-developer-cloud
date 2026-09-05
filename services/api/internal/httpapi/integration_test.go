@@ -1343,6 +1343,65 @@ func TestProjectDatabasesCoreIntegration(t *testing.T) {
 	if len(searchPage.Rows) != 1 || searchPage.Rows[0].Data["title"] != "first" {
 		t.Fatalf("full-text search = %#v", searchPage)
 	}
+	// Relationships are durable metadata, but they also enforce row writes.
+	// A source text column stores the target row UUID; target deletion is
+	// restricted until the source row is removed.
+	relSourceTable := struct {
+		Table struct {
+			ID string `json:"id"`
+		} `json:"table"`
+	}{}
+	requestJSON(t, ownerClient, http.MethodPost, databaseURLPath+"/tables", map[string]any{"name": "Event links", "row_security": true, "create_permissions": []string{}, "read_permissions": []string{}, "update_permissions": []string{}, "delete_permissions": []string{}}, http.StatusCreated, &relSourceTable)
+	relSourceURL := databaseURLPath + "/tables/" + relSourceTable.Table.ID
+	requestJSON(t, ownerClient, http.MethodPost, relSourceURL+"/columns", map[string]any{"key": "event_id", "type": "text"}, http.StatusCreated, &struct{}{})
+	relationshipTarget := struct {
+		Row struct {
+			ID string `json:"id"`
+		} `json:"row"`
+	}{}
+	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/rows", map[string]any{"data": map[string]any{"title": "relationship target"}}, http.StatusCreated, &relationshipTarget)
+	relationship := struct {
+		Relationship struct {
+			ID string `json:"id"`
+		} `json:"relationship"`
+	}{}
+	requestJSON(t, ownerClient, http.MethodPost, databaseURLPath+"/relationships", map[string]any{"source_table_id": relSourceTable.Table.ID, "source_column_key": "event_id", "target_table_id": tableResponse.Table.ID}, http.StatusCreated, &relationship)
+	requestJSON(t, ownerClient, http.MethodGet, databaseURLPath+"/relationships/"+relationship.Relationship.ID, nil, http.StatusOK, &struct{}{})
+	requestJSON(t, ownerClient, http.MethodPost, relSourceURL+"/rows", map[string]any{"data": map[string]any{"event_id": "not-a-row-id"}}, http.StatusUnprocessableEntity, nil)
+	linkedRow := struct {
+		Row struct {
+			ID string `json:"id"`
+		} `json:"row"`
+	}{}
+	requestJSON(t, ownerClient, http.MethodPost, relSourceURL+"/rows", map[string]any{"data": map[string]any{"event_id": relationshipTarget.Row.ID}}, http.StatusCreated, &linkedRow)
+	requestJSON(t, ownerClient, http.MethodPatch, relSourceURL+"/rows/"+linkedRow.Row.ID, map[string]any{"data": map[string]any{"event_id": "not-a-row-id"}}, http.StatusUnprocessableEntity, nil)
+	requestJSON(t, ownerClient, http.MethodDelete, tableURL+"/rows/"+relationshipTarget.Row.ID, nil, http.StatusConflict, nil)
+	requestJSON(t, ownerClient, http.MethodDelete, relSourceURL+"/rows/"+linkedRow.Row.ID, nil, http.StatusNoContent, nil)
+	requestJSON(t, ownerClient, http.MethodDelete, tableURL+"/rows/"+relationshipTarget.Row.ID, nil, http.StatusNoContent, nil)
+	transactionRowID := uuid.Must(uuid.NewV7()).String()
+	var transactionResult struct {
+		Rows []struct {
+			ID string `json:"id"`
+		} `json:"rows"`
+		DeletedIDs []string `json:"deleted_ids"`
+		Count      int      `json:"count"`
+	}
+	requestJSON(t, ownerClient, http.MethodPost, relSourceURL+"/rows/transaction", map[string]any{"operations": []any{
+		map[string]any{"action": "create", "id": transactionRowID, "data": map[string]any{"event_id": firstRow.Row.ID}},
+		map[string]any{"action": "update", "id": transactionRowID, "data": map[string]any{"event_id": firstRow.Row.ID}},
+	}}, http.StatusOK, &transactionResult)
+	if transactionResult.Count != 2 || len(transactionResult.Rows) != 2 {
+		t.Fatalf("transaction result = %#v", transactionResult)
+	}
+	requestJSON(t, ownerClient, http.MethodPost, relSourceURL+"/rows/transaction", map[string]any{"operations": []any{
+		map[string]any{"action": "create", "id": uuid.Must(uuid.NewV7()).String(), "data": map[string]any{"event_id": firstRow.Row.ID}},
+		map[string]any{"action": "delete", "id": uuid.Must(uuid.NewV7()).String()},
+	}}, http.StatusNotFound, nil)
+	requestJSON(t, ownerClient, http.MethodGet, relSourceURL+"/rows/"+transactionRowID, nil, http.StatusOK, &struct{}{})
+	requestJSON(t, ownerClient, http.MethodPost, relSourceURL+"/rows/transaction", map[string]any{"operations": []any{map[string]any{"action": "delete", "id": transactionRowID}}}, http.StatusOK, &transactionResult)
+	if transactionResult.Count != 1 || len(transactionResult.DeletedIDs) != 1 {
+		t.Fatalf("delete transaction result = %#v", transactionResult)
+	}
 	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/rows?filter.count=2", nil, http.StatusUnprocessableEntity, nil)
 	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/indexes", map[string]any{"name": "count key", "type": "key", "column_keys": []string{"count"}}, http.StatusCreated, &struct{}{})
 	var rowsPage struct {

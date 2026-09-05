@@ -257,4 +257,53 @@ describe("browser API boundary", () => {
     expect(fetchMock.mock.calls[1]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows/import");
     expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("POST");
   });
+
+  it("keeps enforced database relationship paths typed", async () => {
+    const relationship = {
+      id: "relationship-1",
+      project_id: "project-1",
+      database_id: "database-1",
+      source_table_id: "source-table-1",
+      source_column_key: "parent_id",
+      target_table_id: "target-table-1",
+      type: "many_to_one",
+      on_delete: "restrict",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    } as const;
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ relationships: [relationship], pagination: { limit: 20, next_cursor: null } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ relationship }), { status: 201 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    const listed = await browserAPI.projectDatabaseRelationships("project/one", "database one", { limit: 20 });
+    expect(listed.relationships[0]?.source_column_key).toBe("parent_id");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/relationships?limit=20");
+    await browserAPI.createProjectDatabaseRelationship("project/one", "database one", { source_table_id: "source-table-1", source_column_key: "parent_id", target_table_id: "target-table-1" });
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("POST");
+    await browserAPI.deleteProjectDatabaseRelationship("project/one", "database one", "relationship/one");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/relationships/relationship%2Fone");
+  });
+
+  it("keeps atomic row transaction payloads on the transaction endpoint", async () => {
+    const row = {
+      id: "row-transaction",
+      table_id: "table-1",
+      project_id: "project-1",
+      data: { state: "ready" },
+      read_permissions: [],
+      update_permissions: [],
+      delete_permissions: [],
+      creator_project_user_id: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ rows: [row], deleted_ids: [], count: 1 }), { status: 200 }));
+    const result = await browserAPI.transactProjectDatabaseRows("project/one", "database one", "table/one", {
+      operations: [{ action: "create", id: "row-transaction", data: { state: "ready" } }],
+    });
+    expect(result.rows[0]?.id).toBe("row-transaction");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows/transaction");
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe("POST");
+  });
 });

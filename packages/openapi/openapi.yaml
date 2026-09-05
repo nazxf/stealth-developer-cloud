@@ -1410,6 +1410,68 @@ paths:
         '429': { $ref: '#/components/responses/RateLimited' }
         '503': { $ref: '#/components/responses/ServiceUnavailable' }
         '500': { $ref: '#/components/responses/InternalError' }
+  /v1/projects/{projectID}/databases/{databaseID}/relationships:
+    get:
+      operationId: listDatabaseRelationships
+      description: List database relationship metadata. A relationship is a many-to-one reference from a text/varchar source column to a row id in another table.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/DatabaseID' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
+      responses:
+        '200': { description: Database relationships, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRelationshipsPage' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createDatabaseRelationship
+      description: Create an enforced many-to-one relationship. Existing non-null source values must already point at rows in the target table; future source writes are checked transactionally and target deletion is restricted while referenced.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/DatabaseID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/CreateDatabaseRelationshipRequest' } } } }
+      responses:
+        '201': { description: Relationship created, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRelationshipResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/projects/{projectID}/databases/{databaseID}/relationships/{relationshipID}:
+    get:
+      operationId: getDatabaseRelationship
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/DatabaseID' }, { $ref: '#/components/parameters/RelationshipID' }]
+      responses:
+        '200': { description: Database relationship, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRelationshipResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      operationId: deleteDatabaseRelationship
+      description: Remove relationship metadata. Existing rows are not modified; after removal the source column is no longer referentially enforced.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/DatabaseID' }, { $ref: '#/components/parameters/RelationshipID' }]
+      responses:
+        '204': { description: Relationship deleted }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
   /v1/projects/{projectID}/databases/{databaseID}/tables/{tableID}/export:
     get:
       operationId: exportDatabaseRows
@@ -1474,6 +1536,26 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/ImportDatabaseRowsRequest' } } } }
       responses:
         '201': { description: Imported rows, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRowsImportResponse' } } } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413': { $ref: '#/components/responses/PayloadTooLarge' }
+        '415': { $ref: '#/components/responses/UnsupportedMediaType' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503': { $ref: '#/components/responses/ServiceUnavailable' }
+        '500': { $ref: '#/components/responses/InternalError' }
+  /v1/projects/{projectID}/databases/{databaseID}/tables/{tableID}/rows/transaction:
+    post:
+      operationId: transactDatabaseRows
+      description: Atomically apply up to 100 creates, updates, and deletes to one table. Every operation is permission-checked and relationship-checked; any failure rolls the entire batch back.
+      security: [{ sessionCookie: [] }, { projectApiKey: [] }, { projectAppCookie: [] }, {}]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/DatabaseID' }, { $ref: '#/components/parameters/TableID' }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRowsTransactionRequest' } } } }
+      responses:
+        '200': { description: Atomic row transaction result, content: { application/json: { schema: { $ref: '#/components/schemas/DatabaseRowsTransactionResponse' } } } }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
@@ -1821,6 +1903,7 @@ components:
     TableID: { name: tableID, in: path, required: true, schema: { type: string, format: uuid } }
     ColumnID: { name: columnID, in: path, required: true, schema: { type: string, format: uuid } }
     IndexID: { name: indexID, in: path, required: true, schema: { type: string, format: uuid } }
+    RelationshipID: { name: relationshipID, in: path, required: true, schema: { type: string, format: uuid } }
     RowID: { name: rowID, in: path, required: true, schema: { type: string, format: uuid } }
     FunctionID: { name: functionID, in: path, required: true, schema: { type: string, format: uuid } }
     SiteID: { name: siteID, in: path, required: true, schema: { type: string, format: uuid } }
@@ -2034,25 +2117,32 @@ components:
     DatabaseTable: { type: object, additionalProperties: false, required: [id, database_id, project_id, name, row_security, create_permissions, read_permissions, update_permissions, delete_permissions, created_at, updated_at], properties: { id: { type: string, format: uuid }, database_id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, name: { type: string, minLength: 2, maxLength: 120 }, row_security: { type: boolean }, create_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, read_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
     DatabaseColumn: { type: object, additionalProperties: false, required: [id, table_id, key, type, required, created_at, updated_at], properties: { id: { type: string, format: uuid }, table_id: { type: string, format: uuid }, key: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, type: { $ref: '#/components/schemas/DatabaseColumnType' }, required: { type: boolean }, varchar_size: { type: [integer, 'null'], minimum: 1, maximum: 10000 }, default: {}, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
     DatabaseIndex: { type: object, additionalProperties: false, required: [id, table_id, name, type, column_keys, directions, created_at, updated_at], properties: { id: { type: string, format: uuid }, table_id: { type: string, format: uuid }, name: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, type: { type: string, enum: [key, unique, fulltext] }, column_keys: { type: array, minItems: 1, maxItems: 16, items: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' } }, directions: { type: array, minItems: 1, maxItems: 16, items: { type: string, enum: [asc, desc] } }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    DatabaseRelationship: { type: object, additionalProperties: false, required: [id, project_id, database_id, source_table_id, source_column_key, target_table_id, type, on_delete, created_at, updated_at], properties: { id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, database_id: { type: string, format: uuid }, source_table_id: { type: string, format: uuid }, source_column_key: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, target_table_id: { type: string, format: uuid }, type: { type: string, enum: [many_to_one] }, on_delete: { type: string, enum: [restrict] }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
     DatabaseRow: { type: object, additionalProperties: false, required: [id, table_id, project_id, data, read_permissions, update_permissions, delete_permissions, created_at, updated_at], properties: { id: { type: string, format: uuid }, table_id: { type: string, format: uuid }, project_id: { type: string, format: uuid }, data: { type: object, description: Typed user columns; unknown/system keys are rejected. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, creator_project_user_id: { type: [string, 'null'], format: uuid }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
     CreateDatabaseRequest: { type: object, additionalProperties: false, required: [name], properties: { name: { type: string, minLength: 2, maxLength: 120 } } }
     CreateDatabaseTableRequest: { type: object, additionalProperties: false, required: [name], properties: { name: { type: string, minLength: 2, maxLength: 120 }, row_security: { type: boolean, default: true }, create_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, read_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
     UpdateDatabaseTableRequest: { type: object, additionalProperties: false, required: [row_security, create_permissions, read_permissions, update_permissions, delete_permissions], properties: { row_security: { type: boolean }, create_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, read_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, maxItems: 64, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
     CreateDatabaseColumnRequest: { type: object, additionalProperties: false, required: [key, type], properties: { key: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, type: { $ref: '#/components/schemas/DatabaseColumnType' }, required: { type: boolean, default: false }, varchar_size: { type: integer, minimum: 1, maximum: 10000, description: Required when type is varchar and forbidden for other types. }, default: {} } }
     CreateDatabaseIndexRequest: { type: object, additionalProperties: false, required: [name, type, column_keys], properties: { name: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, type: { type: string, enum: [key, unique, fulltext] }, column_keys: { type: array, minItems: 1, maxItems: 16, items: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$' }, description: Fulltext indexes require exactly one varchar or text column. }, directions: { type: array, minItems: 1, maxItems: 16, items: { type: string, enum: [asc, desc] }, description: Optional; omitted directions default to asc for every column. Fulltext indexes only accept asc. } } }
+    CreateDatabaseRelationshipRequest: { type: object, additionalProperties: false, required: [source_table_id, source_column_key, target_table_id], properties: { source_table_id: { type: string, format: uuid }, source_column_key: { type: string, pattern: '^[A-Za-z_][A-Za-z0-9_]{0,119}$', description: Text/varchar column containing a target row UUID. }, target_table_id: { type: string, format: uuid }, type: { type: string, enum: [many_to_one], default: many_to_one }, on_delete: { type: string, enum: [restrict], default: restrict } } }
     CreateDatabaseRowRequest: { type: object, additionalProperties: false, required: [data], properties: { data: { type: object, description: Typed row data; its keys must match declared columns. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
     UpdateDatabaseRowRequest: { type: object, additionalProperties: false, minProperties: 1, properties: { data: { type: object, description: Partial typed row data; omitted values remain unchanged. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
     ImportDatabaseRow: { type: object, additionalProperties: false, required: [data], properties: { id: { type: string, format: uuid, description: Optional stable row id; omitted ids are generated. }, table_id: { type: string, format: uuid, readOnly: true, description: Optional exported metadata; ignored on import. }, project_id: { type: string, format: uuid, readOnly: true, description: Optional exported metadata; ignored on import. }, data: { type: object, description: Typed row data; its keys must match declared columns. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, creator_project_user_id: { type: [string, 'null'], format: uuid, readOnly: true, description: Optional exported metadata; ignored on import. }, created_at: { type: string, format: date-time, readOnly: true, description: Optional exported metadata; ignored on import. }, updated_at: { type: string, format: date-time, readOnly: true, description: Optional exported metadata; ignored on import. } } }
     ImportDatabaseRowsRequest: { type: object, additionalProperties: false, required: [rows], properties: { rows: { type: array, minItems: 1, maxItems: 1000, items: { $ref: '#/components/schemas/ImportDatabaseRow' } } } }
+    DatabaseRowsTransactionOperation: { type: object, additionalProperties: false, required: [action], properties: { action: { type: string, enum: [create, update, delete] }, id: { type: string, format: uuid, description: Required for update/delete; optional stable id for create. }, data: { type: object, description: Typed data for create or partial data for update. }, read_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, update_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } }, delete_permissions: { type: array, items: { $ref: '#/components/schemas/DatabasePermission' } } } }
+    DatabaseRowsTransactionRequest: { type: object, additionalProperties: false, required: [operations], properties: { operations: { type: array, minItems: 1, maxItems: 100, items: { $ref: '#/components/schemas/DatabaseRowsTransactionOperation' } } } }
     ProjectDatabaseResponse: { type: object, additionalProperties: false, required: [database], properties: { database: { $ref: '#/components/schemas/ProjectDatabase' } } }
     DatabaseTableResponse: { type: object, additionalProperties: false, required: [table], properties: { table: { $ref: '#/components/schemas/DatabaseTable' } } }
     DatabaseColumnResponse: { type: object, additionalProperties: false, required: [column], properties: { column: { $ref: '#/components/schemas/DatabaseColumn' } } }
     DatabaseIndexResponse: { type: object, additionalProperties: false, required: [index], properties: { index: { $ref: '#/components/schemas/DatabaseIndex' } } }
+    DatabaseRelationshipResponse: { type: object, additionalProperties: false, required: [relationship], properties: { relationship: { $ref: '#/components/schemas/DatabaseRelationship' } } }
     DatabaseRowResponse: { type: object, additionalProperties: false, required: [row], properties: { row: { $ref: '#/components/schemas/DatabaseRow' } } }
     ProjectDatabasesPage: { type: object, additionalProperties: false, required: [databases, pagination, can_manage], properties: { databases: { type: array, items: { $ref: '#/components/schemas/ProjectDatabase' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
     DatabaseTablesPage: { type: object, additionalProperties: false, required: [tables, pagination, can_manage], properties: { tables: { type: array, items: { $ref: '#/components/schemas/DatabaseTable' } }, pagination: { $ref: '#/components/schemas/Pagination' }, can_manage: { type: boolean } } }
     DatabaseColumnsPage: { type: object, additionalProperties: false, required: [columns, pagination], properties: { columns: { type: array, items: { $ref: '#/components/schemas/DatabaseColumn' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
     DatabaseIndexesPage: { type: object, additionalProperties: false, required: [indexes, pagination], properties: { indexes: { type: array, items: { $ref: '#/components/schemas/DatabaseIndex' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
+    DatabaseRelationshipsPage: { type: object, additionalProperties: false, required: [relationships, pagination], properties: { relationships: { type: array, items: { $ref: '#/components/schemas/DatabaseRelationship' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
     DatabaseRowsPage: { type: object, additionalProperties: false, required: [rows, pagination], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, pagination: { $ref: '#/components/schemas/Pagination' } } }
     DatabaseRowsExport: { type: object, additionalProperties: false, required: [rows, count], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, count: { type: integer, minimum: 0, maximum: 10000 } } }
     DatabaseRowsImportResponse: { type: object, additionalProperties: false, required: [rows, count], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, count: { type: integer, minimum: 1, maximum: 1000 } } }
+    DatabaseRowsTransactionResponse: { type: object, additionalProperties: false, required: [rows, deleted_ids, count], properties: { rows: { type: array, items: { $ref: '#/components/schemas/DatabaseRow' } }, deleted_ids: { type: array, items: { type: string, format: uuid } }, count: { type: integer, minimum: 1, maximum: 100 } } }

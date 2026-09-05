@@ -19,6 +19,7 @@ import (
 var (
 	ErrNotFound             = errors.New("not found")
 	ErrConflict             = errors.New("conflict")
+	ErrReferenceViolation   = errors.New("reference violation")
 	ErrForbidden            = errors.New("forbidden")
 	ErrConfirmationRequired = errors.New("confirmation required")
 	ErrRegistrationDisabled = errors.New("registration disabled")
