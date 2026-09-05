@@ -215,6 +215,9 @@ simulated async behavior (timers standing in for network calls).
   Settings writes and new prompts use the central browser client.
 - Provider connections and the trusted execution worker remain a separate
   milestone; until then, accepted prompts honestly remain `queued`.
+- Agent creation and run submission now use isolated Zod-validated Vite forms,
+  with component tests for normalization, local validation, queue selection, and
+  safe API errors. The route keeps durable list/run state in TanStack Query.
 
 ### Agent provider catalog — intentionally bounded
 - Project options now come from the authenticated organization/project API and
@@ -237,6 +240,10 @@ simulated async behavior (timers standing in for network calls).
   safe API errors with pending states. The Vite shell gates every non-auth route on
   the current Console session and redirects a 401 to sign-in before rendering
   protected data.
+- The root route exposes an explicit session-policy helper: all product,
+  project, agent, and admin paths require the Console session, while only the
+  six one-time authentication entry paths remain public; this policy is tested
+  independently of server responses.
 
 ### Project application Auth boundary — connected core
 - Project identity management and the owner/admin registration setting are

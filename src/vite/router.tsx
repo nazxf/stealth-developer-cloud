@@ -23,8 +23,12 @@ import { ProjectCreateForm } from "./project-create-form";
 
 const publicAuthPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation"]);
 
-function isPublicAuthPath(pathname: string) {
+export function isPublicAuthPath(pathname: string) {
   return publicAuthPaths.has(pathname);
+}
+
+export function requiresConsoleSession(pathname: string) {
+  return !isPublicAuthPath(pathname);
 }
 
 function LoadingState({ label = "Loading Stealth…" }: { label?: string }) {
@@ -52,11 +56,11 @@ function RootLayout() {
   const prefersReducedMotion = useReducedMotion();
   const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/);
   const projectId = projectMatch ? decodeURIComponent(projectMatch[1]) : null;
-  const publicAuthPath = isPublicAuthPath(location.pathname);
+  const protectedPath = requiresConsoleSession(location.pathname);
 
-  if (!publicAuthPath && accountQuery.isPending) return <LoadingState label="Loading session…" />;
-  if (!publicAuthPath && accountQuery.error instanceof BrowserAPIError && accountQuery.error.status === 401) return <LoginRedirect />;
-  if (!publicAuthPath && accountQuery.error) return <ErrorState error={accountQuery.error} />;
+  if (protectedPath && accountQuery.isPending) return <LoadingState label="Loading session…" />;
+  if (protectedPath && accountQuery.error instanceof BrowserAPIError && accountQuery.error.status === 401) return <LoginRedirect />;
+  if (protectedPath && accountQuery.error) return <ErrorState error={accountQuery.error} />;
 
   return (
     <div className="min-h-dvh bg-[var(--projects-bg)] text-[var(--projects-text)]">

@@ -6,8 +6,8 @@ import { browserAPI } from "@/lib/browser-api";
 import { GitDeploymentForm, type GitDeployableResource } from "./git-deployment-form";
 import { queryClient } from "./query-client";
 
-type DeployableResource = GitDeployableResource;
-type DeploymentRecord = {
+export type DeployableResource = GitDeployableResource;
+export type DeploymentRecord = {
   id: string;
   resourceID: string;
   resourceName: string;
@@ -40,7 +40,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value));
 }
 
-function normalizeDeployment(resource: DeployableResource, deployment: { id: string; version: number; source: string; source_name?: string | null; status: string; build_status: string; error_message?: string | null; created_at: string; activated_at?: string | null }): DeploymentRecord {
+export function normalizeDeployment(resource: DeployableResource, deployment: { id: string; version: number; source: string; source_name?: string | null; status: string; build_status: string; error_message?: string | null; created_at: string; activated_at?: string | null }): DeploymentRecord {
   return { id: deployment.id, resourceID: resource.id, resourceName: resource.name, resourceType: resource.type, version: deployment.version, source: deployment.source, sourceName: deployment.source_name ?? null, status: deployment.status, buildStatus: deployment.build_status, errorMessage: deployment.error_message ?? null, createdAt: deployment.created_at, activatedAt: deployment.activated_at ?? null };
 }
 
