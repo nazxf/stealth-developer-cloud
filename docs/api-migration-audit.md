@@ -209,6 +209,10 @@ simulated async behavior (timers standing in for network calls).
   worker fencing, terminal transitions, log append, and stale-run requeue.
 - The workspace now renders only API-backed runs and polls queued/running state;
   no localStorage seed, timer playback, or fabricated file changes remain.
+- `internal/agentrunner` now owns stale-lease repair, provider-filtered claims,
+  bounded worker logs, execution timeouts, and fenced terminal transitions.
+  Its empty adapter registry is intentionally queue-only until a trusted
+  provider connection is installed.
 
 ### Agent workspace — migrated
 - Fetches an API-authorized agent and its latest run page with TanStack Query.

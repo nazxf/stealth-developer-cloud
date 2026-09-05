@@ -63,3 +63,10 @@ timers or fabricated file changes. A trusted worker can claim queued runs,
 append logs, and persist terminal output/steps/changes through the repository
 worker primitives. Provider execution remains a separate connection/worker
 milestone, so queued runs stay honest until that capability is configured.
+
+The trusted worker lifecycle is implemented in
+`services/api/internal/agentrunner`: it repairs stale leases, claims only
+providers with registered adapters, fences terminal transitions by worker ID,
+and records bounded logs/results. Set `AGENT_RUNNER_ENABLED=true` only in a
+worker deployment that registers provider adapters; the default empty registry
+never claims a run.

@@ -33,6 +33,9 @@ func TestWorkerMetricsHandlerExposesBoundedResultLabels(t *testing.T) {
 	metrics.JobsCompleted.WithLabelValues("succeeded").Inc()
 	metrics.JobDuration.WithLabelValues("finished").Observe(0.1)
 	metrics.Errors.WithLabelValues("claim").Inc()
+	metrics.AgentJobsClaimed.Inc()
+	metrics.AgentJobsCompleted.WithLabelValues("completed").Inc()
+	metrics.AgentErrors.WithLabelValues("transition").Inc()
 
 	recorder := httptest.NewRecorder()
 	metrics.Handler().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/metrics", nil))
@@ -42,5 +45,8 @@ func TestWorkerMetricsHandlerExposesBoundedResultLabels(t *testing.T) {
 	}
 	if !strings.Contains(body, `stealth_functions_worker_errors_total{operation="claim"} 1`) {
 		t.Fatalf("worker error counter was not exposed:\n%s", body)
+	}
+	if !strings.Contains(body, `stealth_agent_worker_jobs_completed_total{result="completed"} 1`) || !strings.Contains(body, `stealth_agent_worker_errors_total{operation="transition"} 1`) {
+		t.Fatalf("Agent worker metrics were not exposed:\n%s", body)
 	}
 }

@@ -15,7 +15,9 @@ API/Worker ── OTLP/HTTP ──▶ Tempo ────────────
 - **Metrics** are served by the API at `/metrics` and by the worker on its
   private `FUNCTIONS_RUNNER_METRICS_ADDR` listener. Route labels use Chi
   templates, and worker labels use a fixed vocabulary; raw UUIDs and user
-  input never become Prometheus labels.
+  input never become Prometheus labels. The same worker registry includes
+  `stealth_agent_worker_*` queue, lease, completion, and error metrics when
+  `AGENT_RUNNER_ENABLED=true`.
 - **Traces** are emitted with OpenTelemetry. Set
   `OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4318` to enable OTLP/HTTP. The API
   extracts and returns a W3C trace ID, while worker build/execute spans use
@@ -38,6 +40,9 @@ is process-level readiness for the Compose supervisor; queue-loop failures exit
 the worker so Docker can restart it. If `FUNCTIONS_RUNNER_ENABLED=false`, the
 worker intentionally does not open the Functions metrics listener because only
 the webhook and messaging loops remain active.
+
+The Agent runner may still be enabled in that mode; with no registered
+provider adapter it only repairs stale leases and leaves queued runs intact.
 
 ## Local stack
 

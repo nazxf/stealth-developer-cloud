@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stealth-cloud/stealth/services/api/internal/agentrunner"
 	"github.com/stealth-cloud/stealth/services/api/internal/config"
 	"github.com/stealth-cloud/stealth/services/api/internal/functionrunner"
 	"github.com/stealth-cloud/stealth/services/api/internal/functionsecret"
@@ -105,6 +106,21 @@ func main() {
 	}
 	messagingWorker.PollInterval = cfg.FunctionsRunnerPoll
 	messagingWorker.LeaseAge = cfg.FunctionsRunnerLeaseAge
+	var agentWorker *agentrunner.Worker
+	if cfg.AgentRunnerEnabled {
+		// Provider adapters are deliberately opt-in and process-local. This
+		// release wires the durable lifecycle but does not invent a provider
+		// credential or execute a prompt without a trusted adapter.
+		agentWorker, err = agentrunner.New(repo, cfg.FunctionsWorkerID, agentrunner.NewRegistry(), logger)
+		if err != nil {
+			logger.Error("Agent worker configuration error", "error", err)
+			os.Exit(1)
+		}
+		agentWorker.PollInterval = cfg.FunctionsRunnerPoll
+		agentWorker.LeaseAge = cfg.FunctionsRunnerLeaseAge
+		agentWorker.ExecutionTimeout = cfg.AgentRunnerExecutionTimeout
+		logger.Warn("Agent runner enabled without provider adapters; queued Agent runs will remain queued")
+	}
 	if !cfg.FunctionsRunnerEnabled {
 		logger.Info("functions runner is disabled; webhook and messaging runners remain active")
 		workerContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -113,6 +129,11 @@ func main() {
 		go func() { webhookWorkerErr <- webhookWorker.Run(workerContext) }()
 		messagingWorkerErr := make(chan error, 1)
 		go func() { messagingWorkerErr <- messagingWorker.Run(workerContext) }()
+		var agentWorkerErr chan error
+		if agentWorker != nil {
+			agentWorkerErr = make(chan error, 1)
+			go func() { agentWorkerErr <- agentWorker.Run(workerContext) }()
+		}
 		var runErr error
 		select {
 		case runErr = <-webhookWorkerErr:
@@ -120,15 +141,35 @@ func main() {
 			if messagingErr := <-messagingWorkerErr; messagingErr != nil && !errors.Is(messagingErr, context.Canceled) && runErr == nil {
 				runErr = messagingErr
 			}
+			if agentErr := waitAgentWorker(agentWorkerErr); agentErr != nil && !errors.Is(agentErr, context.Canceled) && runErr == nil {
+				runErr = agentErr
+			}
 		case runErr = <-messagingWorkerErr:
 			stop()
 			if webhookErr := <-webhookWorkerErr; webhookErr != nil && !errors.Is(webhookErr, context.Canceled) && runErr == nil {
 				runErr = webhookErr
 			}
+			if agentErr := waitAgentWorker(agentWorkerErr); agentErr != nil && !errors.Is(agentErr, context.Canceled) && runErr == nil {
+				runErr = agentErr
+			}
+		case agentErr := <-agentWorkerErr:
+			stop()
+			if agentErr != nil && !errors.Is(agentErr, context.Canceled) {
+				runErr = agentErr
+			}
+			if webhookErr := <-webhookWorkerErr; webhookErr != nil && !errors.Is(webhookErr, context.Canceled) && runErr == nil {
+				runErr = webhookErr
+			}
+			if messagingErr := <-messagingWorkerErr; messagingErr != nil && !errors.Is(messagingErr, context.Canceled) && runErr == nil {
+				runErr = messagingErr
+			}
 		case <-workerContext.Done():
 			stop()
 			<-webhookWorkerErr
 			<-messagingWorkerErr
+			if agentWorkerErr != nil {
+				<-agentWorkerErr
+			}
 		}
 		if runErr != nil && !errors.Is(runErr, context.Canceled) {
 			logger.Error("worker stopped with error", "error", runErr)
@@ -163,6 +204,9 @@ func main() {
 	siteWorker.ArchiveLimit.MaxFiles = cfg.SitesMaxFiles
 	siteWorker.ArchiveLimit.MaxCompressed = cfg.SitesMaxArtifactSize
 	siteWorker.Metrics = worker.Metrics
+	if agentWorker != nil {
+		agentWorker.Metrics = worker.Metrics
+	}
 	workerContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	metricsServer := &http.Server{
@@ -186,6 +230,11 @@ func main() {
 	go func() { webhookWorkerErr <- webhookWorker.Run(workerContext) }()
 	messagingWorkerErr := make(chan error, 1)
 	go func() { messagingWorkerErr <- messagingWorker.Run(workerContext) }()
+	var agentWorkerErr chan error
+	if agentWorker != nil {
+		agentWorkerErr = make(chan error, 1)
+		go func() { agentWorkerErr <- agentWorker.Run(workerContext) }()
+	}
 
 	var runErr, metricsFailure error
 	select {
@@ -209,6 +258,12 @@ func main() {
 				runErr = messagingErr
 			}
 		}
+		if agentErr := waitAgentWorker(agentWorkerErr); agentErr != nil && !errors.Is(agentErr, context.Canceled) {
+			logger.Error("Agent worker stopped with error", "error", agentErr)
+			if runErr == nil {
+				runErr = agentErr
+			}
+		}
 	case siteErr := <-siteWorkerErr:
 		if siteErr != nil && !errors.Is(siteErr, context.Canceled) {
 			logger.Error("site worker stopped with error", "error", siteErr)
@@ -227,6 +282,12 @@ func main() {
 				runErr = messagingErr
 			}
 		}
+		if agentErr := waitAgentWorker(agentWorkerErr); agentErr != nil && !errors.Is(agentErr, context.Canceled) {
+			logger.Error("Agent worker stopped with error", "error", agentErr)
+			if runErr == nil {
+				runErr = agentErr
+			}
+		}
 	case webhookErr := <-webhookWorkerErr:
 		if webhookErr != nil && !errors.Is(webhookErr, context.Canceled) {
 			logger.Error("webhook worker stopped with error", "error", webhookErr)
@@ -241,6 +302,9 @@ func main() {
 		}
 		if messagingFailure := <-messagingWorkerErr; messagingFailure != nil && !errors.Is(messagingFailure, context.Canceled) && runErr == nil {
 			runErr = messagingFailure
+		}
+		if agentFailure := waitAgentWorker(agentWorkerErr); agentFailure != nil && !errors.Is(agentFailure, context.Canceled) && runErr == nil {
+			runErr = agentFailure
 		}
 	case messagingErr := <-messagingWorkerErr:
 		if messagingErr != nil && !errors.Is(messagingErr, context.Canceled) {
@@ -257,6 +321,27 @@ func main() {
 		if webhookFailure := <-webhookWorkerErr; webhookFailure != nil && !errors.Is(webhookFailure, context.Canceled) && runErr == nil {
 			runErr = webhookFailure
 		}
+		if agentFailure := waitAgentWorker(agentWorkerErr); agentFailure != nil && !errors.Is(agentFailure, context.Canceled) && runErr == nil {
+			runErr = agentFailure
+		}
+	case agentErr := <-agentWorkerErr:
+		if agentErr != nil && !errors.Is(agentErr, context.Canceled) {
+			logger.Error("Agent worker stopped with error", "error", agentErr)
+			runErr = agentErr
+		}
+		stop()
+		if workerFailure := <-workerErr; workerFailure != nil && !errors.Is(workerFailure, context.Canceled) && runErr == nil {
+			runErr = workerFailure
+		}
+		if siteFailure := <-siteWorkerErr; siteFailure != nil && !errors.Is(siteFailure, context.Canceled) && runErr == nil {
+			runErr = siteFailure
+		}
+		if webhookFailure := <-webhookWorkerErr; webhookFailure != nil && !errors.Is(webhookFailure, context.Canceled) && runErr == nil {
+			runErr = webhookFailure
+		}
+		if messagingFailure := <-messagingWorkerErr; messagingFailure != nil && !errors.Is(messagingFailure, context.Canceled) && runErr == nil {
+			runErr = messagingFailure
+		}
 	case metricsFailure = <-metricsErr:
 		logger.Error("worker metrics server error", "error", metricsFailure)
 		stop()
@@ -264,11 +349,13 @@ func main() {
 		<-siteWorkerErr
 		<-webhookWorkerErr
 		<-messagingWorkerErr
+		waitAgentWorker(agentWorkerErr)
 	case <-workerContext.Done():
 		runErr = <-workerErr
 		<-siteWorkerErr
 		<-webhookWorkerErr
 		<-messagingWorkerErr
+		waitAgentWorker(agentWorkerErr)
 	}
 	shutdownContext, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
@@ -289,6 +376,13 @@ func firstNonEmpty(value, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func waitAgentWorker(errCh <-chan error) error {
+	if errCh == nil {
+		return nil
+	}
+	return <-errCh
 }
 
 // workerMetricsHandler keeps the private Prometheus listener useful to an

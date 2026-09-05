@@ -343,9 +343,35 @@ func (r *Repository) CancelAgentRun(ctx context.Context, accountID, agentID, run
 // separate from the HTTP API so a future provider worker can use the same
 // queue without exposing worker credentials or filesystem details.
 func (r *Repository) ClaimNextAgentRun(ctx context.Context, workerID string) (AgentRunJob, error) {
+	return r.ClaimNextAgentRunForProviders(ctx, workerID, nil)
+}
+
+// ClaimNextAgentRunForProviders atomically leases one queued run whose
+// provider is present in allowedProviders. A nil provider list means all
+// providers (the legacy control-plane primitive); an empty list claims
+// nothing. Comparing normalized lowercase values keeps existing agent rows
+// written with display-case provider names compatible with workers.
+func (r *Repository) ClaimNextAgentRunForProviders(ctx context.Context, workerID string, allowedProviders []string) (AgentRunJob, error) {
 	workerID, err := normalizeAgentRunWorkerID(workerID)
 	if err != nil {
 		return AgentRunJob{}, err
+	}
+	var providerArg any
+	if allowedProviders != nil {
+		normalizedProviders := make([]string, 0, len(allowedProviders))
+		seen := make(map[string]struct{}, len(allowedProviders))
+		for _, provider := range allowedProviders {
+			provider = strings.ToLower(strings.TrimSpace(provider))
+			if provider == "" || strings.ContainsAny(provider, "\x00\r\n\t") {
+				return AgentRunJob{}, fmt.Errorf("%w: provider filter is invalid", ErrInvalidAgentRun)
+			}
+			if _, exists := seen[provider]; exists {
+				continue
+			}
+			seen[provider] = struct{}{}
+			normalizedProviders = append(normalizedProviders, provider)
+		}
+		providerArg = normalizedProviders
 	}
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
@@ -354,12 +380,14 @@ func (r *Repository) ClaimNextAgentRun(ctx context.Context, workerID string) (Ag
 	defer tx.Rollback(ctx)
 	var runID, agentID, projectID uuid.UUID
 	err = tx.QueryRow(ctx, `
-		SELECT id,agent_id,project_id
-		FROM agent_runs
-		WHERE status='queued'
-		ORDER BY queued_at,id
-		FOR UPDATE SKIP LOCKED
-		LIMIT 1`).Scan(&runID, &agentID, &projectID)
+		SELECT r.id,r.agent_id,r.project_id
+		FROM agent_runs r
+		JOIN project_agents a ON a.id=r.agent_id AND a.project_id=r.project_id
+		WHERE r.status='queued'
+		  AND ($1::text[] IS NULL OR lower(a.provider)=ANY($1::text[]))
+		ORDER BY r.queued_at,r.id
+		FOR UPDATE OF r SKIP LOCKED
+		LIMIT 1`, providerArg).Scan(&runID, &agentID, &projectID)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return AgentRunJob{}, ErrNoAgentRunJob
 	}

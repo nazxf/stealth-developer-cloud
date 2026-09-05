@@ -65,6 +65,11 @@ type Config struct {
 	FunctionsRunnerNodeImage      string
 	FunctionsRunnerPythonImage    string
 	FunctionsRunnerGoImage        string
+	// Agent runner settings control the trusted queue lifecycle. Provider
+	// adapters remain a separate capability and an empty registry never claims
+	// queued runs.
+	AgentRunnerEnabled          bool
+	AgentRunnerExecutionTimeout time.Duration
 	// Sites accept pre-built static archives. The compressed upload limit is
 	// separate from the expanded publication limit because quota accounting is
 	// based on bytes that are actually served from the immutable directory.
@@ -186,6 +191,14 @@ func Load() (Config, error) {
 	runnerBuildTimeout, err := time.ParseDuration(value("FUNCTIONS_RUNNER_BUILD_TIMEOUT", "15m"))
 	if err != nil || runnerBuildTimeout < time.Minute || runnerBuildTimeout > 24*time.Hour {
 		return Config{}, fmt.Errorf("FUNCTIONS_RUNNER_BUILD_TIMEOUT must be between 1m and 24h")
+	}
+	agentRunnerEnabled, err := strconv.ParseBool(value("AGENT_RUNNER_ENABLED", "false"))
+	if err != nil {
+		return Config{}, fmt.Errorf("AGENT_RUNNER_ENABLED must be true or false")
+	}
+	agentRunnerExecutionTimeout, err := time.ParseDuration(value("AGENT_RUNNER_EXECUTION_TIMEOUT", "15m"))
+	if err != nil || agentRunnerExecutionTimeout < time.Minute || agentRunnerExecutionTimeout > 24*time.Hour {
+		return Config{}, fmt.Errorf("AGENT_RUNNER_EXECUTION_TIMEOUT must be between 1m and 24h")
 	}
 	workerID := value("FUNCTIONS_WORKER_ID", "")
 	if workerID == "" {
@@ -326,6 +339,8 @@ func Load() (Config, error) {
 		FunctionsRunnerNodeImage:      runnerImages["FUNCTIONS_RUNNER_NODE_IMAGE"],
 		FunctionsRunnerPythonImage:    runnerImages["FUNCTIONS_RUNNER_PYTHON_IMAGE"],
 		FunctionsRunnerGoImage:        runnerImages["FUNCTIONS_RUNNER_GO_IMAGE"],
+		AgentRunnerEnabled:            agentRunnerEnabled,
+		AgentRunnerExecutionTimeout:   agentRunnerExecutionTimeout,
 		SitesMaxArtifactSize:          sitesMaxArtifactSize,
 		SitesDefaultQuotaBytes:        sitesDefaultQuota,
 		SitesMaxExpandedBytes:         sitesMaxExpanded,

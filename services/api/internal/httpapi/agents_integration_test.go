@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/stealth-cloud/stealth/services/api/internal/agentrunner"
 	"github.com/stealth-cloud/stealth/services/api/internal/config"
 	"github.com/stealth-cloud/stealth/services/api/internal/domain"
 	"github.com/stealth-cloud/stealth/services/api/internal/httpapi"
@@ -186,24 +187,31 @@ func TestProjectAgentsControlPlaneIntegration(t *testing.T) {
 	}
 	repo := repository.New(pool)
 	workerID := "agent-integration-worker"
-	job, err := repo.ClaimNextAgentRun(ctx, workerID)
+	registry := agentrunner.NewRegistry()
+	if err := registry.Register("openai", agentrunner.AdapterFunc(func(_ context.Context, job agentrunner.Job) (repository.AgentRunResult, error) {
+		if job.Run.ID != workerRun.Run.ID || job.Agent.ID != created.Agent.ID {
+			t.Fatalf("adapter received unexpected job: %+v", job)
+		}
+		output := "Worker completed the control-plane lifecycle."
+		return repository.AgentRunResult{
+			Status:     "completed",
+			OutputText: &output,
+			Steps:      []domain.AgentRunStep{{ID: "step-1", Type: "check", Label: "Worker check", Target: "control-plane", Status: "done"}},
+			Changes:    []domain.AgentRunChange{{Path: "README.md", Additions: 1, Deletions: 0, Status: "modified"}},
+		}, nil
+	})); err != nil {
+		t.Fatal(err)
+	}
+	agentWorker, err := agentrunner.New(repo, workerID, registry, logger)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if job.Run.ID != workerRun.Run.ID || job.Run.Status != "running" || job.Agent.ID != created.Agent.ID || job.Agent.Status != "running" {
-		t.Fatalf("unexpected claimed job: %+v", job)
-	}
-	if _, err := repo.AppendAgentRunLog(ctx, uuid.MustParse(project.Project.ID), uuid.MustParse(created.Agent.ID), uuid.MustParse(workerRun.Run.ID), workerID, uuid.Must(uuid.NewV7()), 0, "info", "worker claimed run"); err != nil {
-		t.Fatal(err)
+	processed, err := agentWorker.RunOnce(ctx)
+	if err != nil || !processed {
+		t.Fatalf("Agent worker RunOnce() = processed=%v err=%v", processed, err)
 	}
 	requestJSON(t, ownerClient, http.MethodGet, httpServer.URL+"/v1/agents/"+created.Agent.ID+"/runs/"+workerRun.Run.ID+"/logs", nil, http.StatusOK, &struct{}{})
 	output := "Worker completed the control-plane lifecycle."
-	if _, err := repo.TransitionAgentRun(ctx, uuid.MustParse(project.Project.ID), uuid.MustParse(created.Agent.ID), uuid.MustParse(workerRun.Run.ID), workerID, repository.AgentRunResult{
-		Status: "completed", OutputText: &output, Steps: []domain.AgentRunStep{{ID: "step-1", Type: "check", Label: "Worker check", Target: "control-plane", Status: "done"}},
-		Changes: []domain.AgentRunChange{{Path: "README.md", Additions: 1, Deletions: 0, Status: "modified"}},
-	}); err != nil {
-		t.Fatal(err)
-	}
 	var completedRun struct {
 		Run struct {
 			Status     string `json:"status"`

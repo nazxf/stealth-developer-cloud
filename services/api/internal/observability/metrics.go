@@ -72,19 +72,26 @@ func (m *APIMetrics) Handler() http.Handler {
 // Labels deliberately contain only a small fixed vocabulary so one tenant or
 // function cannot create unbounded Prometheus time series.
 type WorkerMetrics struct {
-	Registry        *prometheus.Registry
-	Polls           prometheus.Counter
-	JobsClaimed     prometheus.Counter
-	JobsCompleted   *prometheus.CounterVec
-	JobDuration     *prometheus.HistogramVec
-	Requeued        prometheus.Counter
-	Errors          *prometheus.CounterVec
-	InFlight        prometheus.Gauge
-	BuildsClaimed   prometheus.Counter
-	BuildsCompleted *prometheus.CounterVec
-	BuildDuration   *prometheus.HistogramVec
-	BuildRequeued   prometheus.Counter
-	BuildInFlight   prometheus.Gauge
+	Registry           *prometheus.Registry
+	Polls              prometheus.Counter
+	JobsClaimed        prometheus.Counter
+	JobsCompleted      *prometheus.CounterVec
+	JobDuration        *prometheus.HistogramVec
+	Requeued           prometheus.Counter
+	Errors             *prometheus.CounterVec
+	InFlight           prometheus.Gauge
+	BuildsClaimed      prometheus.Counter
+	BuildsCompleted    *prometheus.CounterVec
+	BuildDuration      *prometheus.HistogramVec
+	BuildRequeued      prometheus.Counter
+	BuildInFlight      prometheus.Gauge
+	AgentPolls         prometheus.Counter
+	AgentJobsClaimed   prometheus.Counter
+	AgentJobsCompleted *prometheus.CounterVec
+	AgentJobDuration   *prometheus.HistogramVec
+	AgentRequeued      prometheus.Counter
+	AgentErrors        *prometheus.CounterVec
+	AgentInFlight      prometheus.Gauge
 }
 
 // NewWorkerMetrics constructs a separate worker registry. It can be served
@@ -168,8 +175,51 @@ func NewWorkerMetrics() *WorkerMetrics {
 			Name:      "builds_in_flight",
 			Help:      "Function deployment builds currently being processed by this worker.",
 		}),
+		AgentPolls: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "polls_total",
+			Help:      "Queue poll cycles performed by the Agent worker.",
+		}),
+		AgentJobsClaimed: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "jobs_claimed_total",
+			Help:      "Agent runs claimed by a trusted provider worker.",
+		}),
+		AgentJobsCompleted: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "jobs_completed_total",
+			Help:      "Agent runs transitioned to a terminal result by a trusted worker.",
+		}, []string{"result"}),
+		AgentJobDuration: prometheus.NewHistogramVec(prometheus.HistogramOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "job_duration_seconds",
+			Help:      "Time spent processing one claimed Agent run.",
+			Buckets:   []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300},
+		}, []string{"result"}),
+		AgentRequeued: prometheus.NewCounter(prometheus.CounterOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "stale_jobs_requeued_total",
+			Help:      "Previously leased Agent runs returned to the queue after their lease expired.",
+		}),
+		AgentErrors: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "errors_total",
+			Help:      "Agent worker errors grouped by a fixed internal operation name.",
+		}, []string{"operation"}),
+		AgentInFlight: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: "stealth",
+			Subsystem: "agent_worker",
+			Name:      "jobs_in_flight",
+			Help:      "Agent runs currently being processed by this worker.",
+		}),
 	}
-	registry.MustRegister(metrics.Polls, metrics.JobsClaimed, metrics.JobsCompleted, metrics.JobDuration, metrics.Requeued, metrics.Errors, metrics.InFlight, metrics.BuildsClaimed, metrics.BuildsCompleted, metrics.BuildDuration, metrics.BuildRequeued, metrics.BuildInFlight, prometheus.NewGoCollector(), prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	registry.MustRegister(metrics.Polls, metrics.JobsClaimed, metrics.JobsCompleted, metrics.JobDuration, metrics.Requeued, metrics.Errors, metrics.InFlight, metrics.BuildsClaimed, metrics.BuildsCompleted, metrics.BuildDuration, metrics.BuildRequeued, metrics.BuildInFlight, metrics.AgentPolls, metrics.AgentJobsClaimed, metrics.AgentJobsCompleted, metrics.AgentJobDuration, metrics.AgentRequeued, metrics.AgentErrors, metrics.AgentInFlight, prometheus.NewGoCollector(), prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	return metrics
 }
 

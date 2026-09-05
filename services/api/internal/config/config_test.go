@@ -152,9 +152,23 @@ func TestLoadWorkerBuildTimeout(t *testing.T) {
 	if cfg.FunctionsRunnerBuildTimeout != 5*time.Minute {
 		t.Fatalf("FunctionsRunnerBuildTimeout = %s, want 5m", cfg.FunctionsRunnerBuildTimeout)
 	}
+	t.Setenv("AGENT_RUNNER_ENABLED", "true")
+	t.Setenv("AGENT_RUNNER_EXECUTION_TIMEOUT", "7m")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.AgentRunnerEnabled || cfg.AgentRunnerExecutionTimeout != 7*time.Minute {
+		t.Fatalf("unexpected Agent runner config: enabled=%v timeout=%s", cfg.AgentRunnerEnabled, cfg.AgentRunnerExecutionTimeout)
+	}
 	t.Setenv("FUNCTIONS_RUNNER_BUILD_TIMEOUT", "30s")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "FUNCTIONS_RUNNER_BUILD_TIMEOUT") {
 		t.Fatalf("invalid build timeout returned %v", err)
+	}
+	t.Setenv("FUNCTIONS_RUNNER_BUILD_TIMEOUT", "15m")
+	t.Setenv("AGENT_RUNNER_EXECUTION_TIMEOUT", "30s")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_RUNNER_EXECUTION_TIMEOUT") {
+		t.Fatalf("invalid Agent execution timeout returned %v", err)
 	}
 }
 
