@@ -341,6 +341,16 @@ const incidentSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 }).passthrough();
+const functionExecutionLogSchema = z.object({
+  id: z.string(),
+  execution_id: z.string(),
+  function_id: z.string(),
+  project_id: z.string(),
+  sequence: z.number(),
+  level: z.string(),
+  message: z.string(),
+  created_at: z.string(),
+}).passthrough();
 const traceSchema = z.object({
   id: z.string(),
   trace_id: z.string(),
@@ -476,6 +486,7 @@ export type BrowserStorageFile = z.infer<typeof storageFileSchema>;
 export type BrowserFunction = z.infer<typeof functionSchema>;
 export type BrowserFunctionVariable = z.infer<typeof functionVariableSchema>;
 export type BrowserFunctionExecution = z.infer<typeof functionExecutionSchema>;
+export type BrowserFunctionExecutionLog = z.infer<typeof functionExecutionLogSchema>;
 export type BrowserFunctionRuntime = z.infer<typeof functionRuntimeSchema>;
 export type BrowserSite = z.infer<typeof siteSchema>;
 export type BrowserSiteDomain = z.infer<typeof siteDomainSchema>;
@@ -850,6 +861,13 @@ export const browserAPI = {
   },
   createProjectFunctionExecution: (projectID: string, functionID: string, input: { trigger?: string; input?: unknown }) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/executions`, z.object({ execution: functionExecutionSchema }), { method: "POST", body: JSON.stringify(input) }),
+  projectFunctionExecutionLogs: (projectID: string, functionID: string, executionID: string, options: { limit?: number; after?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.after !== undefined) params.set("after", String(options.after));
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/executions/${encodeURIComponent(executionID)}/logs${query ? `?${query}` : ""}`, z.object({ logs: z.array(functionExecutionLogSchema), pagination: paginationSchema }).passthrough());
+  },
   projectSiteDeployments: (projectID: string, siteID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

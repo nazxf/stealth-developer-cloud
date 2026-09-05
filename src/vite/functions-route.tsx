@@ -9,6 +9,7 @@ import {
   Plus,
   Save,
   Settings2,
+  Terminal,
   Trash2,
   Upload,
   X,
@@ -26,6 +27,7 @@ import {
   browserAPI,
   type BrowserFunction,
   type BrowserFunctionRuntime,
+  type BrowserFunctionExecutionLog,
   type BrowserFunctionVariable,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
@@ -134,6 +136,7 @@ export default function FunctionsRoute() {
   const [variableDescription, setVariableDescription] = useState("");
   const [executionTrigger, setExecutionTrigger] = useState("manual");
   const [executionInput, setExecutionInput] = useState("{}");
+  const [selectedExecutionID, setSelectedExecutionID] = useState("");
   const sourceInputRef = useRef<HTMLInputElement>(null);
   const functions = functionsQuery.data?.functions ?? [];
   const selected = functions.find((item) => item.id === selectedID) ?? null;
@@ -155,6 +158,9 @@ export default function FunctionsRoute() {
     setLoggingDraft(selected.logging);
     setExecuteDraft(selected.execute_permissions.join(", "));
   }, [selected]);
+  useEffect(() => {
+    setSelectedExecutionID("");
+  }, [selectedID]);
 
   const deploymentsQuery = useQuery({
     queryKey: ["function-deployments", projectId, selectedID],
@@ -181,6 +187,12 @@ export default function FunctionsRoute() {
         limit: 50,
       }),
     enabled: Boolean(selectedID),
+    refetchInterval: tab === "executions" ? 2500 : false,
+  });
+  const executionLogsQuery = useQuery({
+    queryKey: ["function-execution-logs", projectId, selectedID, selectedExecutionID],
+    queryFn: () => browserAPI.projectFunctionExecutionLogs(projectId, selectedID, selectedExecutionID, { limit: 100 }),
+    enabled: Boolean(selectedID && selectedExecutionID && tab === "executions"),
     refetchInterval: tab === "executions" ? 2500 : false,
   });
 
@@ -496,6 +508,11 @@ export default function FunctionsRoute() {
         <ExecutionsPanel
           pending={pending}
           executions={executionsQuery.data?.executions ?? []}
+          selectedExecutionID={selectedExecutionID}
+          onSelectExecution={setSelectedExecutionID}
+          logs={executionLogsQuery.data?.logs ?? []}
+          logsLoading={executionLogsQuery.isPending}
+          logsError={executionLogsQuery.error}
           loading={executionsQuery.isPending}
           executionTrigger={executionTrigger}
           setExecutionTrigger={setExecutionTrigger}
@@ -1175,6 +1192,11 @@ function ExecutionsPanel({
   pending,
   executions,
   loading,
+  selectedExecutionID,
+  onSelectExecution,
+  logs,
+  logsLoading,
+  logsError,
   executionTrigger,
   setExecutionTrigger,
   executionInput,
@@ -1192,6 +1214,11 @@ function ExecutionsPanel({
     finished_at?: string | null;
   }>;
   loading: boolean;
+  selectedExecutionID: string;
+  onSelectExecution: (executionID: string) => void;
+  logs: BrowserFunctionExecutionLog[];
+  logsLoading: boolean;
+  logsError: unknown;
   executionTrigger: string;
   setExecutionTrigger: (value: string) => void;
   executionInput: string;
@@ -1275,19 +1302,21 @@ function ExecutionsPanel({
               {executions.map((execution) => (
                 <tr key={execution.id}>
                   <td className="px-3 py-3">
-                    <span
-                      className={`rounded-full border px-2 py-1 ${statusClass(execution.status)}`}
-                    >
-                      {execution.status}
-                    </span>
-                    {execution.error_message ? (
-                      <p
-                        className="m-0 mt-1 max-w-[220px] truncate text-[var(--projects-danger)]"
-                        title={execution.error_message}
+                    <button type="button" onClick={() => onSelectExecution(execution.id)} className="text-left">
+                      <span
+                        className={`rounded-full border px-2 py-1 ${statusClass(execution.status)} ${selectedExecutionID === execution.id ? "ring-2 ring-[var(--projects-accent)]/50" : ""}`}
                       >
-                        {execution.error_message}
-                      </p>
-                    ) : null}
+                        {execution.status}
+                      </span>
+                      {execution.error_message ? (
+                        <p
+                          className="m-0 mt-1 max-w-[220px] truncate text-[var(--projects-danger)]"
+                          title={execution.error_message}
+                        >
+                          {execution.error_message}
+                        </p>
+                      ) : null}
+                    </button>
                   </td>
                   <td className="px-3 py-3 font-mono text-[var(--projects-muted)]">
                     {execution.trigger}
@@ -1311,6 +1340,16 @@ function ExecutionsPanel({
           No executions yet.
         </p>
       )}
+      {selectedExecutionID ? (
+        <section className="mt-5 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2"><Terminal size={15} className="text-[var(--projects-accent)]" aria-hidden="true" /><h4 className="m-0 text-sm font-semibold">Runtime logs</h4></div>
+            <span className="font-mono text-[10px] text-[var(--projects-muted)]">execution: {selectedExecutionID}</span>
+          </div>
+          <p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">Secret-redacted output emitted by the trusted Function worker.</p>
+          {logsLoading ? <p className="m-0 mt-4 text-xs text-[var(--projects-muted)]">Loading logs…</p> : logsError ? <p role="alert" className="m-0 mt-4 text-xs text-rose-200">{logsError instanceof Error ? logsError.message : "Unable to load execution logs."}</p> : logs.length ? <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">{logs.map((log) => <p key={log.id} className="m-0 border-b border-[var(--projects-divider)] py-1.5 font-mono text-[10px] leading-5 last:border-0"><span className={`mr-2 uppercase ${log.level === "error" ? "text-rose-200" : log.level === "warn" ? "text-amber-200" : "text-[var(--projects-accent)]"}`}>{log.level}</span><span className="mr-2 text-[var(--projects-muted)]">#{log.sequence}</span>{log.message}</p>)}</div> : <p className="m-0 mt-4 rounded-lg border border-dashed border-[var(--projects-border)] p-6 text-center text-xs text-[var(--projects-muted)]">No worker logs have been emitted for this execution.</p>}
+        </section>
+      ) : null}
     </div>
   );
 }

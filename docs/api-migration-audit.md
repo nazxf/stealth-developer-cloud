@@ -66,7 +66,8 @@ simulated async behavior (timers standing in for network calls).
   configuration, encrypted write-only variables, versioned source uploads,
   immutable asynchronous builds with deployment-scoped variable snapshots,
   atomic activation, asynchronous execution, bounded results, and redacted
-  logs. The Vite Sites control plane is now connected for pre-built static archive upload, bounded
+  logs; the Functions Executions tab now reads the bounded, secret-redacted
+  execution log stream from the worker. The Vite Sites control plane is now connected for pre-built static archive upload, bounded
   safe extraction, immutable deployments, atomic activation, quota accounting,
   and public serving of only the active publication. Webhooks are now connected
   end to end: signed transactional outbox events, leased delivery retries,

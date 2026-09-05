@@ -230,6 +230,20 @@ func TestFunctionsControlPlaneIntegration(t *testing.T) {
 	if _, err := functionRepository.TransitionFunctionExecutionResult(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(executionResponse.Execution.ID)), "succeeded", "", nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := functionRepository.AppendFunctionExecutionLog(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(executionResponse.Execution.ID)), uuid.Must(uuid.NewV7()), 0, "info", "worker execution completed"); err != nil {
+		t.Fatal(err)
+	}
+	var executionLogs struct {
+		Logs []struct {
+			Sequence int64  `json:"sequence"`
+			Level    string `json:"level"`
+			Message  string `json:"message"`
+		} `json:"logs"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, functionsURL+"/executions/"+executionResponse.Execution.ID+"/logs?limit=100", nil, http.StatusOK, &executionLogs)
+	if len(executionLogs.Logs) != 1 || executionLogs.Logs[0].Sequence != 1 || executionLogs.Logs[0].Level != "info" || executionLogs.Logs[0].Message != "worker execution completed" {
+		t.Fatalf("unexpected execution logs: %+v", executionLogs.Logs)
+	}
 	if _, err := functionRepository.TransitionFunctionExecution(ctx, uuid.Must(uuid.Parse(project.Project.ID)), uuid.Must(uuid.Parse(functionID)), uuid.Must(uuid.Parse(anonymousExecutionResponse.Execution.ID)), "failed", "test failure"); err != nil {
 		t.Fatal(err)
 	}
