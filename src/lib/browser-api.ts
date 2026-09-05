@@ -492,6 +492,16 @@ export const browserAPI = {
     if (!path) throw new BrowserAPIError(404, "not_found", "That project resource does not exist.");
     return request(`/v1/projects/${encodeURIComponent(projectID)}/${path}`, z.object({}).passthrough());
   },
+  openProjectRealtime: (projectID: string, options: { events?: string; cursor?: string; signal?: AbortSignal } = {}) => {
+    const params = new URLSearchParams({ events: options.events || "*" });
+    if (options.cursor) params.set("cursor", options.cursor);
+    return fetch(apiURL(`/v1/projects/${encodeURIComponent(projectID)}/realtime?${params.toString()}`), {
+      credentials: "include",
+      headers: { accept: "text/event-stream" },
+      cache: "no-store",
+      signal: options.signal,
+    });
+  },
   projectMessagingProviders: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers`, z.object({ providers: z.array(messagingProviderSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
   projectMessagingTopics: (projectID: string) =>
