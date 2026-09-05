@@ -80,11 +80,11 @@ simulated async behavior (timers standing in for network calls).
   project-scoped API/Console controls, and the Webhooks Console page. Realtime
   is now available as a permission-filtered, cursor-aware SSE stream backed by
   the same seven-day event outbox. The Databases workspace now exposes typed
-  columns, real key/unique indexes, permission-filtered rows, and row CRUD
-  through the same centralized browser API. Permission-filtered table export
-  and atomic typed-row import (up to 1,000 rows) are now available. Relationships,
-  transactions, backups, and full-text remain explicitly disabled until their
-  backend modules exist. Messaging provider/topic/subscriber
+  columns, real key/unique/full-text indexes, permission-filtered rows, and row CRUD
+  through the same centralized browser API. Permission-filtered table export,
+  atomic typed-row import (up to 1,000 rows), and PostgreSQL-backed full-text
+  search are now available. Relationships, transactions, and backups remain
+  explicitly disabled until their backend modules exist. Messaging provider/topic/subscriber
   configuration and the trusted delivery worker are connected end to end;
   production push delivery still depends on configuring a real provider.
   Project Settings now updates the
@@ -287,9 +287,9 @@ simulated async behavior (timers standing in for network calls).
   code. It now exposes the database/table/column/index/row methods with
   independent Database, Storage, Functions, and Sites read/write
   authorization, including cursor-based Function and Site build-log reads.
-  Table export and atomic typed-row import are available through the database
-  endpoints; relationships, transactions, backups, and full-text remain
-  unavailable until their backend modules exist.
+  Table export, atomic typed-row import, and indexed full-text search are
+  available through the database endpoints; relationships, transactions, and
+  backups remain unavailable until their backend modules exist.
 
 ## Admin (Vite route tree)
 

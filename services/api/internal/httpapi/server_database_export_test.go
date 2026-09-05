@@ -2,8 +2,10 @@ package httpapi
 
 import (
 	"errors"
+	"net/http/httptest"
 	"testing"
 
+	dbcore "github.com/stealth-cloud/stealth/services/api/internal/database"
 	"github.com/stealth-cloud/stealth/services/api/internal/repository"
 )
 
@@ -38,5 +40,29 @@ func TestParseDatabaseExportLimit(t *testing.T) {
 				t.Fatalf("limit = %d, want %d", got, test.want)
 			}
 		})
+	}
+}
+
+func TestParseRowQueryFullTextSearch(t *testing.T) {
+	schema := repository.DatabaseTableSchema{Columns: []repository.DatabaseColumnSchema{
+		{Key: "title", Type: dbcore.TypeText},
+		{Key: "count", Type: dbcore.TypeInteger},
+	}}
+	request := httptest.NewRequest("GET", "/?limit=10&search=hello+world&search_column=title", nil)
+	query, err := parseRowQuery(request, schema)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if query.Search != "hello world" || query.SearchColumn == nil || query.SearchColumn.Key != "title" {
+		t.Fatalf("full-text query = %#v", query)
+	}
+	for _, rawURL := range []string{
+		"/?search=hello",
+		"/?search_column=title",
+		"/?search=hello&search_column=count",
+	} {
+		if _, err := parseRowQuery(httptest.NewRequest("GET", rawURL, nil), schema); err == nil || !errors.Is(err, repository.ErrInvalidQuery) {
+			t.Fatalf("parseRowQuery(%s) error = %v", rawURL, err)
+		}
 	}
 }

@@ -163,7 +163,7 @@ export class StealthClient {
   };
   /** Application-facing rows only. Console and server-key management stays in server.ts. */
   readonly rows: {
-    list: (databaseID: string, tableID: string, options?: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; filters?: Record<string, string> }) => Promise<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>;
+    list: (databaseID: string, tableID: string, options?: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> }) => Promise<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>;
     export: (databaseID: string, tableID: string, options?: { limit?: number }) => Promise<DatabaseRowsExport>;
     import: (databaseID: string, tableID: string, input: { rows: DatabaseRowImportInput[] }) => Promise<DatabaseRowsImportResponse>;
     get: (databaseID: string, tableID: string, rowID: string) => Promise<DatabaseRow>;
@@ -302,12 +302,14 @@ export class StealthClient {
     await this.request<void>("/session", { method: "DELETE" });
   }
 
-  private async listRows(databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; filters?: Record<string, string> } = {}): Promise<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }> {
+  private async listRows(databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> } = {}): Promise<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }> {
     const query = new URLSearchParams();
     if (options.limit !== undefined) query.set("limit", String(options.limit));
     if (options.cursor) query.set("cursor", options.cursor);
     if (options.order_by) query.set("order_by", options.order_by);
     if (options.order_direction) query.set("order_direction", options.order_direction);
+    if (options.search) query.set("search", options.search);
+    if (options.search_column) query.set("search_column", options.search_column);
     for (const [key, value] of Object.entries(options.filters ?? {})) query.set(`filter.${key}`, value);
     const suffix = `/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows${query.toString() ? `?${query.toString()}` : ""}`;
     return this.request<{ rows: DatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>(suffix);

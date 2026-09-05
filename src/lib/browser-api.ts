@@ -239,7 +239,7 @@ const databaseIndexSchema = z.object({
   id: z.string(),
   table_id: z.string(),
   name: z.string(),
-  type: z.enum(["key", "unique"]),
+  type: z.enum(["key", "unique", "fulltext"]),
   column_keys: z.array(z.string()),
   directions: z.array(z.enum(["asc", "desc"])),
   created_at: z.string(),
@@ -813,7 +813,7 @@ export const browserAPI = {
       z.object({ indexes: z.array(databaseIndexSchema), pagination: paginationSchema }).passthrough(),
     );
   },
-  createProjectDatabaseIndex: (projectID: string, databaseID: string, tableID: string, input: { name: string; type: "key" | "unique"; column_keys: string[]; directions?: Array<"asc" | "desc"> }) =>
+  createProjectDatabaseIndex: (projectID: string, databaseID: string, tableID: string, input: { name: string; type: "key" | "unique" | "fulltext"; column_keys: string[]; directions?: Array<"asc" | "desc"> }) =>
     request(
       `/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/indexes`,
       z.object({ index: databaseIndexSchema }),
@@ -825,12 +825,14 @@ export const browserAPI = {
       z.undefined(),
       { method: "DELETE" },
     ),
-  projectDatabaseRows: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; filters?: Record<string, string> } = {}) => {
+  projectDatabaseRows: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
     if (options.cursor) params.set("cursor", options.cursor);
     if (options.order_by) params.set("order_by", options.order_by);
     if (options.order_direction) params.set("order_direction", options.order_direction);
+    if (options.search) params.set("search", options.search);
+    if (options.search_column) params.set("search_column", options.search_column);
     for (const [key, value] of Object.entries(options.filters ?? {})) params.set(`filter.${key}`, value);
     const query = params.toString();
     return request(

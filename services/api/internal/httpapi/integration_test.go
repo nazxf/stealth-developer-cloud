@@ -1332,6 +1332,17 @@ func TestProjectDatabasesCoreIntegration(t *testing.T) {
 		t.Fatalf("bulk import = %#v", importedRows)
 	}
 	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/rows/import", map[string]any{"rows": []any{map[string]any{"data": map[string]any{"title": "atomic"}}, map[string]any{"data": map[string]any{"title": "imported"}}}}, http.StatusConflict, nil)
+	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/rows?search=first&search_column=title", nil, http.StatusUnprocessableEntity, nil)
+	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/indexes", map[string]any{"name": "title fulltext", "type": "fulltext", "column_keys": []string{"title"}}, http.StatusCreated, &struct{}{})
+	var searchPage struct {
+		Rows []struct {
+			Data map[string]any `json:"data"`
+		} `json:"rows"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/rows?search=first&search_column=title", nil, http.StatusOK, &searchPage)
+	if len(searchPage.Rows) != 1 || searchPage.Rows[0].Data["title"] != "first" {
+		t.Fatalf("full-text search = %#v", searchPage)
+	}
 	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/rows?filter.count=2", nil, http.StatusUnprocessableEntity, nil)
 	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/indexes", map[string]any{"name": "count key", "type": "key", "column_keys": []string{"count"}}, http.StatusCreated, &struct{}{})
 	var rowsPage struct {

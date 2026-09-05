@@ -145,8 +145,9 @@ both scopes when an automation needs to list/fetch and mutate. API keys are
 accepted only by the server-oriented client and are never returned by API
 responses.
 
-The Database core currently supports typed columns, key/unique indexes, rows,
-equality filters, and permission grants (`any`, `users`, and `user:<uuid>`).
+The Database core currently supports typed columns, key/unique/full-text
+indexes, rows, equality filters, indexed search, bounded JSON/CSV export,
+atomic row import, and permission grants (`any`, `users`, and `user:<uuid>`).
 The server client also exposes the Functions control plane with
 `functions.read`/`functions.write`. Function variable values are write-only,
 source archives are uploaded as multipart data, and one ready deployment can

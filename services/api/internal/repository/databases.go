@@ -121,11 +121,13 @@ type RowCursor struct {
 }
 
 type RowQuery struct {
-	Limit      int
-	Cursor     *RowCursor
-	Filters    []RowFilter
-	OrderBy    *DatabaseColumnSchema
-	Descending bool
+	Limit        int
+	Cursor       *RowCursor
+	Filters      []RowFilter
+	OrderBy      *DatabaseColumnSchema
+	Descending   bool
+	Search       string
+	SearchColumn *DatabaseColumnSchema
 }
 
 func EncodeRowCursor(cursor RowCursor) string {
@@ -636,8 +638,8 @@ func (r *Repository) CreateDatabaseIndex(ctx context.Context, id, projectID, dat
 	if _, err := dbcore.ValidateName(input.Name); err != nil {
 		return domain.DatabaseIndex{}, err
 	}
-	if input.Type != "key" && input.Type != "unique" {
-		return domain.DatabaseIndex{}, fmt.Errorf("%w: index type must be key or unique", dbcore.ErrInvalidIdentifier)
+	if input.Type != "key" && input.Type != "unique" && input.Type != "fulltext" {
+		return domain.DatabaseIndex{}, fmt.Errorf("%w: index type must be key, unique, or fulltext", dbcore.ErrInvalidIdentifier)
 	}
 	if len(input.Directions) == 0 && len(input.ColumnKeys) > 0 {
 		input.Directions = make([]string, len(input.ColumnKeys))
@@ -647,6 +649,9 @@ func (r *Repository) CreateDatabaseIndex(ctx context.Context, id, projectID, dat
 	}
 	if len(input.ColumnKeys) == 0 || len(input.ColumnKeys) > 16 || len(input.ColumnKeys) != len(input.Directions) {
 		return domain.DatabaseIndex{}, fmt.Errorf("%w: index columns and directions must contain 1 to 16 matching entries", dbcore.ErrInvalidIdentifier)
+	}
+	if input.Type == "fulltext" && len(input.ColumnKeys) != 1 {
+		return domain.DatabaseIndex{}, fmt.Errorf("%w: fulltext indexes must contain exactly one text column", dbcore.ErrInvalidIdentifier)
 	}
 	seen := make(map[string]struct{}, len(input.ColumnKeys))
 	for i, key := range input.ColumnKeys {
@@ -660,6 +665,9 @@ func (r *Repository) CreateDatabaseIndex(ctx context.Context, id, projectID, dat
 		input.Directions[i] = strings.ToLower(input.Directions[i])
 		if input.Directions[i] != "asc" && input.Directions[i] != "desc" {
 			return domain.DatabaseIndex{}, fmt.Errorf("%w: index direction must be asc or desc", dbcore.ErrInvalidIdentifier)
+		}
+		if input.Type == "fulltext" && input.Directions[i] != "asc" {
+			return domain.DatabaseIndex{}, fmt.Errorf("%w: fulltext index direction must be asc", dbcore.ErrInvalidIdentifier)
 		}
 	}
 	tx, err := r.pool.Begin(ctx)
@@ -925,6 +933,14 @@ func internalIndexName(id uuid.UUID) string {
 func quoteSQLLiteral(value string) string { return "'" + strings.ReplaceAll(value, "'", "''") + "'" }
 
 func buildIndexDDL(internalName string, tableID uuid.UUID, input DatabaseIndexInput, columns map[string]DatabaseColumnSchema) (string, error) {
+	if input.Type == "fulltext" {
+		column := columns[input.ColumnKeys[0]]
+		if column.Type != dbcore.TypeVarchar && column.Type != dbcore.TypeText {
+			return "", fmt.Errorf("%w: fulltext indexes require a varchar or text column", dbcore.ErrInvalidIdentifier)
+		}
+		keyLiteral := quoteSQLLiteral(column.Key)
+		return `CREATE INDEX "` + internalName + `" ON database_rows USING GIN (to_tsvector('simple', COALESCE(data->>` + keyLiteral + `,''))) WHERE table_id = ` + quoteSQLLiteral(tableID.String()), nil
+	}
 	parts := make([]string, 0, len(input.ColumnKeys))
 	for i, key := range input.ColumnKeys {
 		column := columns[key]

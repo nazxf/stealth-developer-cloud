@@ -300,7 +300,7 @@ The server-only SDK entry point (`packages/sdk-js/server.ts`) sends
 `functions.read`, `functions.write`, `sites.read`, `sites.write`, `webhooks.read`,
 `webhooks.write`, `realtime.read`, `messaging.read`, and `messaging.write` scopes
 and never persists the key. Database core now supports typed databases/tables/columns, real key/unique
-indexes, and permission-aware row CRUD. Database `write` does not imply
+  indexes (including PostgreSQL GIN full-text indexes), and permission-aware row CRUD. Database `write` does not imply
 `read`; callers must grant both scopes when they need both. Realtime is
 available as an authenticated, cursor-aware Server-Sent Events stream; see
 [`docs/realtime.md`](docs/realtime.md) for its permission and reconnect
@@ -310,7 +310,8 @@ available as an authenticated, cursor-aware Server-Sent Events stream; see
   Table exports are available as bounded, permission-filtered JSON or CSV
   streams (`GET .../tables/{tableID}/export`), and up to 1,000 typed rows can
   be imported atomically (`POST .../tables/{tableID}/rows/import`);
-  relationships, transactions, backups, and full-text remain future modules.
+  full-text search is available on explicitly declared PostgreSQL GIN indexes;
+  relationships, transactions, and backups remain future modules.
 
 ### Webhooks contract
 

@@ -221,9 +221,9 @@ describe("browser API boundary", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ rows: [row], pagination: { limit: 50, next_cursor: null } }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ row }), { status: 200 }));
 
-    const listed = await browserAPI.projectDatabaseRows("project/one", "database one", "table/one", { limit: 50, order_by: "email", order_direction: "desc", filters: { email: "owner@example.test" } });
+    const listed = await browserAPI.projectDatabaseRows("project/one", "database one", "table/one", { limit: 50, order_by: "email", order_direction: "desc", search: "owner", search_column: "email", filters: { email: "owner@example.test" } });
     expect(listed.rows[0]?.data.email).toBe("owner@example.test");
-    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows?limit=50&order_by=email&order_direction=desc&filter.email=owner%40example.test");
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows?limit=50&order_by=email&order_direction=desc&search=owner&search_column=email&filter.email=owner%40example.test");
 
     await browserAPI.updateProjectDatabaseRow("project/one", "database one", "table/one", "row/one", { data: { active: false } });
     expect(fetchMock.mock.calls[1]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/tables/table%2Fone/rows/row%2Fone");

@@ -110,6 +110,10 @@ func rowSQLExpression(prefix string, column DatabaseColumnSchema) string {
 	}
 }
 
+func fullTextSQLExpression(prefix string, column DatabaseColumnSchema) string {
+	return `(to_tsvector('simple', COALESCE(` + prefix + `.data->>` + quoteSQLLiteral(column.Key) + `,'')))`
+}
+
 func (r *Repository) indexedColumns(ctx context.Context, tableID uuid.UUID, keys []string) (bool, error) {
 	for _, key := range keys {
 		var found bool
@@ -121,6 +125,14 @@ func (r *Repository) indexedColumns(ctx context.Context, tableID uuid.UUID, keys
 		}
 	}
 	return true, nil
+}
+
+func (r *Repository) fullTextIndexedColumn(ctx context.Context, tableID uuid.UUID, key string) (bool, error) {
+	var found bool
+	if err := r.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM database_indexes WHERE table_id=$1 AND index_type='fulltext' AND column_keys[1]=$2)`, tableID, key).Scan(&found); err != nil {
+		return false, err
+	}
+	return found, nil
 }
 
 func (r *Repository) ListDatabaseRows(ctx context.Context, projectID, databaseID, tableID uuid.UUID, actor DatabaseActor, query RowQuery) ([]domain.DatabaseRow, string, error) {
@@ -142,6 +154,15 @@ func (r *Repository) ListDatabaseRows(ctx context.Context, projectID, databaseID
 	if query.OrderBy != nil {
 		indexKeys = append(indexKeys, query.OrderBy.Key)
 	}
+	if query.SearchColumn != nil {
+		indexed, err := r.fullTextIndexedColumn(ctx, tableID, query.SearchColumn.Key)
+		if err != nil {
+			return nil, "", err
+		}
+		if !indexed {
+			return nil, "", ErrUnindexedQuery
+		}
+	}
 	if len(indexKeys) > 0 {
 		indexed, err := r.indexedColumns(ctx, tableID, indexKeys)
 		if err != nil {
@@ -159,6 +180,10 @@ func (r *Repository) ListDatabaseRows(ctx context.Context, projectID, databaseID
 	for _, filter := range query.Filters {
 		args = append(args, filter.Value)
 		where = append(where, rowSQLExpression("r", filter.Column)+"=$"+strconv.Itoa(len(args)))
+	}
+	if query.SearchColumn != nil && strings.TrimSpace(query.Search) != "" {
+		args = append(args, strings.TrimSpace(query.Search))
+		where = append(where, fullTextSQLExpression("r", *query.SearchColumn)+" @@ plainto_tsquery('simple', $"+strconv.Itoa(len(args))+")")
 	}
 	orderExpression := "r.id"
 	if query.OrderBy != nil {

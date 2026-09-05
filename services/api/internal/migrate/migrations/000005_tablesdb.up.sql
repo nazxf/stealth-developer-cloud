@@ -1,6 +1,5 @@
--- Database core foundation.  Advanced features (relationships, transactions,
--- backups, realtime, full-text search, bulk/import/export) deliberately do
--- not have tables or routes in this milestone.
+-- Database core foundation. Advanced features are added through forward-only
+-- migrations; this base migration owns the typed table/row primitives.
 
 -- Existing API keys remain valid.  Expand the canonical scope constraint in a
 -- forward-only migration rather than rewriting the already-issued secrets.

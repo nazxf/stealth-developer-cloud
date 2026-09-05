@@ -835,6 +835,32 @@ func parseRowQuery(r *http.Request, schema repository.DatabaseTableSchema) (repo
 			return repository.RowQuery{}, fmt.Errorf("%w: order_direction must be asc or desc", repository.ErrInvalidQuery)
 		}
 	}
+	searchRaw := query.Get("search")
+	search := strings.TrimSpace(searchRaw)
+	searchColumnKey := strings.TrimSpace(query.Get("search_column"))
+	var searchColumn *repository.DatabaseColumnSchema
+	if searchRaw != "" && search == "" {
+		return repository.RowQuery{}, fmt.Errorf("%w: search must not be empty", repository.ErrInvalidQuery)
+	}
+	if search != "" && searchColumnKey == "" {
+		return repository.RowQuery{}, fmt.Errorf("%w: search_column is required with search", repository.ErrInvalidQuery)
+	}
+	if searchColumnKey != "" {
+		column, ok := byKey[searchColumnKey]
+		if !ok {
+			return repository.RowQuery{}, fmt.Errorf("%w: search column is not declared", repository.ErrInvalidQuery)
+		}
+		if column.Type != dbcore.TypeVarchar && column.Type != dbcore.TypeText {
+			return repository.RowQuery{}, fmt.Errorf("%w: full-text search requires a varchar or text column", repository.ErrInvalidQuery)
+		}
+		if search == "" {
+			return repository.RowQuery{}, fmt.Errorf("%w: search is required with search_column", repository.ErrInvalidQuery)
+		}
+		if len(search) > 256 {
+			return repository.RowQuery{}, fmt.Errorf("%w: search must be at most 256 bytes", repository.ErrInvalidQuery)
+		}
+		searchColumn = &column
+	}
 	if cursor != nil && orderBy != nil {
 		value, err := canonicalCursorValue(*orderBy, cursor.Value)
 		if err != nil {
@@ -842,7 +868,7 @@ func parseRowQuery(r *http.Request, schema repository.DatabaseTableSchema) (repo
 		}
 		cursor.Value = value
 	}
-	return repository.RowQuery{Limit: limit, Cursor: cursor, Filters: filters, OrderBy: orderBy, Descending: descending}, nil
+	return repository.RowQuery{Limit: limit, Cursor: cursor, Filters: filters, OrderBy: orderBy, Descending: descending, Search: search, SearchColumn: searchColumn}, nil
 }
 
 func canonicalCursorValue(column repository.DatabaseColumnSchema, value any) (any, error) {
