@@ -75,6 +75,7 @@ authenticated query contracts are implemented.
 - `docs/auth.md` — one-time verification, recovery, organization invitations, and SMTP delivery
 - `docs/agents.md` — project-scoped Agent configuration, run queue, and execution boundary
 - `docs/deployment.md` — production Compose rollout, security checklist, smoke tests, and rollback
+- `.github/workflows/ci.yml` — push/PR contract, test, build, Compose, and smoke-script quality gate
 
 ## Local API development
 
