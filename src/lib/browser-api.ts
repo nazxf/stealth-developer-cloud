@@ -81,6 +81,28 @@ const deploymentSchema = z.object({
   created_at: z.string(),
   activated_at: z.string().nullable().optional(),
 }).passthrough();
+const incidentSchema = z.object({
+  id: z.string(),
+  organization_id: z.string(),
+  title: z.string(),
+  severity: z.enum(["critical", "warning", "info"]),
+  status: z.enum(["investigating", "identified", "monitoring", "resolved"]),
+  services: z.array(z.string()),
+  started_at: z.string(),
+  resolved_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+}).passthrough();
+const traceSchema = z.object({
+  id: z.string(),
+  trace_id: z.string(),
+  service: z.string(),
+  method: z.string(),
+  route: z.string(),
+  status: z.number(),
+  duration_ms: z.number(),
+  started_at: z.string(),
+}).passthrough();
 const messagingChannelSchema = z.enum(["email", "sms", "push"]);
 const messagingProviderSchema = z.object({
   id: z.string(),
@@ -207,6 +229,12 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema })),
   projectUsage: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/usage`, z.object({ usage: projectUsageSchema })),
+  health: () => request("/healthz", z.object({ status: z.string() })),
+  readiness: () => request("/readyz", z.object({ status: z.string() })),
+  organizationIncidents: (organizationID: string) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}/incidents?limit=100`, z.object({ incidents: z.array(incidentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
+  organizationTraces: (organizationID: string) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}/traces?limit=100`, z.object({ traces: z.array(traceSchema), pagination: paginationSchema }).passthrough()),
   projectFunctions: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/functions?limit=100`, z.object({ functions: z.array(functionSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
   projectSites: (projectID: string) =>

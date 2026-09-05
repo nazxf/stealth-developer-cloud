@@ -346,12 +346,13 @@ const resetPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: 
 const verifyEmailRoute = createRoute({ getParentRoute: () => rootRoute, path: "/verify-email", component: VerifyEmailRoute });
 const acceptInvitationRoute = createRoute({ getParentRoute: () => rootRoute, path: "/accept-invitation", component: AcceptInvitationRoute });
 const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: "/admin", component: lazyRouteComponent(() => import("./admin-route")) });
+const adminSectionRoute = createRoute({ getParentRoute: () => rootRoute, path: "/admin/$section", component: lazyRouteComponent(() => import("./admin-route"), "AdminSectionRoute") });
 const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects", component: ProjectsRoute });
 const projectRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId", component: ProjectRoute });
 const projectDeploymentsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/deployments", component: lazyRouteComponent(() => import("./deployments-route")) });
 const projectMessagingRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/messaging", component: lazyRouteComponent(() => import("./messaging-route")) });
 const projectResourceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/$resource", component: ProjectResourceRoute });
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, adminRoute, projectsRoute, projectRoute, projectDeploymentsRoute, projectMessagingRoute, projectResourceRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, adminRoute, adminSectionRoute, projectsRoute, projectRoute, projectDeploymentsRoute, projectMessagingRoute, projectResourceRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 
