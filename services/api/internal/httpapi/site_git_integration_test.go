@@ -140,6 +140,14 @@ func TestGitSiteDeploymentQueuesValidatedSourceIntegration(t *testing.T) {
 			ID string `json:"id"`
 		} `json:"logs"`
 	}{})
+	var readKey struct {
+		Secret string `json:"secret"`
+	}
+	requestJSON(t, ownerClient, http.MethodPost, projectURL+"/api-keys", map[string]any{
+		"name":   "site-build-log-reader",
+		"scopes": []string{"sites.read"},
+	}, http.StatusCreated, &readKey)
+	requestJSONWithHeaders(t, newIntegrationClient(t), http.MethodGet, projectURL+"/sites/"+site.Site.ID+"/deployments/"+created.Deployment.ID+"/logs?limit=10", nil, http.StatusOK, map[string]string{"X-Stealth-Key": readKey.Secret})
 }
 
 type fakeGitFetcher struct {
