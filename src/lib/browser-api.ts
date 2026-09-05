@@ -56,6 +56,35 @@ const projectUsageSchema = z.object({
   site_count: z.number(),
   webhook_delivery_count_7d: z.number(),
 }).passthrough();
+const projectAPIKeyScopeSchema = z.enum([
+  "users.read",
+  "users.write",
+  "databases.read",
+  "databases.write",
+  "storage.read",
+  "storage.write",
+  "functions.read",
+  "functions.write",
+  "sites.read",
+  "sites.write",
+  "webhooks.read",
+  "webhooks.write",
+  "realtime.read",
+  "messaging.read",
+  "messaging.write",
+]);
+const projectAPIKeySchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  prefix: z.string(),
+  scopes: z.array(projectAPIKeyScopeSchema),
+  expires_at: z.string().nullable(),
+  revoked_at: z.string().nullable(),
+  last_used_at: z.string().nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const functionSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -160,6 +189,8 @@ export type BrowserOrganization = z.infer<typeof organizationSchema>;
 export type BrowserProject = z.infer<typeof projectSchema>;
 export type BrowserOrganizationsResponse = z.infer<typeof organizationsResponseSchema>;
 export type BrowserProjectsResponse = z.infer<typeof projectsResponseSchema>;
+export type BrowserProjectAPIKey = z.infer<typeof projectAPIKeySchema>;
+export type BrowserProjectAPIKeyScope = z.infer<typeof projectAPIKeyScopeSchema>;
 
 export class BrowserAPIError extends Error {
   constructor(
@@ -229,6 +260,24 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema })),
   projectUsage: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/usage`, z.object({ usage: projectUsageSchema })),
+  projectAPIKeys: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/api-keys${query ? `?${query}` : ""}`,
+      z.object({ keys: z.array(projectAPIKeySchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough(),
+    );
+  },
+  createProjectAPIKey: (projectID: string, input: { name: string; scopes: BrowserProjectAPIKeyScope[]; expires_at?: string | null }) =>
+    request(
+      `/v1/projects/${encodeURIComponent(projectID)}/api-keys`,
+      z.object({ key: projectAPIKeySchema, secret: z.string() }),
+      { method: "POST", body: JSON.stringify(input) },
+    ),
+  revokeProjectAPIKey: (projectID: string, keyID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/api-keys/${encodeURIComponent(keyID)}`, z.undefined(), { method: "DELETE" }),
   health: () => request("/healthz", z.object({ status: z.string() })),
   readiness: () => request("/readyz", z.object({ status: z.string() })),
   organizationIncidents: (organizationID: string) =>
