@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BrowserAPIError, browserAPI, type BrowserAgentTool } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/browser-api";
 import { routeTree } from "./router";
 
 const accountResponse = {
@@ -82,6 +82,12 @@ const agentResponse = {
   created_at: "2026-09-05T00:00:00Z",
   updated_at: "2026-09-05T00:00:00Z",
 };
+const agentCatalog: BrowserAgentCatalog = {
+  providers: [{ id: "openai", name: "OpenAI", models: ["GPT-5.6"] }],
+  roles: ["General", "Frontend", "Reviewer", "Documentation"],
+  tools: ["Read files", "Search code", "Edit files", "Terminal", "Run tests", "Git diff"],
+  execution: { mode: "queue_only", ready: false, message: "Runs are accepted into the durable queue." },
+};
 
 function createTestRouter(path: string) {
   return createRouter({ routeTree, history: createMemoryHistory({ initialEntries: [path] }), defaultPreload: "intent" });
@@ -143,6 +149,7 @@ describe("Vite router runtime", () => {
     vi.spyOn(browserAPI, "organizations").mockResolvedValue({ organizations: [organizationResponse], pagination });
     vi.spyOn(browserAPI, "projects").mockResolvedValue({ projects: [projectResponse.project], pagination });
     vi.spyOn(browserAPI, "agents").mockResolvedValue({ agents: [agentResponse], pagination });
+    vi.spyOn(browserAPI, "agentCatalog").mockResolvedValue(agentCatalog);
     const agent = vi.spyOn(browserAPI, "agent").mockResolvedValue({ agent: agentResponse });
     const runs = vi.spyOn(browserAPI, "agentRuns").mockResolvedValue({ runs: [], pagination });
 

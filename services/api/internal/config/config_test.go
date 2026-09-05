@@ -182,6 +182,28 @@ func TestLoadTelemetryConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadAgentProviderCatalog(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://example.invalid/stealth")
+	t.Setenv("FUNCTIONS_SECRET_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("p", 32))))
+	t.Setenv("AGENT_PROVIDER_CATALOG", `[{"id":"local","name":"Local gateway","models":["model-a"," model-b "]}]`)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cfg.AgentProviderCatalog) != 1 || cfg.AgentProviderCatalog[0].ID != "local" || cfg.AgentProviderCatalog[0].Name != "Local gateway" || len(cfg.AgentProviderCatalog[0].Models) != 2 || cfg.AgentProviderCatalog[0].Models[1] != "model-b" {
+		t.Fatalf("unexpected AgentProviderCatalog: %#v", cfg.AgentProviderCatalog)
+	}
+
+	t.Setenv("AGENT_PROVIDER_CATALOG", `[{"id":"local","name":"Local","models":[]}]`)
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_PROVIDER_CATALOG") {
+		t.Fatalf("empty model catalog returned %v", err)
+	}
+	t.Setenv("AGENT_PROVIDER_CATALOG", `[{"id":"local","name":"Local","models":["model"]},{"id":"local","name":"Duplicate","models":["model"]}]`)
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "AGENT_PROVIDER_CATALOG") {
+		t.Fatalf("duplicate provider catalog returned %v", err)
+	}
+}
+
 func TestLoadSitesConfiguration(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://example.invalid/stealth")
 	t.Setenv("FUNCTIONS_SECRET_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("s", 32))))

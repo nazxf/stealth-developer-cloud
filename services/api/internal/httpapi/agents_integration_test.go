@@ -64,6 +64,22 @@ func TestProjectAgentsControlPlaneIntegration(t *testing.T) {
 	requestJSON(t, ownerClient, http.MethodPost, httpServer.URL+"/v1/organizations/"+ownerRegistration.Organization.ID+"/projects", map[string]string{
 		"name": "agents-" + ownerID.String()[:8],
 	}, http.StatusCreated, &project)
+	var catalog struct {
+		Providers []struct {
+			ID     string   `json:"id"`
+			Models []string `json:"models"`
+		} `json:"providers"`
+		Roles     []string `json:"roles"`
+		Tools     []string `json:"tools"`
+		Execution struct {
+			Mode  string `json:"mode"`
+			Ready bool   `json:"ready"`
+		} `json:"execution"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, httpServer.URL+"/v1/agent-catalog", nil, http.StatusOK, &catalog)
+	if len(catalog.Providers) < 1 || catalog.Providers[0].ID == "" || len(catalog.Providers[0].Models) < 1 || len(catalog.Roles) < 1 || len(catalog.Tools) < 1 || catalog.Execution.Mode != "queue_only" || catalog.Execution.Ready {
+		t.Fatalf("unexpected Agent catalog: %+v", catalog)
+	}
 
 	viewerClient := newIntegrationClient(t)
 	viewerID := uuid.Must(uuid.NewV7())

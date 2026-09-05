@@ -427,6 +427,14 @@ const traceSchema = z.object({
 const agentRoleSchema = z.enum(["General", "Frontend", "Reviewer", "Documentation"]);
 const agentStatusSchema = z.enum(["active", "running", "idle"]);
 const agentToolSchema = z.enum(["Read files", "Search code", "Edit files", "Terminal", "Run tests", "Git diff"]);
+const agentProviderCatalogItemSchema = z.object({ id: z.string(), name: z.string(), models: z.array(z.string()) });
+const agentCatalogExecutionSchema = z.object({ mode: z.literal("queue_only"), ready: z.boolean(), message: z.string() });
+const agentCatalogSchema = z.object({
+  providers: z.array(agentProviderCatalogItemSchema),
+  roles: z.array(agentRoleSchema),
+  tools: z.array(agentToolSchema),
+  execution: agentCatalogExecutionSchema,
+});
 const agentStepSchema = z.object({ id: z.string(), type: z.string(), label: z.string(), target: z.string(), status: z.string() }).passthrough();
 const agentChangeSchema = z.object({ path: z.string(), additions: z.number(), deletions: z.number(), status: z.string() }).passthrough();
 const agentSchema = z.object({
@@ -539,6 +547,8 @@ export type BrowserAgent = z.infer<typeof agentSchema>;
 export type BrowserAgentRun = z.infer<typeof agentRunSchema>;
 export type BrowserAgentRole = z.infer<typeof agentRoleSchema>;
 export type BrowserAgentTool = z.infer<typeof agentToolSchema>;
+export type BrowserAgentProvider = z.infer<typeof agentProviderCatalogItemSchema>;
+export type BrowserAgentCatalog = z.infer<typeof agentCatalogSchema>;
 export type BrowserProjectAPIKey = z.infer<typeof projectAPIKeySchema>;
 export type BrowserProjectAPIKeyScope = z.infer<typeof projectAPIKeyScopeSchema>;
 export type BrowserProjectWebhook = z.infer<typeof projectWebhookSchema>;
@@ -748,6 +758,7 @@ export const browserAPI = {
       z.object({ layout: z.array(projectServiceLayoutSchema), can_manage: z.boolean() }),
       { method: "PUT", body: JSON.stringify({ layout }) },
     ),
+  agentCatalog: () => request("/v1/agent-catalog", agentCatalogSchema),
   updateProject: (projectID: string, input: { name: string }) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema }), { method: "PATCH", body: JSON.stringify(input) }),
   deleteProject: (projectID: string, confirmName: string) =>

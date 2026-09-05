@@ -79,6 +79,10 @@ type Config struct {
 	TelemetryOTLPEndpoint string
 	TelemetryServiceName  string
 	TelemetrySampleRatio  float64
+	// AgentProviderCatalog contains non-secret provider/model metadata for the
+	// Console. Agent execution remains queue-only until a trusted provider
+	// worker is deployed.
+	AgentProviderCatalog []AgentProviderCatalogItem
 }
 
 func Load() (Config, error) {
@@ -213,6 +217,10 @@ func Load() (Config, error) {
 	if err != nil || telemetrySampleRatio < 0 || telemetrySampleRatio > 1 {
 		return Config{}, fmt.Errorf("OTEL_TRACES_SAMPLER_ARG must be a number between 0 and 1")
 	}
+	agentProviderCatalog, err := parseAgentProviderCatalog(os.Getenv("AGENT_PROVIDER_CATALOG"))
+	if err != nil {
+		return Config{}, err
+	}
 	runnerImages := map[string]string{
 		"FUNCTIONS_RUNNER_HELPER_IMAGE": value("FUNCTIONS_RUNNER_HELPER_IMAGE", "alpine:3.22"),
 		"FUNCTIONS_RUNNER_NODE_IMAGE":   value("FUNCTIONS_RUNNER_NODE_IMAGE", "node:22-alpine"),
@@ -326,6 +334,7 @@ func Load() (Config, error) {
 		TelemetryOTLPEndpoint:         telemetryEndpoint,
 		TelemetryServiceName:          telemetryServiceName,
 		TelemetrySampleRatio:          telemetrySampleRatio,
+		AgentProviderCatalog:          agentProviderCatalog,
 	}
 	config.FunctionsRunnerStagingRoot, err = filepath.Abs(config.FunctionsRunnerStagingRoot)
 	if err != nil || strings.TrimSpace(config.FunctionsRunnerStagingRoot) == "" {

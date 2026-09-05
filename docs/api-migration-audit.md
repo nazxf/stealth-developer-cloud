@@ -221,11 +221,12 @@ simulated async behavior (timers standing in for network calls).
 - An in-memory TanStack Router harness now verifies Agent list-to-workspace
   navigation against mocked API responses, including the lazy detail route.
 
-### Agent provider catalog — intentionally bounded
+### Agent provider catalog — bounded API contract
 - Project options now come from the authenticated organization/project API and
   no longer include hardcoded project names.
-- Provider/model options remain a UI catalog placeholder until provider
-  connections and model capabilities have a durable API contract.
+- `GET /v1/agent-catalog` now supplies provider/model/role/tool options from
+  the Go API. It is intentionally metadata-only and reports `queue_only` until
+  encrypted provider connections and a trusted execution worker are shipped.
 
 ### Agent roster — migrated
 - The overview list is initialized from `GET /v1/agents`; it does not read or

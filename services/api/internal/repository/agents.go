@@ -33,6 +33,20 @@ var agentTools = map[string]struct{}{
 	"Git diff":    {},
 }
 
+var supportedAgentRoles = []string{"General", "Frontend", "Reviewer", "Documentation"}
+var supportedAgentTools = []string{"Read files", "Search code", "Edit files", "Terminal", "Run tests", "Git diff"}
+
+// SupportedAgentRoles and SupportedAgentTools expose the same bounded values
+// used by persistence validation so clients do not need to duplicate the
+// Agent configuration contract.
+func SupportedAgentRoles() []string {
+	return append([]string(nil), supportedAgentRoles...)
+}
+
+func SupportedAgentTools() []string {
+	return append([]string(nil), supportedAgentTools...)
+}
+
 // AgentInput is the durable configuration accepted when creating an agent.
 // Provider credentials are intentionally absent; they will be introduced by
 // the encrypted provider-connection control plane rather than this endpoint.

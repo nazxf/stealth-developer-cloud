@@ -232,6 +232,7 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireSession).Get("/projects/{projectID}/traces", s.listProjectTraces)
 		r.With(s.requireSession).Get("/projects/{projectID}/service-layout", s.listProjectServiceLayout)
 		r.With(s.requireSession).Put("/projects/{projectID}/service-layout", s.replaceProjectServiceLayout)
+		r.With(s.requireSession).Get("/agent-catalog", s.agentCatalog)
 		r.With(s.requireSession).Get("/agents", s.listAgents)
 		r.With(s.requireSession).Post("/agents", s.createAgent)
 		r.With(s.requireSession).Get("/agents/{agentID}", s.getAgent)

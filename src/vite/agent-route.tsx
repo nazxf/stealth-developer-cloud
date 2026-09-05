@@ -3,7 +3,7 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { Bot, Cpu, FolderGit2, GitBranch, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgent, type BrowserAgentRole } from "@/lib/browser-api";
-import { AgentCreateForm, agentRoles } from "./agent-create-form";
+import { AgentCreateForm } from "./agent-create-form";
 import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
@@ -32,6 +32,7 @@ function ErrorState({ error }: { error: unknown }) {
 
 export default function AgentRoute() {
   const agentsQuery = useQuery({ queryKey: ["agents"], queryFn: () => browserAPI.agents({ limit: 100 }) });
+  const catalogQuery = useQuery({ queryKey: ["agent-catalog"], queryFn: () => browserAPI.agentCatalog() });
   const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: () => browserAPI.organizations({ limit: 100 }) });
   const projectQueries = useQueries({ queries: (organizationsQuery.data?.organizations ?? []).map((organization) => ({ queryKey: ["projects", organization.id], queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
   const [search, setSearch] = useState("");
@@ -50,7 +51,7 @@ export default function AgentRoute() {
     }).sort((first, second) => Date.parse(second.updated_at) - Date.parse(first.updated_at));
   }, [agentsQuery.data?.agents, role, search, status]);
 
-  const roles = agentRoles;
+  const roles = catalogQuery.data?.roles ?? [];
 
   async function deleteAgent(agent: BrowserAgent) {
     if (deleteID || !window.confirm(`Delete agent “${agent.name}”?`)) return;
@@ -66,8 +67,8 @@ export default function AgentRoute() {
     }
   }
 
-  if (agentsQuery.isPending || organizationsQuery.isPending || projectQueries.some((query) => query.isPending)) return <LoadingState />;
-  if (agentsQuery.error || organizationsQuery.error || projectQueries.some((query) => query.error)) return <ErrorState error={agentsQuery.error ?? organizationsQuery.error ?? projectQueries.find((query) => query.error)?.error} />;
+  if (agentsQuery.isPending || catalogQuery.isPending || organizationsQuery.isPending || projectQueries.some((query) => query.isPending)) return <LoadingState />;
+  if (agentsQuery.error || catalogQuery.error || organizationsQuery.error || projectQueries.some((query) => query.error)) return <ErrorState error={agentsQuery.error ?? catalogQuery.error ?? organizationsQuery.error ?? projectQueries.find((query) => query.error)?.error} />;
 
   return <section><header className="flex flex-wrap items-end justify-between gap-5 border-b border-[var(--projects-border)] pb-6"><div><p className="m-0 text-xs uppercase tracking-[0.12em] text-[var(--projects-muted)]">Automation control plane</p><h1 className="m-0 mt-2 text-3xl font-semibold tracking-[-0.04em]">Agents</h1><p className="m-0 mt-2 max-w-2xl text-sm text-[var(--projects-muted)]">Build, run, and manage coding agents for your projects. Runs remain durable in the Go queue.</p></div><button type="button" onClick={() => { setActionError(""); setCreateOpen(true); }} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]"><Plus size={15} aria-hidden="true" />New agent</button></header>
     {actionError ? <p role="alert" className="mt-5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{actionError}</p> : null}
@@ -75,7 +76,7 @@ export default function AgentRoute() {
     <div className="mt-6 flex flex-wrap items-center gap-2"><label className="flex h-10 min-w-[220px] flex-1 items-center gap-2 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 sm:max-w-sm"><Search size={15} className="text-[var(--projects-muted)]" aria-hidden="true" /><input type="search" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search agents…" aria-label="Search agents" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /></label><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="h-10 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm"><option value="all">All status</option><option value="active">Active</option><option value="running">Running</option><option value="idle">Idle</option></select><select value={role} onChange={(event) => setRole(event.target.value as typeof role)} className="h-10 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm"><option value="all">All roles</option>{roles.map((item) => <option key={item} value={item}>{item}</option>)}</select></div>
     <div className="mt-5 overflow-hidden rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)]"><div className="hidden border-b border-[var(--projects-divider)] bg-[var(--projects-control)] px-5 py-3 text-xs uppercase tracking-[0.08em] text-[var(--projects-muted)] lg:grid lg:grid-cols-[minmax(0,2fr)_120px_minmax(0,1.4fr)_150px_auto] lg:gap-4"><span>Agent</span><span>Role</span><span>Project</span><span>Last active</span><span /></div>{filteredAgents.length ? filteredAgents.map((agent) => <article key={agent.id} className="flex flex-col gap-3 border-b border-[var(--projects-divider)] px-5 py-4 last:border-b-0 lg:grid lg:grid-cols-[minmax(0,2fr)_120px_minmax(0,1.4fr)_150px_auto] lg:items-center lg:gap-4"><div className="min-w-0"><Link to="/agent/$agentId" params={{ agentId: agent.id }} className="flex items-center gap-3 hover:text-[var(--projects-accent)]"><span className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] text-[var(--projects-accent)]"><Bot size={17} aria-hidden="true" /></span><span className="min-w-0"><span className="block truncate font-semibold">{agent.name}</span><span className="mt-0.5 block truncate text-xs text-[var(--projects-muted)]">{agent.description || "No description"}</span></span></Link><div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[var(--projects-muted)]"><span className="inline-flex items-center gap-1"><Cpu size={12} aria-hidden="true" />{agent.model}</span><span className="inline-flex items-center gap-1"><GitBranch size={12} aria-hidden="true" />{agent.branch}</span></div></div><span className={`inline-flex w-fit rounded-full border px-2 py-1 text-xs font-medium ${statusClass(agent.status)}`}>{agent.status}</span><span className="inline-flex items-center gap-1 text-xs text-[var(--projects-muted)]"><FolderGit2 size={13} aria-hidden="true" />{agent.project_name}</span><span className="text-xs text-[var(--projects-muted)]">{formatLastActive(agent.last_active_at ?? agent.updated_at)}</span><div className="flex items-center gap-2 lg:justify-end"><Link to="/agent/$agentId" params={{ agentId: agent.id }} className="h-8 rounded-lg border border-[var(--projects-border)] px-3 py-1.5 text-xs font-semibold hover:bg-[var(--projects-control)]">Open</Link><button type="button" onClick={() => void deleteAgent(agent)} disabled={deleteID !== null} className="inline-flex h-8 items-center gap-1 rounded-lg border border-rose-500/25 px-2.5 text-xs text-rose-200 hover:bg-rose-500/10 disabled:opacity-60"><Trash2 size={13} aria-hidden="true" />{deleteID === agent.id ? "Deleting…" : "Delete"}</button></div></article>) : <div className="p-12 text-center text-sm text-[var(--projects-muted)]">No agents match these filters.</div>}</div>
 
-    {createOpen ? <AgentCreateForm projects={projects} onClose={() => setCreateOpen(false)} /> : null}
+    {createOpen && catalogQuery.data ? <AgentCreateForm projects={projects} catalog={catalogQuery.data} onClose={() => setCreateOpen(false)} /> : null}
   </section>;
 }
 
