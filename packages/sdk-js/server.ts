@@ -53,6 +53,7 @@ export type ServerFunctionDeployment = { id: string; function_id: string; projec
 export type ServerFunctionExecution = { id: string; deployment_id: string; function_id: string; project_id: string; status: "accepted" | "running" | "succeeded" | "failed" | "cancelled"; trigger: string; input_json?: unknown; response_status?: number; output_json?: unknown; output_content_type?: string; error_message?: string; started_at?: string; finished_at?: string; created_at: string; updated_at: string };
 export type ServerCreateFunctionExecutionInput = { trigger?: string; input?: unknown };
 export type ServerFunctionExecutionLog = { id: string; execution_id: string; function_id: string; project_id: string; sequence: number; level: "debug" | "info" | "warn" | "error"; message: string; created_at: string };
+export type ServerFunctionBuildLog = { id: string; deployment_id: string; function_id: string; project_id: string; sequence: number; level: "debug" | "info" | "warn" | "error"; message: string; created_at: string };
 export type ServerCreateFunctionInput = { name: string; runtime: ServerFunctionRuntime; entrypoint: string; commands?: string; timeout_seconds?: number; enabled?: boolean; logging?: boolean; execute_permissions?: string[]; description?: string; artifact_quota_bytes?: number };
 export type ServerUpdateFunctionInput = Partial<ServerCreateFunctionInput>;
 export type ServerCreateFunctionVariableInput = { key: string; value: string; kind?: "variable" | "secret"; is_secret?: boolean; description?: string };
@@ -61,6 +62,7 @@ export type ServerFunctionDeploymentUploadInput = { source: Blob; filename?: str
 export type ServerSite = { id: string; project_id: string; name: string; framework: "static"; enabled: boolean; status: "active" | "disabled"; artifact_quota_bytes: number; artifact_used_bytes: number; artifact_reserved_bytes: number; active_deployment_id?: string; created_at: string; updated_at: string };
 export type ServerSiteDomain = { id: string; project_id: string; site_id: string; hostname: string; status: "pending" | "verified" | "disabled"; verification_token: string; verification_record_name: string; verification_record_type: "TXT"; verification_record_value: string; verified_at?: string; tls_status: "external" | "pending" | "active" | "failed"; created_at: string; updated_at: string };
 export type ServerSiteDeployment = { id: string; site_id: string; project_id: string; version: number; source: "upload" | "github" | "gitlab"; source_name?: string; git_repository?: string; git_ref?: string; size_bytes: number; archive_size_bytes: number; checksum_sha256: string; status: "queued" | "ready" | "active" | "superseded" | "failed" | "cancelled"; build_runtime?: "node-22" | "python-3.13" | "go-1.24"; build_command?: string; output_directory?: string; build_status: "queued" | "running" | "deferred" | "succeeded" | "failed"; reserved_bytes?: number; activate_requested?: boolean; error_message?: string; created_by_account_id?: string; queued_at: string; build_started_at?: string; built_at?: string; activated_at?: string; finished_at?: string; created_at: string; updated_at: string };
+export type ServerSiteBuildLog = { id: string; deployment_id: string; site_id: string; project_id: string; sequence: number; level: "debug" | "info" | "warn" | "error"; message: string; created_at: string };
 export type ServerCreateSiteInput = { name: string; framework?: "static"; enabled?: boolean; status?: "active" | "disabled"; artifact_quota_bytes?: number };
 export type ServerUpdateSiteInput = Partial<ServerCreateSiteInput>;
 export type ServerCreateSiteDomainInput = { hostname: string };
@@ -163,6 +165,7 @@ export class ServerStealthClient {
       upload: (functionID: string, input: ServerFunctionDeploymentUploadInput) => Promise<ServerFunctionDeployment>;
       activate: (functionID: string, deploymentID: string) => Promise<{ function: ServerFunction; deployment: ServerFunctionDeployment }>;
       delete: (functionID: string, deploymentID: string) => Promise<void>;
+      logs: (functionID: string, deploymentID: string, options?: { limit?: number; after?: number }) => Promise<{ logs: ServerFunctionBuildLog[]; pagination: { limit: number; next_cursor: string | null } }>;
     };
     executions: {
       list: (functionID: string, options?: { limit?: number; cursor?: string }) => Promise<{ executions: ServerFunctionExecution[]; pagination: { limit: number; next_cursor: string | null } }>;
@@ -191,6 +194,7 @@ export class ServerStealthClient {
       fromGit: (siteID: string, input: ServerSiteGitDeploymentInput) => Promise<ServerSiteDeployment>;
       activate: (siteID: string, deploymentID: string) => Promise<{ site: ServerSite; deployment: ServerSiteDeployment }>;
       delete: (siteID: string, deploymentID: string) => Promise<void>;
+      logs: (siteID: string, deploymentID: string, options?: { limit?: number; after?: number }) => Promise<{ logs: ServerSiteBuildLog[]; pagination: { limit: number; next_cursor: string | null } }>;
     };
   };
   readonly webhooks: {
@@ -328,6 +332,7 @@ export class ServerStealthClient {
         upload: (functionID, input) => this.uploadFunctionDeployment(functionID, input),
         activate: (functionID, deploymentID) => this.activateFunctionDeployment(functionID, deploymentID),
         delete: (functionID, deploymentID) => this.deleteFunctionDeployment(functionID, deploymentID),
+        logs: (functionID, deploymentID, options) => this.listFunctionBuildLogs(functionID, deploymentID, options),
       },
       executions: {
         list: (functionID, listOptions) => this.listFunctionExecutions(functionID, listOptions),
@@ -356,6 +361,7 @@ export class ServerStealthClient {
         fromGit: (siteID, input) => this.createGitSiteDeployment(siteID, input),
         activate: (siteID, deploymentID) => this.activateSiteDeployment(siteID, deploymentID),
         delete: (siteID, deploymentID) => this.deleteSiteDeployment(siteID, deploymentID),
+        logs: (siteID, deploymentID, options) => this.listSiteBuildLogs(siteID, deploymentID, options),
       },
     };
     this.webhooks = {
@@ -491,6 +497,7 @@ export class ServerStealthClient {
   private async uploadFunctionDeployment(functionID: string, input: ServerFunctionDeploymentUploadInput) { if (!(input.source instanceof Blob)) throw new TypeError("Function deployment source must be a Blob or File"); const form = new FormData(); const filename = input.filename ?? (typeof File !== "undefined" && input.source instanceof File ? input.source.name : "source.zip"); form.append("source", input.source, filename); const response = await this.request<{ deployment: ServerFunctionDeployment }>(`/functions/${encodeURIComponent(functionID)}/deployments`, { method: "POST", body: form }); return response.deployment; }
   private async activateFunctionDeployment(functionID: string, deploymentID: string) { return this.request<{ function: ServerFunction; deployment: ServerFunctionDeployment }>(`/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}/activate`, { method: "POST" }); }
   private async deleteFunctionDeployment(functionID: string, deploymentID: string) { await this.request<void>(`/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}`, { method: "DELETE" }); }
+  private async listFunctionBuildLogs(functionID: string, deploymentID: string, options?: { limit?: number; after?: number }) { const query = this.logQuery(options); return this.request<{ logs: ServerFunctionBuildLog[]; pagination: { limit: number; next_cursor: string | null } }>(`/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}/logs${query ? `?${query}` : ""}`); }
   private async listFunctionExecutions(functionID: string, options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ executions: ServerFunctionExecution[]; pagination: { limit: number; next_cursor: string | null } }>(`/functions/${encodeURIComponent(functionID)}/executions${query ? `?${query}` : ""}`); }
   private async getFunctionExecution(functionID: string, executionID: string) { const response = await this.request<{ execution: ServerFunctionExecution }>(`/functions/${encodeURIComponent(functionID)}/executions/${encodeURIComponent(executionID)}`); return response.execution; }
   private async createFunctionExecution(functionID: string, input: ServerCreateFunctionExecutionInput = {}) { const response = await this.request<{ execution: ServerFunctionExecution }>(`/functions/${encodeURIComponent(functionID)}/executions`, { method: "POST", body: JSON.stringify(input) }); return response.execution; }
@@ -512,6 +519,7 @@ export class ServerStealthClient {
   private async createGitSiteDeployment(siteID: string, input: ServerSiteGitDeploymentInput) { const response = await this.request<{ deployment: ServerSiteDeployment }>(`/sites/${encodeURIComponent(siteID)}/deployments/git`, { method: "POST", body: JSON.stringify({ repository: input.repository, ref: input.ref, build_runtime: input.buildRuntime, build_command: input.buildCommand, output_directory: input.outputDirectory, activate: input.activate }) }); return response.deployment; }
   private async activateSiteDeployment(siteID: string, deploymentID: string) { return this.request<{ site: ServerSite; deployment: ServerSiteDeployment }>(`/sites/${encodeURIComponent(siteID)}/deployments/${encodeURIComponent(deploymentID)}/activate`, { method: "POST" }); }
   private async deleteSiteDeployment(siteID: string, deploymentID: string) { await this.request<void>(`/sites/${encodeURIComponent(siteID)}/deployments/${encodeURIComponent(deploymentID)}`, { method: "DELETE" }); }
+  private async listSiteBuildLogs(siteID: string, deploymentID: string, options?: { limit?: number; after?: number }) { const query = this.logQuery(options); return this.request<{ logs: ServerSiteBuildLog[]; pagination: { limit: number; next_cursor: string | null } }>(`/sites/${encodeURIComponent(siteID)}/deployments/${encodeURIComponent(deploymentID)}/logs${query ? `?${query}` : ""}`); }
 
   private async listWebhooks(options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ webhooks: ServerWebhook[]; pagination: { limit: number; next_cursor: string | null }; can_manage: boolean }>(`/webhooks${query ? `?${query}` : ""}`); }
   private async getWebhook(webhookID: string) { const response = await this.request<{ webhook: ServerWebhook }>(`/webhooks/${encodeURIComponent(webhookID)}`); return response.webhook; }
@@ -539,6 +547,7 @@ export class ServerStealthClient {
   private async createMessagingMessage(input: ServerCreateMessagingMessageInput) { const headers: Record<string, string> = {}; if (input.idempotencyKey) headers["Idempotency-Key"] = input.idempotencyKey; const response = await this.request<{ message: ServerMessagingMessage }>("/messaging/messages", { method: "POST", headers, body: JSON.stringify({ topic_id: input.topicID, channel: input.channel, subject: input.subject, body: input.body, data: input.data }) }); return response.message; }
   private async cancelMessagingMessage(messageID: string) { const response = await this.request<{ message: ServerMessagingMessage }>(`/messaging/messages/${encodeURIComponent(messageID)}/cancel`, { method: "POST", body: "{}" }); return response.message; }
   private async listMessagingDeliveries(messageID: string, options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ deliveries: ServerMessagingDelivery[]; pagination: { limit: number; next_cursor: string | null } }>(`/messaging/messages/${encodeURIComponent(messageID)}/deliveries${query ? `?${query}` : ""}`); }
+  private logQuery(options?: { limit?: number; after?: number }) { const query = new URLSearchParams(); if (options?.limit !== undefined) query.set("limit", String(options.limit)); if (options?.after !== undefined) query.set("after", String(options.after)); return query.toString(); }
   private async openRealtimeStream(options: ServerRealtimeStreamOptions = {}): Promise<Response> {
     const query = new URLSearchParams();
     if (options.cursor) query.set("cursor", options.cursor);

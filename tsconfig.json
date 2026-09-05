@@ -28,7 +28,8 @@
     "src/vite/**/*.ts",
     "src/vite/**/*.tsx",
     "src/lib/browser-api.ts",
-    "src/**/*.test.ts"
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx"
   ],
   "exclude": [
     "node_modules"

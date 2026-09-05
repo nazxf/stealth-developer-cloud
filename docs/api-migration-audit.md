@@ -218,7 +218,9 @@ simulated async behavior (timers standing in for network calls).
 ### Login, signup, and recovery — migrated
 - Login and signup call the browser API client and receive only HttpOnly
   session cookies. Forgot-password, verification, and reset pages use the
-  API's one-time token endpoints.
+  API's one-time token endpoints. The Vite shell gates every non-auth route on
+  the current Console session and redirects a 401 to sign-in before rendering
+  protected data.
 
 ### Project application Auth boundary — connected core
 - Project identity management and the owner/admin registration setting are
@@ -249,7 +251,7 @@ simulated async behavior (timers standing in for network calls).
   client. It never persists or logs a key and must not be bundled into browser
   code. It now exposes the database/table/column/index/row methods with
   independent Database, Storage, Functions, and Sites read/write
-  authorization.
+  authorization, including cursor-based Function and Site build-log reads.
   Advanced database features and other modules remain unavailable.
 
 ## Admin (Vite route tree)

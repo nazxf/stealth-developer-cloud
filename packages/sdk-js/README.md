@@ -93,6 +93,8 @@ const deployment = await client.functions.deployments.upload(fn.id, {
 await client.functions.deployments.activate(fn.id, deployment.id);
 // Builds are asynchronous; poll deployments.get until build_status is
 // "succeeded" before treating the active deployment as runnable.
+const buildLogs = await client.functions.deployments.logs(fn.id, deployment.id, { after: 0 });
+console.log(buildLogs.logs.map((entry) => `[${entry.level}] ${entry.message}`));
 const execution = await client.functions.executions.create(fn.id, {
   trigger: "manual",
   input: { hello: "world" },
@@ -109,6 +111,8 @@ const gitDeployment = await client.sites.deployments.fromGit(siteID, {
   outputDirectory: "dist",
 });
 // Poll deployments.get until build_status is "succeeded".
+const siteBuildLogs = await client.sites.deployments.logs(siteID, gitDeployment.id, { after: 0 });
+console.log(siteBuildLogs.logs.map((entry) => `[${entry.level}] ${entry.message}`));
 const webhook = await client.webhooks.create({
   name: "orders",
   url: "https://hooks.example.com/stealth",
