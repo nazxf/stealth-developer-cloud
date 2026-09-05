@@ -6,6 +6,7 @@ import {
   createRouter,
   lazyRouteComponent,
   useNavigate,
+  useLocation,
   useParams,
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ import { LogOut, Plus, Server, ShieldCheck } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ProjectShellNavigation } from "./project-shell";
 
 function LoadingState({ label = "Loading Stealth…" }: { label?: string }) {
   return (
@@ -35,6 +37,9 @@ function ErrorState({ error }: { error: unknown }) {
 function RootLayout() {
   const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
   const account = accountQuery.data?.account;
+  const location = useLocation();
+  const projectMatch = location.pathname.match(/^\/projects\/([^/]+)/);
+  const projectId = projectMatch ? decodeURIComponent(projectMatch[1]) : null;
 
   return (
     <div className="min-h-dvh bg-[var(--projects-bg)] text-[var(--projects-text)]">
@@ -51,7 +56,7 @@ function RootLayout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10"><Outlet /></main>
+      <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">{projectId ? <div className="lg:grid lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-8"><ProjectShellNavigation projectId={projectId} /><div className="min-w-0"><Outlet /></div></div> : <Outlet />}</main>
     </div>
   );
 }
