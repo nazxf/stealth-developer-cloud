@@ -223,5 +223,17 @@
     "input": 420000,
     "output": 36000,
     "note": "Migrasi frontend React/Vite ke TanStack Start SPA-first: route tree file-based, auth boundary, QueryClient, build/deployment, test dan Docker smoke test"
+  },
+  {
+    "id": "verified-project-total-2026-09-05",
+    "date": "2026-09-05",
+    "model": "project-total",
+    "project": "stealth-console",
+    "kind": "aggregate",
+    "total": 1460000000,
+    "input": null,
+    "output": null,
+    "source": "codex-usage",
+    "note": "Total project terverifikasi dari /usage; rincian input dan output belum tersedia"
   }
 ]

@@ -133,11 +133,12 @@
   <p class="sub">Pencatat penggunaan token &amp; estimasi biaya per model dan per proyek — data disimpan lokal di browser (localStorage), tidak dikirim ke mana pun.</p>
 
   <div class="cards">
-    <div class="card"><div class="label">Total Token</div><div class="value" id="totalTokens">0</div></div>
-    <div class="card"><div class="label">Input Token</div><div class="value blue" id="totalInput">0</div></div>
-    <div class="card"><div class="label">Output Token</div><div class="value green" id="totalOutput">0</div></div>
-    <div class="card"><div class="label">Estimasi Biaya</div><div class="value" id="totalCost">$0.00</div></div>
+    <div class="card"><div class="label" id="totalTokensLabel">Total Token</div><div class="value" id="totalTokens">0</div></div>
+    <div class="card"><div class="label" id="totalInputLabel">Input Token</div><div class="value blue" id="totalInput">0</div></div>
+    <div class="card"><div class="label" id="totalOutputLabel">Output Token</div><div class="value green" id="totalOutput">0</div></div>
+    <div class="card"><div class="label" id="totalCostLabel">Estimasi Biaya</div><div class="value" id="totalCost">$0.00</div></div>
   </div>
+  <p class="note" id="verifiedNote" role="status" style="display:none"></p>
 
   <div class="panel">
     <h2>Target Biaya Bulan Ini</h2>
@@ -252,9 +253,9 @@ const BUDGET_KEY = "ai-token-usage-budget-v1";
 let entries = [];
 let budget = 0;
 
-// Data awal: perkiraan pemakaian token sesi ZCode (model GLM-5.3 Flash) saat
-// mengerjakan refactor proyek stealth-console. Angka ini ESTIMASI
-// manual, bukan data resmi dari penyedia — sesuaikan bila punya angka asli.
+// Data awal: detail sesi lama adalah estimasi manual, bukan data resmi dari
+// penyedia. Record kind=aggregate menyimpan total project terverifikasi ketika
+// rincian input/output tidak tersedia.
 const SEED_ENTRIES = [
   { id: "seed-01-eksplorasi",   date: "2026-08-28", model: "glm-5.3-flash", project: "stealth-console", input: 185000, output: 9000,  note: "Baca codebase (~9.000 baris), docs Next.js 16.3, baseline git" },
   { id: "seed-02-move",         date: "2026-08-28", model: "glm-5.3-flash", project: "stealth-console", input: 125000, output: 14000, note: "Tahap 1: pindah/rename 35+ file ke struktur feature-first kebab-case" },
@@ -282,6 +283,8 @@ const SEED_ENTRIES = [
   { id: "seed-24-agent",        date: "2026-08-30", model: "glm-5.3-flash", project: "stealth-console", input: 620000, output: 75000, note: "Redesign total fitur Agent jadi AI coding agent: overview + workspace 5 tab (chat/steps animasi, changes, activity) + dialog create, 15 file baru/rewrite, hapus UI lama" },
   // Estimasi manual sesi terbaru; token telemetry provider tidak tersedia di repo.
   { id: "seed-25-tanstack-start", date: "2026-09-05", model: "gpt-5.6-luna", project: "stealth-console", input: 420000, output: 36000, note: "Migrasi frontend React/Vite ke TanStack Start SPA-first: route tree file-based, auth boundary, QueryClient, build/deployment, test dan Docker smoke test" },
+  // Total project dari indikator /usage; input/output belum dipisahkan.
+  { id: "verified-project-total-2026-09-05", date: "2026-09-05", model: "project-total", project: "stealth-console", kind: "aggregate", total: 1460000000, input: null, output: null, source: "codex-usage", note: "Total project terverifikasi dari /usage; rincian input dan output belum tersedia" },
 ];
 
 function load() {
@@ -326,7 +329,10 @@ function parseTokenNum(raw) {
   if (m[2]) return Math.round((parseFloat(m[1].replace(",", ".")) || 0) * (m[2] === "k" ? 1e3 : 1e6));
   return parseInt(m[1].replace(/[.,]/g, ""), 10) || 0;
 }
+function isAggregate(e) { return e?.kind === "aggregate" || Number.isFinite(e?.total); }
+function entryTokens(e) { return isAggregate(e) ? e.total : e.input + e.output; }
 function entryCost(e) {
+  if (isAggregate(e)) return 0;
   const m = modelById(e.model);
   const pin = e.priceIn ?? m.in;
   const pout = e.priceOut ?? m.out;
@@ -345,16 +351,36 @@ function normalizeEntry(raw) {
     return 0;
   };
   const date = /^\d{4}-\d{2}-\d{2}$/.test(str(raw.date)) ? raw.date : "";
-  const input = num(raw.input);
-  const output = num(raw.output);
-  if (!date || input + output === 0) return null;
+  const input = raw.input === null || raw.input === undefined ? null : num(raw.input);
+  const output = raw.output === null || raw.output === undefined ? null : num(raw.output);
+  const aggregate = raw.kind === "aggregate" || raw.total !== undefined;
+  if (!date) return null;
+  if (aggregate) {
+    const total = num(raw.total);
+    if (total <= 0) return null;
+    return {
+      id: str(raw.id) || Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      date,
+      model: str(raw.model) || "project-total",
+      project: str(raw.project),
+      kind: "aggregate",
+      total,
+      input,
+      output,
+      source: str(raw.source),
+      note: str(raw.note),
+    };
+  }
+  const detailInput = input ?? 0;
+  const detailOutput = output ?? 0;
+  if (detailInput + detailOutput === 0) return null;
   const e = {
     id: str(raw.id) || Date.now() + "-" + Math.random().toString(36).slice(2, 7),
     date,
     model: str(raw.model) || "custom",
     project: str(raw.project),
-    input,
-    output,
+    input: detailInput,
+    output: detailOutput,
     note: str(raw.note),
   };
   if (Number.isFinite(raw.priceIn) && Number.isFinite(raw.priceOut)) {
@@ -421,20 +447,61 @@ function localDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function hasActiveFilters() {
+  return Boolean(
+    document.getElementById("filterModel").value ||
+    document.getElementById("filterProject").value ||
+    document.getElementById("filterMonth").value,
+  );
+}
+
+function latestAggregate() {
+  if (hasActiveFilters()) return null;
+  return [...entries.filter(isAggregate)].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id))[0] ?? null;
+}
+
 function render() {
   const list = filtered();
+  const detailList = list.filter((e) => !isAggregate(e));
+  const aggregate = latestAggregate();
 
-  const sum = (key) => list.reduce((a, e) => a + e[key], 0);
-  document.getElementById("totalTokens").textContent = fmt(sum("input") + sum("output"));
-  document.getElementById("totalInput").textContent = fmt(sum("input"));
-  document.getElementById("totalOutput").textContent = fmt(sum("output"));
-  document.getElementById("totalCost").textContent = fmtCost(list.reduce((a, e) => a + entryCost(e), 0));
+  const sum = (key) => detailList.reduce((a, e) => a + e[key], 0);
+  const totalInput = sum("input");
+  const totalOutput = sum("output");
+  const totalCost = detailList.reduce((a, e) => a + entryCost(e), 0);
+  const totalTokensLabel = document.getElementById("totalTokensLabel");
+  const totalInputLabel = document.getElementById("totalInputLabel");
+  const totalOutputLabel = document.getElementById("totalOutputLabel");
+  const totalCostLabel = document.getElementById("totalCostLabel");
+  const verifiedNote = document.getElementById("verifiedNote");
+  if (aggregate) {
+    totalTokensLabel.textContent = "Total Project (terverifikasi)";
+    document.getElementById("totalTokens").textContent = fmt(aggregate.total);
+    totalInputLabel.textContent = "Input (belum tersedia)";
+    document.getElementById("totalInput").textContent = "N/A";
+    totalOutputLabel.textContent = "Output (belum tersedia)";
+    document.getElementById("totalOutput").textContent = "N/A";
+    totalCostLabel.textContent = "Biaya (belum tersedia)";
+    document.getElementById("totalCost").textContent = "N/A";
+    verifiedNote.style.display = "block";
+    verifiedNote.textContent = `Total project terverifikasi dari /usage: ${fmt(aggregate.total)} token. Input/output belum dipisahkan; baris histori lama tetap berupa estimasi detail dan tidak ditambahkan ke angka ini.`;
+  } else {
+    totalTokensLabel.textContent = "Total Token";
+    document.getElementById("totalTokens").textContent = fmt(totalInput + totalOutput);
+    totalInputLabel.textContent = "Input Token";
+    document.getElementById("totalInput").textContent = fmt(totalInput);
+    totalOutputLabel.textContent = "Output Token";
+    document.getElementById("totalOutput").textContent = fmt(totalOutput);
+    totalCostLabel.textContent = "Estimasi Biaya";
+    document.getElementById("totalCost").textContent = fmtCost(totalCost);
+    verifiedNote.style.display = "none";
+  }
 
   // bar per model
   const perModel = new Map();
-  for (const e of list) {
+  for (const e of detailList) {
     const cur = perModel.get(e.model) ?? { tokens: 0, cost: 0 };
-    cur.tokens += e.input + e.output;
+    cur.tokens += entryTokens(e);
     cur.cost += entryCost(e);
     perModel.set(e.model, cur);
   }
@@ -454,7 +521,7 @@ function render() {
 
   // grafik harian 14 hari terakhir (mengikuti filter aktif)
   const perDay = new Map();
-  for (const e of list) perDay.set(e.date, (perDay.get(e.date) ?? 0) + e.input + e.output);
+  for (const e of detailList) perDay.set(e.date, (perDay.get(e.date) ?? 0) + entryTokens(e));
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = new Date();
@@ -477,7 +544,7 @@ function render() {
   // target biaya bulan ini (tidak terpengaruh filter)
   const now = new Date();
   const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const monthCost = entries.filter((e) => e.date.slice(0, 7) === monthKey).reduce((a, e) => a + entryCost(e), 0);
+  const monthCost = entries.filter((e) => !isAggregate(e) && e.date.slice(0, 7) === monthKey).reduce((a, e) => a + entryCost(e), 0);
   const bEl = document.getElementById("budgetBar");
   if (budget > 0) {
     const ratio = monthCost / budget;
@@ -495,15 +562,19 @@ function render() {
   // tabel riwayat (terbaru dulu)
   const rows = [...list].sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
   document.getElementById("rows").innerHTML = rows.map((e) => {
-    const m = modelById(e.model);
+    const aggregateRow = isAggregate(e);
+    const modelName = aggregateRow ? "Total project" : modelById(e.model).name;
+    const inputValue = aggregateRow ? "N/A" : fmt(e.input);
+    const outputValue = aggregateRow ? "N/A" : fmt(e.output);
+    const costValue = aggregateRow ? "N/A" : fmtCost(entryCost(e));
     return `<tr>
       <td>${esc(e.date)}</td>
-      <td><span class="tag">${esc(m.name)}</span></td>
+      <td><span class="tag">${esc(modelName)}</span></td>
       <td><span class="proj">${esc(e.project ?? "")}</span></td>
-      <td class="num mono">${fmt(e.input)}</td>
-      <td class="num mono">${fmt(e.output)}</td>
-      <td class="num mono"><strong>${fmt(e.input + e.output)}</strong></td>
-      <td class="num mono">${fmtCost(entryCost(e))}</td>
+      <td class="num mono">${inputValue}</td>
+      <td class="num mono">${outputValue}</td>
+      <td class="num mono"><strong>${fmt(entryTokens(e))}</strong></td>
+      <td class="num mono">${costValue}</td>
       <td>${esc(e.note)}</td>
       <td><button class="danger ghost delete-btn" data-id="${esc(e.id)}">Hapus</button></td>
     </tr>`;
@@ -511,7 +582,7 @@ function render() {
   document.getElementById("emptyMsg").style.display = rows.length ? "none" : "block";
 
   // opsi filter
-  const models = [...new Set(entries.map((e) => e.model))];
+  const models = [...new Set(entries.filter((e) => !isAggregate(e)).map((e) => e.model))];
   const selM = document.getElementById("filterModel");
   const curM = selM.value;
   selM.innerHTML = '<option value="">Semua model</option>' +
@@ -564,7 +635,12 @@ document.getElementById("importFile").addEventListener("change", (ev) => {
       if (!Array.isArray(data)) throw new Error();
       const clean = data.map(normalizeEntry).filter(Boolean);
       if (!clean.length) throw new Error();
-      entries = entries.concat(clean);
+      const existingIds = new Set(entries.map((e) => e.id));
+      const incoming = clean.filter((e) => !existingIds.has(e.id));
+      const aggregateUpdates = clean.filter((e) => existingIds.has(e.id) && isAggregate(e));
+      entries = entries
+        .map((entry) => aggregateUpdates.find((incomingEntry) => incomingEntry.id === entry.id) ?? entry)
+        .concat(incoming);
       save();
       render();
     } catch { alert("File JSON tidak valid."); }
