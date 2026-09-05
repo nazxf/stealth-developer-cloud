@@ -45,6 +45,9 @@ func TestSetCORSHeadersAndDeniedRequest(t *testing.T) {
 	if got := recorder.Header().Get("Access-Control-Allow-Credentials"); got != "true" {
 		t.Fatalf("allow credentials = %q", got)
 	}
+	if got := recorder.Header().Get("Access-Control-Expose-Headers"); got != "Content-Type, X-Trace-ID" {
+		t.Fatalf("exposed headers = %q", got)
+	}
 
 	denied := httptest.NewRecorder()
 	corsDenied(denied, request)

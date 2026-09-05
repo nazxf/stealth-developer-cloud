@@ -109,7 +109,7 @@ func setCORSHeaders(w http.ResponseWriter, origin string, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 	w.Header().Set("Access-Control-Allow-Methods", corsAllowedMethods)
 	w.Header().Set("Access-Control-Allow-Headers", corsAllowedHeaders)
-	w.Header().Set("Access-Control-Expose-Headers", "Content-Type, X-Request-ID")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Type, X-Trace-ID")
 	w.Header().Set("Access-Control-Max-Age", "600")
 	w.Header().Add("Vary", "Origin")
 	if r.Method == http.MethodOptions {
