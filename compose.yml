@@ -199,7 +199,7 @@ services:
       - ./deploy/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - stealth-prometheus-data:/prometheus
     ports:
-      - "${PROMETHEUS_PORT:-9090}:9090"
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     depends_on:
       api:
         condition: service_healthy
@@ -215,7 +215,7 @@ services:
       - ./deploy/observability/tempo.yml:/etc/tempo/tempo.yml:ro
       - stealth-tempo-data:/var/tempo
     ports:
-      - "${TEMPO_PORT:-3200}:3200"
+      - "127.0.0.1:${TEMPO_PORT:-3200}:3200"
     expose:
       - "4317"
       - "4318"
@@ -229,7 +229,7 @@ services:
       - ./deploy/observability/loki.yml:/etc/loki/loki.yml:ro
       - stealth-loki-data:/loki
     ports:
-      - "${LOKI_PORT:-3100}:3100"
+      - "127.0.0.1:${LOKI_PORT:-3100}:3100"
 
   alloy:
     image: grafana/alloy:v1.8.3
@@ -257,7 +257,7 @@ services:
       - ./deploy/observability/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./deploy/observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
     ports:
-      - "${GRAFANA_PORT:-3000}:3000"
+      - "127.0.0.1:${GRAFANA_PORT:-3000}:3000"
     depends_on:
       prometheus:
         condition: service_started
@@ -276,7 +276,7 @@ services:
     volumes:
       - stealth-postgres-data:/var/lib/postgresql/data
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U stealth -d stealth"]
       interval: 5s

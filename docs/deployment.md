@@ -12,7 +12,9 @@ isolated infrastructure.
 Install Docker Engine with Compose v2 and make sure the host can resolve the
 Console and API DNS names. Put an HTTPS reverse proxy or load balancer in front
 of the API and Console. Do not expose PostgreSQL, Redis, the worker Docker
-socket, or `/metrics` to the public internet.
+socket, or `/metrics` to the public internet. Compose binds PostgreSQL and the
+optional Prometheus/Grafana/Loki/Tempo ports to `127.0.0.1` by default; keep
+that loopback binding unless an authenticated internal proxy is intentional.
 
 Create a private `.env` from the checked-in template:
 
