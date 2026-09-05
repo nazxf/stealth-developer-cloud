@@ -55,7 +55,7 @@ authenticated query contracts are implemented.
 
 ## Structure
 
-- `src/vite/` — React + Vite route tree (`/`, auth flows, projects, Services, Usage, deployments, Auth, Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents, and Admin)
+- `src/vite/` — React + Vite route tree (`/`, auth flows, projects, Services, Usage, Logs, deployments, Auth, Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents, and Admin)
 - `src/lib/browser-api.ts` — the browser-safe, Zod-validated Go API client
 - `src/styles/`, `src/main.tsx` — global tokens, Vite entry, TanStack Router route tree, Query client, and shell
 - `services/api/cmd/api` — API process entry point and graceful shutdown

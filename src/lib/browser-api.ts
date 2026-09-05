@@ -585,6 +585,13 @@ export const browserAPI = {
     const query = params.toString();
     return request(`/v1/organizations/${encodeURIComponent(organizationID)}/audit-events${query ? `?${query}` : ""}`, z.object({ events: z.array(organizationAuditEventSchema), pagination: paginationSchema }).passthrough());
   },
+  projectAuditEvents: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/audit-events${query ? `?${query}` : ""}`, z.object({ events: z.array(organizationAuditEventSchema), pagination: paginationSchema }).passthrough());
+  },
   projects: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

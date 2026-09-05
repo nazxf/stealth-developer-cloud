@@ -11,6 +11,7 @@ import {
   Server,
   Settings2,
   ShieldCheck,
+  ScrollText,
   Sparkles,
   Webhook,
   Workflow,
@@ -27,6 +28,7 @@ const navigationItems: NavigationItem[] = [
   { label: "Services", resource: "services", icon: Server },
   { label: "Deployments", resource: "deployments", icon: Workflow },
   { label: "Usage", resource: "usage", icon: BarChart3 },
+  { label: "Logs", resource: "logs", icon: ScrollText },
   { label: "Auth", resource: "auth", icon: ShieldCheck },
   { label: "Databases", resource: "databases", icon: Database },
   { label: "Storage", resource: "storage", icon: Boxes },
@@ -110,6 +112,7 @@ function ProjectNavLink({
   const explicitResources = new Set([
     "deployments",
     "usage",
+    "logs",
     "auth",
     "databases",
     "storage",

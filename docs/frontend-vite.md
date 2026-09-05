@@ -32,7 +32,7 @@ Publish `dist/` behind a static host or reverse proxy with SPA fallback to
 use an explicit exact-origin `CONSOLE_CORS_ORIGINS` list and HTTPS with
 `COOKIE_SECURE=true`. Never use `*` with credentialed requests.
 
-Project overview, the API-backed Services workspace, Usage, deployments, Auth,
+Project overview, the API-backed Services workspace, Usage, Logs, deployments, Auth,
 Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys,
 Settings, Agents, and every Admin section use the feature-oriented Vite tree.
 Next.js and the server-only bridge are removed from the frontend runtime. New
