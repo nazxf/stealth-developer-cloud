@@ -6,6 +6,7 @@ import { browserAPI, browserAPIErrorMessage, type BrowserProjectAPIKey, type Bro
 import { queryClient } from "./query-client";
 import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { LoadingState } from "./async-state";
 
 const scopeOptions: Array<{ value: BrowserProjectAPIKeyScope; label: string; description: string }> = [
   { value: "users.read", label: "Users read", description: "List and fetch project identities." },
@@ -41,16 +42,12 @@ function statusClass(status: ReturnType<typeof keyStatus>) {
   return "border-rose-500/25 bg-rose-500/10 text-rose-200";
 }
 
-function LoadingState() {
-  return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading API keys…</div>;
-}
-
 function ErrorState({ error }: { error: unknown }) {
   return <AsyncErrorState error={error} fallback="Unable to load API keys." />;
 }
 
 export default function APIKeysRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/api-keys" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/api-keys" });
   const keysQuery = useQuery({ queryKey: queryKeys.projectAPIKeys(projectId), queryFn: () => browserAPI.projectAPIKeys(projectId, { limit: 50 }) });
   const [additionalKeys, setAdditionalKeys] = useState<BrowserProjectAPIKey[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);

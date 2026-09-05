@@ -14,7 +14,6 @@
     "test:api": "cd services/api && go test ./...",
     "vet:api": "cd services/api && go vet ./...",
     "typecheck": "tsc --noEmit",
-    "typecheck:vite": "tsc --project tsconfig.vite.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run check:contract && npm run lint && npm run typecheck && npm run test:api && npm run vet:api && npm run test && npm run build && npm run check:bundle"
@@ -26,6 +25,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/react-query": "^5.102.8",
     "@tanstack/react-router": "^1.170.32",
+    "@tanstack/react-start": "^1.168.49",
     "@vitejs/plugin-react": "^6.1.1",
     "clsx": "^2.1.1",
     "lucide-react": "1.33.0",

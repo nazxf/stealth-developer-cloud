@@ -26,7 +26,7 @@ function deliveryStatusClass(status: BrowserProjectWebhookDelivery["status"]) {
 }
 
 export default function WebhooksRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/webhooks" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/webhooks" });
   const webhooksQuery = useQuery({ queryKey: queryKeys.projectWebhooks(projectId), queryFn: () => browserAPI.projectWebhooks(projectId, { limit: 50 }) });
   const [additionalWebhooks, setAdditionalWebhooks] = useState<BrowserProjectWebhook[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);

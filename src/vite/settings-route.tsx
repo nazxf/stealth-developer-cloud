@@ -16,7 +16,7 @@ function ErrorState({ error }: { error: unknown }) {
 }
 
 export default function SettingsRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/settings" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/settings" });
   const navigate = useNavigate();
   const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
   const [name, setName] = useState("");

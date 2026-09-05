@@ -7,6 +7,7 @@ import { AgentCreateForm } from "./agent-create-form";
 import { queryClient } from "./query-client";
 import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { LoadingState } from "./async-state";
 
 function formatLastActive(value: string | null | undefined) {
   if (!value) return "No activity";
@@ -21,10 +22,6 @@ function statusClass(status: BrowserAgent["status"]) {
   if (status === "running") return "border-amber-500/30 bg-amber-500/10 text-amber-200";
   if (status === "active") return "border-emerald-500/30 bg-emerald-500/10 text-emerald-200";
   return "border-[var(--projects-border)] bg-[var(--projects-control)] text-[var(--projects-muted)]";
-}
-
-function LoadingState() {
-  return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading agents…</div>;
 }
 
 function ErrorState({ error }: { error: unknown }) {

@@ -19,7 +19,7 @@ const kindStyles: Record<ServiceCard["kind"], { label: string; icon: typeof Acti
 };
 
 export default function ServicesRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/services" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/services" });
   const queryClient = useQueryClient();
   const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
   const layoutQuery = useQuery({ queryKey: queryKeys.projectServiceLayout(projectId), queryFn: () => browserAPI.projectServiceLayout(projectId) });

@@ -47,7 +47,7 @@ export function normalizeDeployment(resource: DeployableResource, deployment: { 
 }
 
 export default function DeploymentsRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/deployments" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/deployments" });
   const functionsQuery = useQuery({ queryKey: queryKeys.projectFunctions(projectId), queryFn: () => browserAPI.projectFunctions(projectId) });
   const sitesQuery = useQuery({ queryKey: queryKeys.projectSites(projectId), queryFn: () => browserAPI.projectSites(projectId) });
   const resources = useMemo<DeployableResource[]>(() => [

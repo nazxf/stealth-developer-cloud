@@ -14,7 +14,7 @@ function LoadingState() { return <div className="grid min-h-[18rem] place-items-
 function ErrorState({ error }: { error: unknown }) { return <AsyncErrorState error={error} fallback="Unable to load storage." />; }
 
 export default function StorageRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/storage" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/storage" });
   const bucketsQuery = useQuery({ queryKey: queryKeys.projectStorageBuckets(projectId), queryFn: () => browserAPI.projectStorageBuckets(projectId, { limit: 100 }) });
   const [selectedBucketID, setSelectedBucketID] = useState("");
   const [createOpen, setCreateOpen] = useState(false);

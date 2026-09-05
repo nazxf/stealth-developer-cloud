@@ -34,7 +34,7 @@ function formatBytes(value: number) {
 }
 
 export default function LogsRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/logs" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/logs" });
   const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
   const eventsQuery = useQuery({ queryKey: queryKeys.projectAuditEvents(projectId), queryFn: () => browserAPI.projectAuditEvents(projectId, { limit: 50 }) });
   const tracesQuery = useQuery({ queryKey: queryKeys.projectTraces(projectId), queryFn: () => browserAPI.projectTraces(projectId, { limit: 50 }) });

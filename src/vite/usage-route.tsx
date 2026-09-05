@@ -42,7 +42,7 @@ function dateTimeLabel(value: string) {
 }
 
 export default function UsageRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/usage" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/usage" });
   const [rangeDays, setRangeDays] = useState<RangeDays>(30);
   const [downloadPending, setDownloadPending] = useState(false);
   const [downloadError, setDownloadError] = useState("");

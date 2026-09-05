@@ -1,9 +1,11 @@
-# Vite Console
+# TanStack Start Console
 
-The default frontend entry is a React + TypeScript Vite SPA. It keeps the
-management session in the Go API's HttpOnly cookie; browser requests use
-`credentials: include` and never put a Console or project secret in local
-storage.
+The frontend runtime is React + TanStack Start in SPA-first mode. TanStack
+Start owns the document and build pipeline while TanStack Router, TanStack
+Query, and the existing Go API client continue to own navigation, data
+fetching, and the management session. The Go API's HttpOnly cookie remains the
+authentication boundary; browser requests use `credentials: include` and
+never put a Console or project secret in local storage.
 
 ## Local development
 
@@ -14,7 +16,8 @@ npm install
 npm run dev
 ```
 
-Vite serves the console at `http://127.0.0.1:5173` and proxies `/v1`,
+Vite's development server serves the console at `http://127.0.0.1:5173` and
+proxies `/v1`,
 `/healthz`, `/readyz`, and `/metrics` to the API. The dev proxy strips the
 browser `Origin` because the request is same-origin from the browser. For a
 direct cross-origin API, set `VITE_API_URL=https://api.example.com` and set
@@ -34,8 +37,9 @@ browser-like runtime:
 npm test
 ```
 
-Publish `dist/` behind a static host or reverse proxy with SPA fallback to
-`index.html`. Prefer serving the API and console from one origin; otherwise
+The browser output is `dist/client/`. Publish that directory behind a static
+host or reverse proxy with SPA fallback to `_shell.html`. Prefer serving the
+API and console from one origin; otherwise
 use an explicit exact-origin `CONSOLE_CORS_ORIGINS` list and HTTPS with
 `COOKIE_SECURE=true`. Never use `*` with credentialed requests.
 
@@ -48,14 +52,18 @@ docker compose --profile console up --build
 
 The image bakes only the browser-safe `VITE_API_URL`, serves hashed assets with
 long-lived cache headers, returns a separate `/healthz`, and falls back unknown
-document paths to `index.html`. Use a CDN or reverse proxy instead of this
+document paths to `_shell.html`. Use a CDN or reverse proxy instead of this
 image when production traffic needs edge caching or TLS termination.
 
-Project overview, the API-backed Services workspace (including its persisted
-project canvas), Usage, Logs, deployments, Auth, the Databases workspace (typed
-columns, indexes, and permission-filtered row CRUD), Storage, Functions, Sites,
-Webhooks, Messaging, Realtime, API keys, Settings, Agents, and every Admin
-section use the feature-oriented Vite tree.
-Next.js and the server-only bridge are removed from the frontend runtime. New
-routes must use the browser API client, runtime Zod schemas, and TanStack Query
-keys rather than adding a server proxy.
+The Start file routes now own the console layout, project overview/resource
+screens, authentication pages, the API-backed Services workspace (including
+its persisted project canvas), Usage, Logs, deployments, Auth, the Databases
+workspace (typed columns, indexes, and permission-filtered row CRUD), Storage,
+Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents,
+and every Admin section. These routes lazy-load the existing feature-oriented
+components and browser API client, so the Go API contract and UI behavior stay
+stable without a second frontend router. Unknown protected URLs render a Start
+not-found surface after the same session guard. New routes should use runtime
+Zod schemas and TanStack Query keys rather than adding a server proxy. Server
+functions are intentionally not used in this phase because direct
+browser-to-Go requests preserve the existing cookie flow and API contract.

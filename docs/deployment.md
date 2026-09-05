@@ -1,7 +1,7 @@
 # Production deployment
 
 This repository ships a self-hosted, production-shaped Docker Compose
-deployment. It runs the Go API, the static Vite Console, PostgreSQL, Redis,
+deployment. It runs the Go API, the static TanStack Start Console, PostgreSQL, Redis,
 the trusted Functions/Sites worker, and (optionally) the observability stack.
 It is a reference deployment for one operator; a multi-node installation
 should move PostgreSQL, Redis, object storage, and the worker onto managed or
@@ -82,9 +82,9 @@ bodies:
 STEALTH_BASE_URL=https://api.example.com ./deploy/smoke.sh
 ```
 
-The Console is a static SPA served by Nginx. Its `/healthz` endpoint only
-checks that the static server is running; API readiness is checked separately
-by the smoke script.
+The Console is a SPA-first TanStack Start browser build served by Nginx. Its
+`/healthz` endpoint only checks that the static server is running; API
+readiness is checked separately by the smoke script.
 
 ## What users can deploy
 

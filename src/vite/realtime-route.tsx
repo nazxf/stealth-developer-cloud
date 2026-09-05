@@ -26,7 +26,7 @@ function eventPreview(raw: string) { try { return JSON.stringify(JSON.parse(raw)
 function formatTime(value: string) { return new Intl.DateTimeFormat("en-US", { timeStyle: "medium" }).format(new Date(value)); }
 
 export default function RealtimeRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/realtime" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/realtime" });
   const [eventFilter, setEventFilter] = useState("*");
   const [status, setStatus] = useState<ConnectionState>("connecting");
   const [items, setItems] = useState<RealtimeItem[]>([]);

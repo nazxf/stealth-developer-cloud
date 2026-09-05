@@ -6,13 +6,10 @@ import { browserAPI, browserAPIErrorMessage, type BrowserApplicationUser } from 
 import { queryClient } from "./query-client";
 import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { LoadingState } from "./async-state";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
-}
-
-function LoadingState() {
-  return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading Auth…</div>;
 }
 
 function ErrorState({ error }: { error: unknown }) {
@@ -24,7 +21,7 @@ function userStatusClass(status: BrowserApplicationUser["status"]) {
 }
 
 export default function AuthRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/auth" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/auth" });
   const usersQuery = useQuery({ queryKey: queryKeys.projectUsers(projectId), queryFn: () => browserAPI.projectUsers(projectId, { limit: 50 }) });
   const settingsQuery = useQuery({ queryKey: queryKeys.projectAuthSettings(projectId), queryFn: () => browserAPI.projectAuthSettings(projectId) });
   const [additionalUsers, setAdditionalUsers] = useState<BrowserApplicationUser[]>([]);

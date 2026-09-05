@@ -6,6 +6,7 @@ import { browserAPI, browserAPIErrorMessage, type BrowserOrganization, type Brow
 import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
 import { queryKeys } from "./query-keys";
+import { LoadingState } from "./async-state";
 
 const adminSections = ["usage", "incidents", "traces", "users", "runs", "workers", "settings"] as const;
 
@@ -34,7 +35,7 @@ export default function AdminRoute() {
 }
 
 export function AdminSectionRoute() {
-  const { section } = useParams({ from: "/admin/$section" });
+  const { section } = useParams({ from: "/_console/admin/$section" });
   const validSection = adminSections.includes(section as (typeof adminSections)[number]);
   const organizationsQuery = useQuery({ queryKey: queryKeys.organizations(), queryFn: () => browserAPI.organizations({ limit: 100 }) });
   const organizations = organizationsQuery.data?.organizations ?? [];
@@ -250,5 +251,4 @@ function errorMessage(error: unknown) {
   return browserAPIErrorMessage(error, "The request could not be completed.");
 }
 
-function LoadingState() { return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading admin workspace…</div>; }
 function ErrorState({ error }: { error: unknown }) { return <AsyncErrorState error={error} fallback="Unable to load admin data." />; }

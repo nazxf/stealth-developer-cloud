@@ -12,6 +12,8 @@ RUN npm run build
 FROM nginx:1.29-alpine AS runtime
 
 COPY deploy/console/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+# TanStack Start's SPA build emits the browser shell and hashed assets under
+# dist/client. The Go API remains a separate service in the compose stack.
+COPY --from=build /app/dist/client /usr/share/nginx/html
 
 EXPOSE 8080

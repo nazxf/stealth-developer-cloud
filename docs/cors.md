@@ -22,12 +22,13 @@ covers `Last-Event-ID` for Realtime reconnects. Project API keys stay
 server-only and are never enabled as browser CORS credentials. Requests from
 an unconfigured origin receive no CORS access and unsafe requests are rejected
 with `cors_forbidden`.
-The Console same-origin bridge strips `Origin` and continues to use the
-HttpOnly Console session independently.
+The local development Vite proxy strips `Origin` before forwarding same-origin
+browser requests; the browser still uses the HttpOnly Console session.
 
-## Vite Console
+## Console
 
-The Vite build calls the management API with `credentials: include`. When the
+The TanStack Start browser build calls the management API with `credentials:
+include`. When the
 static Console is served from a different origin than Go, set the API's
 `CONSOLE_CORS_ORIGINS` to a comma-separated exact-origin list, for example:
 

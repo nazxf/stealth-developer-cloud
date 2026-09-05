@@ -23,7 +23,12 @@
     "types": ["vite/client"]
   },
   "include": [
-    "src/main.tsx",
+    "src/router.tsx",
+    "src/routeTree.gen.ts",
+    "src/routes/**/*.ts",
+    "src/routes/**/*.tsx",
+    "src/start/**/*.ts",
+    "src/start/**/*.tsx",
     "src/vite-env.d.ts",
     "src/vite/**/*.ts",
     "src/vite/**/*.tsx",

@@ -21,7 +21,7 @@ function formatDate(value: string) {
 }
 
 export default function MessagingRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/messaging" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/messaging" });
   const providersQuery = useQuery({ queryKey: queryKeys.messagingProviders(projectId), queryFn: () => browserAPI.projectMessagingProviders(projectId) });
   const topicsQuery = useQuery({ queryKey: queryKeys.messagingTopics(projectId), queryFn: () => browserAPI.projectMessagingTopics(projectId) });
   const messagesQuery = useQuery({ queryKey: queryKeys.messagingMessages(projectId), queryFn: () => browserAPI.projectMessagingMessages(projectId) });

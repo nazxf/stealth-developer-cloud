@@ -76,7 +76,7 @@ services:
     volumes:
       - stealth-storage-data:/var/lib/stealth/storage
 
-  # The Console is a static Vite bundle. Keep it behind an explicit profile so
+  # The Console is a static TanStack Start browser bundle. Keep it behind an explicit profile so
   # operators can use their own CDN/reverse proxy in production without
   # changing the API stack; local users can start it with `--profile console`.
   console:

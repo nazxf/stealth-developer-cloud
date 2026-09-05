@@ -1,9 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/browser-api";
-import { routeTree } from "./router";
+import { routeTree } from "@/routeTree.gen";
+import { queryClient } from "@/vite/query-client";
 
 const accountResponse = {
   account: { id: "account-1", email: "owner@example.test", email_verified: true, created_at: "2026-09-05T00:00:00Z" },
@@ -94,14 +94,15 @@ function createTestRouter(path: string) {
 }
 
 function renderRouter(path: string) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+  queryClient.clear();
   const router = createTestRouter(path);
-  render(<QueryClientProvider client={queryClient}><RouterProvider router={router} /></QueryClientProvider>);
+  render(<RouterProvider router={router} />);
   return { router, queryClient };
 }
 
 afterEach(() => {
   cleanup();
+  queryClient.clear();
   vi.restoreAllMocks();
 });
 
@@ -109,7 +110,7 @@ beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => undefined);
 });
 
-describe("Vite router runtime", () => {
+describe("TanStack Start router runtime", () => {
   it("redirects an unauthenticated protected route to sign in", async () => {
     vi.spyOn(browserAPI, "currentAccount").mockRejectedValue(new BrowserAPIError(401, "unauthorized", "Sign in required."));
 

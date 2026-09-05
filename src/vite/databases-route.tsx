@@ -8,13 +8,10 @@ import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
 import { queryKeys } from "./query-keys";
 import DatabaseBackupsPanel from "./database-backups-panel";
+import { LoadingState } from "./async-state";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
-}
-
-function LoadingState() {
-  return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading databases…</div>;
 }
 
 function ErrorState({ error }: { error: unknown }) {
@@ -22,7 +19,7 @@ function ErrorState({ error }: { error: unknown }) {
 }
 
 export default function DatabasesRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/databases" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/databases" });
   const databasesQuery = useQuery({ queryKey: queryKeys.projectDatabases(projectId), queryFn: () => browserAPI.projectDatabases(projectId, { limit: 100 }) });
   const [selectedDatabaseID, setSelectedDatabaseID] = useState("");
   const [selectedTableID, setSelectedTableID] = useState("");

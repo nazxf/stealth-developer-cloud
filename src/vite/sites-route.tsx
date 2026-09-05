@@ -83,7 +83,7 @@ function ErrorState({ error }: { error: unknown }) {
 }
 
 export default function SitesRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/sites" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/sites" });
   const sitesQuery = useQuery({
     queryKey: queryKeys.projectSites(projectId),
     queryFn: () => browserAPI.projectSites(projectId, { limit: 100 }),

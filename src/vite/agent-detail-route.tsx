@@ -7,6 +7,7 @@ import { AgentRunForm } from "./agent-run-form";
 import { queryClient } from "./query-client";
 import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { LoadingState } from "./async-state";
 
 function formatDate(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) : "—";
@@ -19,16 +20,12 @@ function statusIcon(status: BrowserAgentRun["status"]) {
   return <Clock3 size={15} className="text-[var(--projects-muted)]" aria-hidden="true" />;
 }
 
-function LoadingState() {
-  return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading agent…</div>;
-}
-
 function ErrorState({ error }: { error: unknown }) {
   return <AsyncErrorState error={error} fallback="Unable to load this agent." />;
 }
 
 export default function AgentDetailRoute() {
-  const { agentId } = useParams({ from: "/agent/$agentId" });
+  const { agentId } = useParams({ from: "/_console/agent/$agentId" });
   const agentQuery = useQuery({ queryKey: queryKeys.agent(agentId), queryFn: () => browserAPI.agent(agentId) });
   const runsQuery = useQuery({ queryKey: queryKeys.agentRuns(agentId), queryFn: () => browserAPI.agentRuns(agentId, { limit: 50 }) });
   const [selectedRunID, setSelectedRunID] = useState<string | null>(null);

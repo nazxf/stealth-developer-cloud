@@ -102,7 +102,7 @@ function inputClass() {
 }
 
 export default function FunctionsRoute() {
-  const { projectId } = useParams({ from: "/projects/$projectId/functions" });
+  const { projectId } = useParams({ from: "/_console/projects/$projectId/functions" });
   const functionsQuery = useQuery({
     queryKey: queryKeys.projectFunctions(projectId),
     queryFn: () => browserAPI.projectFunctions(projectId, { limit: 100 }),

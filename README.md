@@ -6,7 +6,7 @@ requests, and run AI agents against your projects.
 
 ## Stack
 
-- React + TypeScript + Vite (TanStack Router/Query) as the only frontend runtime
+- React + TypeScript + TanStack Start (TanStack Router/Query) in SPA-first mode
 - Tailwind CSS 4 with a token-based theme in `src/styles/`
 - motion/react for interaction animation, recharts for admin telemetry charts
 - Geist, Inter Variable, and Source Code Pro as the font stack
@@ -17,7 +17,7 @@ requests, and run AI agents against your projects.
 ## Architecture
 
 ```
-Stealth Console (Vite SPA)
+Stealth Console (TanStack Start SPA-first)
         ↓
 browser API client (credentials + runtime schemas)
         ↓
@@ -25,16 +25,18 @@ Go API (cookie session, CORS, OpenAPI)
         ↓
 ```
 
-The Vite entry point is the `dev`, `build`, and `start` path. It uses
-TanStack Router for route state, TanStack Query for server state, and Zod at
-the API boundary. Set `VITE_API_URL` when the static console is hosted on a
-different origin; configure the API's exact `CONSOLE_CORS_ORIGINS` allowlist in
-that deployment. The browser calls Go directly with the HttpOnly session
-cookie; there is no Next server proxy or server-only API bridge.
+TanStack Start owns the `dev`, `build`, and `start` path. The initial runtime is
+deliberately SPA-first: TanStack Router owns route state, TanStack Query owns
+server state, and Zod remains at the API boundary. Set `VITE_API_URL` when the
+static console is hosted on a different origin; configure the API's exact
+`CONSOLE_CORS_ORIGINS` allowlist in that deployment. The browser calls Go
+directly with the HttpOnly session cookie; there is no Next server proxy or
+duplicated Node API.
 
 The connected identity, project console, deployment timeline, and Agent
-configuration/run surfaces use the Stealth API. The shared Vite shell also
-uses the authenticated account identity and logout session. Site and Function
+configuration/run surfaces use the Stealth API. The migrated Start layout and
+remaining compatibility shell use the authenticated account identity and
+logout session. Site and Function
 releases are shown from durable deployment records, and owners/admins can start
 a Git deployment from the project timeline. Agent prompts are persisted in a durable queue; provider
 connections and the trusted execution worker are intentionally separate, so a
@@ -55,9 +57,10 @@ authenticated query contracts are implemented.
 
 ## Structure
 
-- `src/vite/` — React + Vite route tree (`/`, auth flows, projects, Services, Usage, Logs, deployments, Auth, Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents, and Admin)
+- `src/routes/` — TanStack Start file-based route tree (`__root`, `_auth`, `_console`, and protected not-found fallback)
+- `src/vite/` — feature-oriented React components reused by the Start routes (the manual router has been removed)
 - `src/lib/browser-api.ts` — the browser-safe, Zod-validated Go API client
-- `src/styles/`, `src/main.tsx` — global tokens, Vite entry, TanStack Router route tree, Query client, and shell
+- `src/styles/`, `src/routes/__root.tsx` — global tokens and the TanStack Start document entry
 - `services/api/cmd/api` — API process entry point and graceful shutdown
 - `services/api/internal/auth` — Argon2id password and opaque session helpers
 - `services/api/internal/apikey` — high-entropy project API key generation, hashing, scope, and expiry validation
@@ -70,7 +73,7 @@ authenticated query contracts are implemented.
 - `docs/sites.md` — static publication, immutable rollout, quota, and serving contract
 - `docs/realtime.md` — authenticated SSE subscriptions, cursors, and permission filtering
 - `docs/cors.md` — per-project browser origin allowlists and credential rules
-- `docs/frontend-vite.md` — Vite deployment, proxy, and migration contract
+- `docs/frontend-vite.md` — TanStack Start SPA output, proxy, cookie, and migration contract (filename retained for link compatibility)
 - `docs/usage.md` — live project resource aggregates and metering boundary
 - `docs/plans.md` — organization plan limits, enforcement, and billing boundary
 - `docs/auth.md` — one-time verification, recovery, organization invitations, and SMTP delivery
@@ -108,8 +111,9 @@ docker compose --profile console up --build
 # open http://localhost:4173
 ```
 
-The profile builds the Vite `dist/` output, serves TanStack Router's SPA
-fallback, and waits for the API readiness check. Set `VITE_API_URL` and
+The profile builds TanStack Start's `dist/client/` browser output, serves
+TanStack Router's SPA shell fallback, and waits for the API readiness check.
+Set `VITE_API_URL` and
 `CONSOLE_CORS_ORIGINS` to exact HTTPS origins when the Console is deployed on a
 different host; the bundle never receives backend secrets.
 
@@ -269,7 +273,7 @@ plus OTLP headers/mTLS in production.
 
 ## Connected Console contract
 
-The default Vite Console uses the browser-safe `VITE_API_URL` origin (or
+The default TanStack Start Console uses the browser-safe `VITE_API_URL` origin (or
 relative `/v1` requests in a same-origin deployment) and the central
 `src/lib/browser-api.ts` client. Its authenticated browser integration uses
 `credentials: "include"` and the endpoints in
@@ -456,9 +460,9 @@ Stderr is retained only as redacted, bounded execution logs.
 
 ```bash
 npm install
-npm run dev          # Vite dev server
-npm run typecheck    # TypeScript check for the Vite application
+npm run dev          # TanStack Start/Vite development server
+npm run typecheck    # TypeScript check for the application and generated routes
 npm test             # Vitest browser API contract tests
-npm run build        # Vite production build
-npm run check        # typecheck + tests + Vite build
+npm run build        # TanStack Start client/server production build
+npm run check        # contract + lint + typecheck + tests + Go checks + build
 ```

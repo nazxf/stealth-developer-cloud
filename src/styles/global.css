@@ -1,4 +1,4 @@
-/* Entry stylesheet — imported once from src/main.tsx. */
+/* Entry stylesheet — imported once from the TanStack Start root document. */
 @import "./tailwind.css";
 @import "./base.css";
 @import "./theme.css";

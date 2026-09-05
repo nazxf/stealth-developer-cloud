@@ -2,7 +2,10 @@ import { gzipSync } from "node:zlib";
 import { readFile, readdir, stat } from "node:fs/promises";
 import { join } from "node:path";
 
-const assetsDirectory = new URL("../dist/assets/", import.meta.url);
+// TanStack Start keeps the browser bundle under dist/client. The server
+// output is intentionally excluded from the browser budget because it is not
+// shipped to the static console image.
+const assetsDirectory = new URL("../dist/client/assets/", import.meta.url);
 const rawLimits = {
   entry: 460 * 1024,
   entryGzip: 145 * 1024,
