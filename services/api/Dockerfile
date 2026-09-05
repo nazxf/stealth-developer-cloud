@@ -13,13 +13,14 @@ VOLUME ["/var/lib/stealth/storage", "/var/lib/stealth/runner-staging"]
 WORKDIR /app
 COPY --from=build /out/stealth-api /usr/local/bin/stealth-api
 COPY --from=build /out/stealth-worker /usr/local/bin/stealth-worker
-EXPOSE 8080
 
 FROM runtime-base AS api
 USER stealth
+EXPOSE 8080
 ENTRYPOINT ["/usr/local/bin/stealth-api"]
 
 FROM runtime-base AS worker
 RUN apk add --no-cache docker-cli
 USER stealth
-ENTRYPOINT ["/usr/local/bin/stealth-api"]
+EXPOSE 9091
+ENTRYPOINT ["/usr/local/bin/stealth-worker"]
