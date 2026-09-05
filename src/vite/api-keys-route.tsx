@@ -4,6 +4,7 @@ import { Check, Clipboard, KeyRound, LoaderCircle, Plus, ShieldAlert, Trash2, X 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserProjectAPIKey, type BrowserProjectAPIKeyScope } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 const scopeOptions: Array<{ value: BrowserProjectAPIKeyScope; label: string; description: string }> = [
@@ -50,7 +51,7 @@ function ErrorState({ error }: { error: unknown }) {
 
 export default function APIKeysRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/api-keys" });
-  const keysQuery = useQuery({ queryKey: ["project-api-keys", projectId], queryFn: () => browserAPI.projectAPIKeys(projectId, { limit: 50 }) });
+  const keysQuery = useQuery({ queryKey: queryKeys.projectAPIKeys(projectId), queryFn: () => browserAPI.projectAPIKeys(projectId, { limit: 50 }) });
   const [additionalKeys, setAdditionalKeys] = useState<BrowserProjectAPIKey[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadPending, setLoadPending] = useState(false);
@@ -127,7 +128,7 @@ export default function APIKeysRoute() {
       setCopied(false);
       setCreateOpen(false);
       resetCreateForm();
-      await queryClient.invalidateQueries({ queryKey: ["project-api-keys", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectAPIKeys(projectId) });
     } catch (error) {
       setFormError(browserAPIErrorMessage(error, "The API key could not be created."));
     } finally {
@@ -142,7 +143,7 @@ export default function APIKeysRoute() {
     try {
       await browserAPI.revokeProjectAPIKey(projectId, revokeKey.id);
       setRevokeKey(null);
-      await queryClient.invalidateQueries({ queryKey: ["project-api-keys", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectAPIKeys(projectId) });
     } catch (error) {
       setActionError(browserAPIErrorMessage(error, "The API key could not be revoked."));
     } finally {

@@ -4,6 +4,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserProjectUsageDay } from "@/lib/browser-api";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryKeys } from "./query-keys";
 
 const rangeOptions = [7, 30, 90, 365] as const;
 type RangeDays = (typeof rangeOptions)[number];
@@ -46,10 +47,10 @@ export default function UsageRoute() {
   const [downloadPending, setDownloadPending] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const bounds = dateBounds(rangeDays);
-  const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => browserAPI.project(projectId) });
-  const usageQuery = useQuery({ queryKey: ["project-usage", projectId], queryFn: () => browserAPI.projectUsage(projectId) });
+  const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
+  const usageQuery = useQuery({ queryKey: queryKeys.projectUsage(projectId), queryFn: () => browserAPI.projectUsage(projectId) });
   const meteringQuery = useQuery({
-    queryKey: ["project-usage-metering", projectId, bounds.from, bounds.to],
+    queryKey: queryKeys.projectUsageMetering(projectId, bounds.from, bounds.to),
     queryFn: () => browserAPI.projectUsageMetering(projectId, bounds),
   });
 

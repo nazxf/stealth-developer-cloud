@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgentTool } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 
 const promptSchema = z.string().trim().min(1, "Prompt is required.").max(20_000, "Prompt must be 20000 characters or fewer.").refine((value) => !value.includes("\u0000"), "Prompt cannot contain NUL.");
 
@@ -28,7 +29,7 @@ export function AgentRunForm({ agentID, tools, onQueued, onError }: { agentID: s
       const response = await browserAPI.createAgentRun(agentID, { prompt: parsed.data });
       setPrompt("");
       onQueued(response.run.id);
-      await queryClient.invalidateQueries({ queryKey: ["agent-runs", agentID] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.agentRuns(agentID) });
     } catch (requestError) {
       onError(errorMessage(requestError));
     } finally {

@@ -2,8 +2,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Files, FolderPlus, LoaderCircle, Save, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserStorageBucket, type BrowserStorageFile } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserStorageFile } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string) { return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value)); }
@@ -14,7 +15,7 @@ function ErrorState({ error }: { error: unknown }) { return <AsyncErrorState err
 
 export default function StorageRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/storage" });
-  const bucketsQuery = useQuery({ queryKey: ["project-storage-buckets", projectId], queryFn: () => browserAPI.projectStorageBuckets(projectId, { limit: 100 }) });
+  const bucketsQuery = useQuery({ queryKey: queryKeys.projectStorageBuckets(projectId), queryFn: () => browserAPI.projectStorageBuckets(projectId, { limit: 100 }) });
   const [selectedBucketID, setSelectedBucketID] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [bucketName, setBucketName] = useState("");
@@ -30,7 +31,7 @@ export default function StorageRoute() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const buckets = bucketsQuery.data?.buckets ?? [];
   const selectedBucket = buckets.find((bucket) => bucket.id === selectedBucketID);
-  const filesQuery = useQuery({ queryKey: ["storage-files", projectId, selectedBucketID], queryFn: () => browserAPI.projectStorageFiles(projectId, selectedBucketID, { limit: 100 }), enabled: Boolean(selectedBucketID) });
+  const filesQuery = useQuery({ queryKey: queryKeys.storageFiles(projectId, selectedBucketID), queryFn: () => browserAPI.projectStorageFiles(projectId, selectedBucketID, { limit: 100 }), enabled: Boolean(selectedBucketID) });
   const canManage = bucketsQuery.data?.can_manage ?? false;
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function StorageRoute() {
     setPending(true); setError("");
     try {
       const response = await browserAPI.createProjectStorageBucket(projectId, { name: normalizedName, file_security: true });
-      setBucketName(""); setCreateOpen(false); setSelectedBucketID(response.bucket.id); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] });
+      setBucketName(""); setCreateOpen(false); setSelectedBucketID(response.bucket.id); await queryClient.invalidateQueries({ queryKey: queryKeys.projectStorageBuckets(projectId) });
     } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The bucket could not be created.")); } finally { setPending(false); }
   }
 
@@ -65,13 +66,13 @@ export default function StorageRoute() {
     const quota = Number(bucketQuota); const maxFile = Number(bucketMaxFile);
     if (!Number.isFinite(quota) || !Number.isFinite(maxFile) || quota <= 0 || maxFile <= 0 || maxFile > quota) { setError("Quota and maximum file size must be positive, and max file size cannot exceed quota."); return; }
     setPending(true); setError("");
-    try { await browserAPI.updateProjectStorageBucket(projectId, selectedBucket.id, { file_security: fileSecurity, quota_bytes: quota, max_file_size_bytes: maxFile, read_permissions: parsePermissions(readPermissions), create_permissions: parsePermissions(createPermissions), update_permissions: parsePermissions(updatePermissions), delete_permissions: parsePermissions(deletePermissions) }); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] }); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "Bucket settings could not be saved.")); } finally { setPending(false); }
+    try { await browserAPI.updateProjectStorageBucket(projectId, selectedBucket.id, { file_security: fileSecurity, quota_bytes: quota, max_file_size_bytes: maxFile, read_permissions: parsePermissions(readPermissions), create_permissions: parsePermissions(createPermissions), update_permissions: parsePermissions(updatePermissions), delete_permissions: parsePermissions(deletePermissions) }); await queryClient.invalidateQueries({ queryKey: queryKeys.projectStorageBuckets(projectId) }); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "Bucket settings could not be saved.")); } finally { setPending(false); }
   }
 
   async function deleteBucket() {
     if (!selectedBucket || pending || !window.confirm(`Delete bucket “${selectedBucket.name}” and its files?`)) return;
     setPending(true); setError("");
-    try { await browserAPI.deleteProjectStorageBucket(projectId, selectedBucket.id); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] }); setSelectedBucketID(""); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The bucket could not be deleted.")); } finally { setPending(false); }
+    try { await browserAPI.deleteProjectStorageBucket(projectId, selectedBucket.id); await queryClient.invalidateQueries({ queryKey: queryKeys.projectStorageBuckets(projectId) }); setSelectedBucketID(""); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The bucket could not be deleted.")); } finally { setPending(false); }
   }
 
   async function uploadFile(event: ChangeEvent<HTMLInputElement>) {
@@ -79,13 +80,13 @@ export default function StorageRoute() {
     if (!file || !selectedBucket || pending || !canManage) return;
     const form = new FormData(); form.append("file", file, file.name);
     setPending(true); setError("");
-    try { await browserAPI.uploadProjectStorageFile(projectId, selectedBucket.id, form); await Promise.all([queryClient.invalidateQueries({ queryKey: ["storage-files", projectId, selectedBucket.id] }), queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] })]); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "File upload failed.")); } finally { setPending(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+    try { await browserAPI.uploadProjectStorageFile(projectId, selectedBucket.id, form); await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.storageFiles(projectId, selectedBucket.id) }), queryClient.invalidateQueries({ queryKey: queryKeys.projectStorageBuckets(projectId) })]); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "File upload failed.")); } finally { setPending(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   }
 
   async function deleteFile(file: BrowserStorageFile) {
     if (!selectedBucket || pending || !window.confirm(`Delete file “${file.name}”?`)) return;
     setPending(true); setError("");
-    try { await browserAPI.deleteProjectStorageFile(projectId, selectedBucket.id, file.id); await Promise.all([queryClient.invalidateQueries({ queryKey: ["storage-files", projectId, selectedBucket.id] }), queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] })]); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The file could not be deleted.")); } finally { setPending(false); }
+    try { await browserAPI.deleteProjectStorageFile(projectId, selectedBucket.id, file.id); await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.storageFiles(projectId, selectedBucket.id) }), queryClient.invalidateQueries({ queryKey: queryKeys.projectStorageBuckets(projectId) })]); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The file could not be deleted.")); } finally { setPending(false); }
   }
 
   async function downloadFile(file: BrowserStorageFile) {

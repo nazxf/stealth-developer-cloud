@@ -1,26 +1,33 @@
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 
-const serverSource = await readFile("services/api/internal/httpapi/server.go", "utf8");
 const openapiSource = await readFile("packages/openapi/openapi.yaml", "utf8");
 
 const methods = /\br(?:\.With\([^)]*\))*\.(Get|Post|Put|Patch|Delete)\("([^"]+)"/;
 const normalizePath = (value) => value.replace(/\{[^}]+\}/g, "{}").replace(/\/\*/, "/{}");
 const serverOperations = new Set();
-let inV1RouteGroup = false;
+const httpapiFiles = (await readdir("services/api/internal/httpapi"))
+  .filter((file) => file.endsWith(".go"))
+  .sort();
 
-for (const line of serverSource.split("\n")) {
-  if (line.includes('r.Route("/v1"')) {
-    inV1RouteGroup = true;
-    continue;
-  }
-  const match = line.match(methods);
-  if (match) {
-    const method = match[1].toUpperCase();
-    const path = inV1RouteGroup ? `/v1${match[2]}` : match[2];
-    serverOperations.add(`${method} ${normalizePath(path)}`);
-  }
-  if (inV1RouteGroup && /^\s*}\)\s*$/.test(line)) {
-    inV1RouteGroup = false;
+for (const file of httpapiFiles) {
+  const source = await readFile(`services/api/internal/httpapi/${file}`, "utf8");
+  // The server constructor owns the /v1 group, while route modules are
+  // registered from inside it. Their declarations therefore inherit /v1.
+  let inV1RouteGroup = false;
+  for (const line of source.split("\n")) {
+    if (file === "server.go" && line.includes('r.Route("/v1"')) {
+      inV1RouteGroup = true;
+      continue;
+    }
+    const match = line.match(methods);
+    if (match) {
+      const method = match[1].toUpperCase();
+      const path = inV1RouteGroup || file === "routes.go" ? `/v1${match[2]}` : match[2];
+      serverOperations.add(`${method} ${normalizePath(path)}`);
+    }
+    if (file === "server.go" && inV1RouteGroup && /^\s*}\)\s*$/.test(line)) {
+      inV1RouteGroup = false;
+    }
   }
 }
 

@@ -5,6 +5,7 @@ import { Bell, CheckCircle2, Clock3, LoaderCircle, XCircle } from "lucide-react"
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryKeys } from "./query-keys";
 
 type Channel = "email" | "sms" | "push";
 
@@ -21,9 +22,9 @@ function formatDate(value: string) {
 
 export default function MessagingRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/messaging" });
-  const providersQuery = useQuery({ queryKey: ["messaging-providers", projectId], queryFn: () => browserAPI.projectMessagingProviders(projectId) });
-  const topicsQuery = useQuery({ queryKey: ["messaging-topics", projectId], queryFn: () => browserAPI.projectMessagingTopics(projectId) });
-  const messagesQuery = useQuery({ queryKey: ["messaging-messages", projectId], queryFn: () => browserAPI.projectMessagingMessages(projectId) });
+  const providersQuery = useQuery({ queryKey: queryKeys.messagingProviders(projectId), queryFn: () => browserAPI.projectMessagingProviders(projectId) });
+  const topicsQuery = useQuery({ queryKey: queryKeys.messagingTopics(projectId), queryFn: () => browserAPI.projectMessagingTopics(projectId) });
+  const messagesQuery = useQuery({ queryKey: queryKeys.messagingMessages(projectId), queryFn: () => browserAPI.projectMessagingMessages(projectId) });
   const [topicID, setTopicID] = useState("");
   const [channel, setChannel] = useState<Channel>("email");
   const [subject, setSubject] = useState("");
@@ -36,7 +37,7 @@ export default function MessagingRoute() {
   const firstTopic = topicsQuery.data?.topics[0]?.id ?? "";
   const selectedTopicID = topicID || firstTopic;
   const expandedDeliveries = useQuery({
-    queryKey: ["messaging-deliveries", projectId, expandedMessageID],
+    queryKey: queryKeys.messagingDeliveries(projectId, expandedMessageID),
     queryFn: () => browserAPI.projectMessagingDeliveries(projectId, expandedMessageID!),
     enabled: expandedMessageID !== null,
   });
@@ -61,7 +62,7 @@ export default function MessagingRoute() {
       await browserAPI.createProjectMessagingMessage(projectId, { topic_id: selectedTopicID, channel, subject: subject.trim() || undefined, body: body.trim(), data }, idempotencyKey);
       setBody("");
       setSubject("");
-      await queryClient.invalidateQueries({ queryKey: ["messaging-messages", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.messagingMessages(projectId) });
     } catch (error) {
       setFormError(browserAPIErrorMessage(error, "Unable to queue this message."));
     } finally {
@@ -72,7 +73,7 @@ export default function MessagingRoute() {
   async function cancelMessage(messageID: string) {
     try {
       await browserAPI.cancelProjectMessagingMessage(projectId, messageID);
-      await queryClient.invalidateQueries({ queryKey: ["messaging-messages", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.messagingMessages(projectId) });
     } catch (error) {
       setFormError(browserAPIErrorMessage(error, "Unable to cancel this message."));
     }

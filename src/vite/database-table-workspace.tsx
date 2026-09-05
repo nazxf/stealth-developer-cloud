@@ -11,6 +11,7 @@ import {
   type BrowserDatabaseTable,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 
 type DatabaseTableWorkspaceProps = {
   projectID: string;
@@ -74,17 +75,16 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState("");
 
-  const resourceKey = [projectID, databaseID, table.id] as const;
   const columnsQuery = useQuery({
-    queryKey: ["database-columns", ...resourceKey],
+    queryKey: queryKeys.databaseColumns(projectID, databaseID, table.id),
     queryFn: () => browserAPI.projectDatabaseColumns(projectID, databaseID, table.id, { limit: 100 }),
   });
   const indexesQuery = useQuery({
-    queryKey: ["database-indexes", ...resourceKey],
+    queryKey: queryKeys.databaseIndexes(projectID, databaseID, table.id),
     queryFn: () => browserAPI.projectDatabaseIndexes(projectID, databaseID, table.id, { limit: 100 }),
   });
   const rowsQuery = useInfiniteQuery({
-    queryKey: ["database-rows", ...resourceKey],
+    queryKey: queryKeys.databaseRows(projectID, databaseID, table.id),
     initialPageParam: "",
     queryFn: ({ pageParam }) => browserAPI.projectDatabaseRows(projectID, databaseID, table.id, { limit: 50, cursor: pageParam || undefined }),
     getNextPageParam: (lastPage) => lastPage.pagination.next_cursor ?? undefined,
@@ -161,8 +161,8 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     try {
       await browserAPI.createProjectDatabaseColumn(projectID, databaseID, table.id, input);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["database-columns", ...resourceKey] }),
-        queryClient.invalidateQueries({ queryKey: ["database-rows", ...resourceKey] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.databaseColumns(projectID, databaseID, table.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.databaseRows(projectID, databaseID, table.id) }),
       ]);
       resetColumnForm();
     } catch (requestError) {
@@ -179,8 +179,8 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     try {
       await browserAPI.deleteProjectDatabaseColumn(projectID, databaseID, table.id, column.id);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["database-columns", ...resourceKey] }),
-        queryClient.invalidateQueries({ queryKey: ["database-rows", ...resourceKey] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.databaseColumns(projectID, databaseID, table.id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.databaseRows(projectID, databaseID, table.id) }),
       ]);
     } catch (requestError) {
       setError(errorMessage(requestError, "The column could not be deleted."));
@@ -213,7 +213,7 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     setError("");
     try {
       await browserAPI.createProjectDatabaseIndex(projectID, databaseID, table.id, input);
-      await queryClient.invalidateQueries({ queryKey: ["database-indexes", ...resourceKey] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.databaseIndexes(projectID, databaseID, table.id) });
       resetIndexForm();
     } catch (requestError) {
       setError(errorMessage(requestError, "The index could not be created."));
@@ -228,7 +228,7 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     setError("");
     try {
       await browserAPI.deleteProjectDatabaseIndex(projectID, databaseID, table.id, index.id);
-      await queryClient.invalidateQueries({ queryKey: ["database-indexes", ...resourceKey] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.databaseIndexes(projectID, databaseID, table.id) });
     } catch (requestError) {
       setError(errorMessage(requestError, "The index could not be deleted."));
     } finally {
@@ -274,7 +274,7 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
       } else {
         await browserAPI.createProjectDatabaseRow(projectID, databaseID, table.id, { data, ...permissions });
       }
-      await queryClient.invalidateQueries({ queryKey: ["database-rows", ...resourceKey] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.databaseRows(projectID, databaseID, table.id) });
       resetRowForm();
     } catch (requestError) {
       setError(errorMessage(requestError, editingRowID ? "The row could not be updated." : "The row could not be created."));
@@ -289,7 +289,7 @@ export default function DatabaseTableWorkspace({ projectID, databaseID, table, c
     setError("");
     try {
       await browserAPI.deleteProjectDatabaseRow(projectID, databaseID, table.id, row.id);
-      await queryClient.invalidateQueries({ queryKey: ["database-rows", ...resourceKey] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.databaseRows(projectID, databaseID, table.id) });
       if (editingRowID === row.id) resetRowForm();
     } catch (requestError) {
       setError(errorMessage(requestError, "The row could not be deleted."));

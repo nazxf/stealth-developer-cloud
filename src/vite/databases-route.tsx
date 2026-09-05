@@ -6,6 +6,7 @@ import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseTable } from "@
 import DatabaseTableWorkspace from "./database-table-workspace";
 import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryKeys } from "./query-keys";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
@@ -21,7 +22,7 @@ function ErrorState({ error }: { error: unknown }) {
 
 export default function DatabasesRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/databases" });
-  const databasesQuery = useQuery({ queryKey: ["project-databases", projectId], queryFn: () => browserAPI.projectDatabases(projectId, { limit: 100 }) });
+  const databasesQuery = useQuery({ queryKey: queryKeys.projectDatabases(projectId), queryFn: () => browserAPI.projectDatabases(projectId, { limit: 100 }) });
   const [selectedDatabaseID, setSelectedDatabaseID] = useState("");
   const [selectedTableID, setSelectedTableID] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -31,7 +32,7 @@ export default function DatabasesRoute() {
   const [pending, setPending] = useState(false);
   const [busyTableID, setBusyTableID] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const tablesQuery = useQuery({ queryKey: ["database-tables", projectId, selectedDatabaseID], queryFn: () => browserAPI.projectDatabaseTables(projectId, selectedDatabaseID, { limit: 100 }), enabled: Boolean(selectedDatabaseID) });
+  const tablesQuery = useQuery({ queryKey: queryKeys.databaseTables(projectId, selectedDatabaseID), queryFn: () => browserAPI.projectDatabaseTables(projectId, selectedDatabaseID, { limit: 100 }), enabled: Boolean(selectedDatabaseID) });
 
   const databases = databasesQuery.data?.databases ?? [];
   const selected = databases.find((database) => database.id === selectedDatabaseID);
@@ -69,7 +70,7 @@ export default function DatabasesRoute() {
       setCreateOpen(false);
       setSelectedDatabaseID(response.database.id);
       setSelectedTableID("");
-      await queryClient.invalidateQueries({ queryKey: ["project-databases", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectDatabases(projectId) });
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The database could not be created."));
     } finally {
@@ -92,7 +93,7 @@ export default function DatabasesRoute() {
       setTableName("");
       setTableOpen(false);
       setSelectedTableID(response.table.id);
-      await queryClient.invalidateQueries({ queryKey: ["database-tables", projectId, selectedDatabaseID] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.databaseTables(projectId, selectedDatabaseID) });
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The table could not be created."));
     } finally {
@@ -107,7 +108,7 @@ export default function DatabasesRoute() {
     try {
       await browserAPI.deleteProjectDatabaseTable(projectId, selectedDatabaseID, table.id);
       if (selectedTableID === table.id) setSelectedTableID("");
-      await queryClient.invalidateQueries({ queryKey: ["database-tables", projectId, selectedDatabaseID] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.databaseTables(projectId, selectedDatabaseID) });
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The table could not be deleted."));
     } finally {
@@ -122,7 +123,7 @@ export default function DatabasesRoute() {
     setError("");
     try {
       await browserAPI.deleteProjectDatabase(projectId, database.id);
-      await queryClient.invalidateQueries({ queryKey: ["project-databases", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectDatabases(projectId) });
       setSelectedDatabaseID("");
       setSelectedTableID("");
     } catch (requestError) {

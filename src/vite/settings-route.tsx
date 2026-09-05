@@ -4,6 +4,7 @@ import { AlertTriangle, Check, Clipboard, LoaderCircle, Save, Settings2, Trash2 
 import { useEffect, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 function LoadingState() {
@@ -17,7 +18,7 @@ function ErrorState({ error }: { error: unknown }) {
 export default function SettingsRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/settings" });
   const navigate = useNavigate();
-  const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => browserAPI.project(projectId) });
+  const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
   const [name, setName] = useState("");
   const [deleteName, setDeleteName] = useState("");
   const [pending, setPending] = useState(false);
@@ -36,8 +37,8 @@ export default function SettingsRoute() {
     setPending(true); setError(""); setMessage("");
     try {
       await browserAPI.updateProject(projectId, { name: normalizedName });
-      await queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-      await queryClient.invalidateQueries({ queryKey: ["projects"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.project(projectId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects() });
       setMessage("Project settings saved.");
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "Project settings could not be saved."));

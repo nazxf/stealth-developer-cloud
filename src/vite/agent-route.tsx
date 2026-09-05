@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgent, type BrowserAgentRole } from "@/lib/browser-api";
 import { AgentCreateForm } from "./agent-create-form";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatLastActive(value: string | null | undefined) {
@@ -31,10 +32,10 @@ function ErrorState({ error }: { error: unknown }) {
 }
 
 export default function AgentRoute() {
-  const agentsQuery = useQuery({ queryKey: ["agents"], queryFn: () => browserAPI.agents({ limit: 100 }) });
-  const catalogQuery = useQuery({ queryKey: ["agent-catalog"], queryFn: () => browserAPI.agentCatalog() });
-  const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: () => browserAPI.organizations({ limit: 100 }) });
-  const projectQueries = useQueries({ queries: (organizationsQuery.data?.organizations ?? []).map((organization) => ({ queryKey: ["projects", organization.id], queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
+  const agentsQuery = useQuery({ queryKey: queryKeys.agents(), queryFn: () => browserAPI.agents({ limit: 100 }) });
+  const catalogQuery = useQuery({ queryKey: queryKeys.agentCatalog(), queryFn: () => browserAPI.agentCatalog() });
+  const organizationsQuery = useQuery({ queryKey: queryKeys.organizations(), queryFn: () => browserAPI.organizations({ limit: 100 }) });
+  const projectQueries = useQueries({ queries: (organizationsQuery.data?.organizations ?? []).map((organization) => ({ queryKey: queryKeys.projects(organization.id), queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<"all" | BrowserAgent["status"]>("all");
   const [role, setRole] = useState<"all" | BrowserAgentRole>("all");
@@ -59,7 +60,7 @@ export default function AgentRoute() {
     setActionError("");
     try {
       await browserAPI.deleteAgent(agent.id);
-      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.agents() });
     } catch (error) {
       setActionError(browserAPIErrorMessage(error, "The agent could not be deleted."));
     } finally {

@@ -13,12 +13,11 @@ import { useQuery } from "@tanstack/react-query";
 import { m, useReducedMotion } from "motion/react";
 import { Server } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BrowserAPIError, browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ProjectShellNavigation } from "./project-shell";
-import { LoginForm } from "./login-form";
 import { LogoutButton } from "./logout-button";
-import { PasswordRecoveryForm, ResetPasswordForm, SignupForm } from "./auth-forms";
 import { ProjectCreateForm } from "./project-create-form";
 import { ErrorState } from "./error-state";
 
@@ -41,7 +40,7 @@ function LoadingState({ label = "Loading Stealth…" }: { label?: string }) {
 }
 
 function RootLayout() {
-  const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
+  const accountQuery = useQuery({ queryKey: queryKeys.account(), queryFn: browserAPI.currentAccount });
   const account = accountQuery.data?.account;
   const location = useLocation();
   const prefersReducedMotion = useReducedMotion();
@@ -88,59 +87,13 @@ function LogoutControl() {
   return <LogoutButton onLoggedOut={async () => { await queryClient.clear(); await navigate({ to: "/login", replace: true }); }} />;
 }
 
-function LoginRoute() {
-  const navigate = useNavigate();
-  return <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center justify-center"><LoginForm onAuthenticated={async () => { await queryClient.invalidateQueries({ queryKey: ["account"] }); await navigate({ to: "/" }); }} /></div>;
-}
-
-function SignupRoute() {
-  const navigate = useNavigate();
-  return <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center justify-center"><div className="w-full"><SignupForm onAuthenticated={async () => { await queryClient.invalidateQueries({ queryKey: ["account"] }); await navigate({ to: "/" }); }} /><p className="m-0 mt-4 text-center text-sm text-[var(--projects-muted)]">Already have an account? <Link to="/login" className="text-[var(--projects-accent)] hover:underline">Sign in</Link></p></div></div>;
-}
-
-function ForgotPasswordRoute() {
-  return <AuthCard title="Reset your password" detail="We will send a one-time link if the account exists."><PasswordRecoveryForm resetURL={`${window.location.origin}/reset-password`} /><p className="m-0 mt-4 text-center text-sm text-[var(--projects-muted)]"><Link to="/login" className="text-[var(--projects-accent)] hover:underline">Back to sign in</Link></p></AuthCard>;
-}
-
-function ResetPasswordRoute() {
-  const navigate = useNavigate();
-  const token = new URLSearchParams(window.location.search).get("token") ?? "";
-  return <AuthCard title="Choose a new password" detail="The reset link can only be used once."><ResetPasswordForm token={token} onReset={() => navigate({ to: "/login" })} /></AuthCard>;
-}
-
-function VerifyEmailRoute() {
-  const token = new URLSearchParams(window.location.search).get("token") ?? "";
-  const [state, setState] = useState<"pending" | "success" | "error">("pending");
-  const [message, setMessage] = useState("Confirming your email…");
-  useEffect(() => {
-    if (!token) { setState("error"); setMessage("This verification link is missing its token."); return; }
-    void browserAPI.verifyEmail(token).then(() => { setState("success"); setMessage("Email verified. You can return to the console."); }).catch((error: unknown) => { setState("error"); setMessage(browserAPIErrorMessage(error, "Unable to verify this link.")); });
-  }, [token]);
-  return <AuthCard title="Email verification" detail=""><p className={state === "success" ? "text-[var(--projects-accent)]" : state === "error" ? "text-[var(--projects-danger)]" : "text-[var(--projects-muted)]"} role={state === "error" ? "alert" : "status"}>{message}</p><Link to="/" className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-lg bg-[var(--projects-accent-strong)] text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]">Open console</Link></AuthCard>;
-}
-
-function AcceptInvitationRoute() {
-  const token = new URLSearchParams(window.location.search).get("token") ?? "";
-  const [state, setState] = useState<"pending" | "success" | "error">("pending");
-  const [message, setMessage] = useState("Accepting invitation…");
-  useEffect(() => {
-    if (!token) { setState("error"); setMessage("This invitation link is missing its token."); return; }
-    void browserAPI.acceptInvitation(token).then(() => { setState("success"); setMessage("Invitation accepted. The organization is now available in your Console."); }).catch((error: unknown) => { setState("error"); setMessage(browserAPIErrorMessage(error, "Unable to accept this invitation.")); });
-  }, [token]);
-  return <AuthCard title="Organization invitation" detail=""><p className={state === "success" ? "text-[var(--projects-accent)]" : state === "error" ? "text-[var(--projects-danger)]" : "text-[var(--projects-muted)]"} role={state === "error" ? "alert" : "status"}>{message}</p><Link to="/" className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-lg bg-[var(--projects-accent-strong)] text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]">Open console</Link></AuthCard>;
-}
-
-function AuthCard({ title, detail, children }: { title: string; detail: string; children: React.ReactNode }) {
-  return <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center justify-center"><div className="w-full rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-6 shadow-2xl"><div className="mb-6 text-center"><img src="/stealth-mark.png" alt="Stealth" className="mx-auto size-12" /><h1 className="m-0 mt-4 text-2xl font-semibold">{title}</h1>{detail ? <p className="m-0 mt-2 text-sm text-[var(--projects-muted)]">{detail}</p> : null}</div>{children}</div></div>;
-}
-
 function ProjectsRoute() {
-  const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
-  const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: () => browserAPI.organizations({ limit: 100 }) });
+  const accountQuery = useQuery({ queryKey: queryKeys.account(), queryFn: browserAPI.currentAccount });
+  const organizationsQuery = useQuery({ queryKey: queryKeys.organizations(), queryFn: () => browserAPI.organizations({ limit: 100 }) });
   const [activeOrganizationID, setActiveOrganizationID] = useState<string>();
   const selectedOrganization = organizationsQuery.data?.organizations.find((organization) => organization.id === activeOrganizationID) ?? organizationsQuery.data?.organizations[0];
   const projectsQuery = useQuery({
-    queryKey: ["projects", selectedOrganization?.id],
+    queryKey: queryKeys.projects(selectedOrganization?.id),
     queryFn: () => browserAPI.projects(selectedOrganization!.id, { limit: 100 }),
     enabled: Boolean(selectedOrganization),
   });
@@ -178,8 +131,8 @@ function EmptyState({ title, detail }: { title: string; detail: string }) {
 
 function ProjectRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId" });
-  const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => browserAPI.project(projectId) });
-  const usageQuery = useQuery({ queryKey: ["project-usage", projectId], queryFn: () => browserAPI.projectUsage(projectId) });
+  const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
+  const usageQuery = useQuery({ queryKey: queryKeys.projectUsage(projectId), queryFn: () => browserAPI.projectUsage(projectId) });
   if (projectQuery.isPending) return <LoadingState label="Loading project…" />;
   if (projectQuery.error) return <ErrorState error={projectQuery.error} />;
   const project = projectQuery.data.project;
@@ -209,8 +162,8 @@ function ProjectHeader({ project }: { project: { name: string; id: string } }) {
 
 function ProjectResourceRoute() {
   const { projectId, resource } = useParams({ from: "/projects/$projectId/$resource" });
-  const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => browserAPI.project(projectId) });
-  const resourceQuery = useQuery({ queryKey: ["project-resource", projectId, resource], queryFn: () => browserAPI.projectResource(projectId, resource) });
+  const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
+  const resourceQuery = useQuery({ queryKey: queryKeys.projectResource(projectId, resource), queryFn: () => browserAPI.projectResource(projectId, resource) });
   if (projectQuery.isPending || resourceQuery.isPending) return <LoadingState label="Loading resource…" />;
   if (projectQuery.error) return <ErrorState error={projectQuery.error} />;
   if (resourceQuery.error) return <ErrorState error={resourceQuery.error} />;
@@ -220,21 +173,17 @@ function ProjectResourceRoute() {
   return <section><ProjectHeader project={projectQuery.data.project} /><div className="mt-6 rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="m-0 text-xs uppercase tracking-[0.1em] text-[var(--projects-muted)]">Resource</p><h2 className="m-0 mt-2 text-2xl font-semibold capitalize">{resource.replaceAll("-", " ")}</h2></div><span className="rounded-full border border-[var(--projects-border)] px-3 py-1 text-xs text-[var(--projects-muted)]">{items.length} loaded</span></div>{items.length ? <div className="mt-6 divide-y divide-[var(--projects-divider)]">{items.slice(0, 12).map((item, index) => <div key={typeof item === "object" && item !== null && "id" in item ? String(item.id) : String(index)} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm"><span>{typeof item === "object" && item !== null && "name" in item ? String(item.name) : `Item ${index + 1}`}</span><span className="font-mono text-xs text-[var(--projects-muted)]">{typeof item === "object" && item !== null && "status" in item ? String(item.status) : "managed"}</span></div>)}</div> : <p className="m-0 mt-6 rounded-lg border border-dashed border-[var(--projects-border)] p-8 text-center text-sm text-[var(--projects-muted)]">No {resource.replaceAll("-", " ")} records yet.</p>}</div></section>;
 }
 
-function MetricCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
-  return <div className="rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5"><span className="inline-flex size-9 items-center justify-center rounded-lg bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-accent)]">{icon}</span><p className="m-0 mt-4 text-xs uppercase tracking-[0.1em] text-[var(--projects-muted)]">{label}</p><p className="m-0 mt-1 font-mono text-lg">{value}</p></div>;
-}
-
 const rootRoute = createRootRoute({
   component: RootLayout,
   notFoundComponent: () => <EmptyState title="Page not found" detail="The route you requested does not exist in Stealth Console." />,
 });
 const indexRoute = createRoute({ getParentRoute: () => rootRoute, path: "/", component: ProjectsRoute });
-const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/login", component: LoginRoute });
-const signupRoute = createRoute({ getParentRoute: () => rootRoute, path: "/signup", component: SignupRoute });
-const forgotPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: "/forgot-password", component: ForgotPasswordRoute });
-const resetPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: "/reset-password", component: ResetPasswordRoute });
-const verifyEmailRoute = createRoute({ getParentRoute: () => rootRoute, path: "/verify-email", component: VerifyEmailRoute });
-const acceptInvitationRoute = createRoute({ getParentRoute: () => rootRoute, path: "/accept-invitation", component: AcceptInvitationRoute });
+const loginRoute = createRoute({ getParentRoute: () => rootRoute, path: "/login", component: lazyRouteComponent(() => import("./auth-routes"), "LoginRoute") });
+const signupRoute = createRoute({ getParentRoute: () => rootRoute, path: "/signup", component: lazyRouteComponent(() => import("./auth-routes"), "SignupRoute") });
+const forgotPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: "/forgot-password", component: lazyRouteComponent(() => import("./auth-routes"), "ForgotPasswordRoute") });
+const resetPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: "/reset-password", component: lazyRouteComponent(() => import("./auth-routes"), "ResetPasswordRoute") });
+const verifyEmailRoute = createRoute({ getParentRoute: () => rootRoute, path: "/verify-email", component: lazyRouteComponent(() => import("./auth-routes"), "VerifyEmailRoute") });
+const acceptInvitationRoute = createRoute({ getParentRoute: () => rootRoute, path: "/accept-invitation", component: lazyRouteComponent(() => import("./auth-routes"), "AcceptInvitationRoute") });
 const agentRoute = createRoute({ getParentRoute: () => rootRoute, path: "/agent", component: lazyRouteComponent(() => import("./agent-route")) });
 const agentDetailRoute = createRoute({ getParentRoute: () => rootRoute, path: "/agent/$agentId", component: lazyRouteComponent(() => import("./agent-detail-route")) });
 const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: "/admin", component: lazyRouteComponent(() => import("./admin-route")) });

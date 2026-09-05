@@ -32,6 +32,7 @@ import {
   type BrowserFunctionVariable,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "./polling";
 
@@ -103,7 +104,7 @@ function inputClass() {
 export default function FunctionsRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/functions" });
   const functionsQuery = useQuery({
-    queryKey: ["project-functions", projectId],
+    queryKey: queryKeys.projectFunctions(projectId),
     queryFn: () => browserAPI.projectFunctions(projectId, { limit: 100 }),
   });
   const [selectedID, setSelectedID] = useState("");
@@ -161,7 +162,7 @@ export default function FunctionsRoute() {
   }, [selectedID]);
 
   const deploymentsQuery = useQuery({
-    queryKey: ["function-deployments", projectId, selectedID],
+    queryKey: queryKeys.functionDeployments(projectId, selectedID),
     queryFn: () =>
       browserAPI.projectFunctionDeployments(projectId, selectedID, {
         limit: 50,
@@ -171,13 +172,13 @@ export default function FunctionsRoute() {
   });
   const selectedDeployment = deploymentsQuery.data?.deployments.find((deployment) => deployment.id === selectedDeploymentID);
   const deploymentLogsQuery = useQuery({
-    queryKey: ["function-build-logs", projectId, selectedID, selectedDeploymentID],
+    queryKey: queryKeys.functionBuildLogs(projectId, selectedID, selectedDeploymentID),
     queryFn: () => browserAPI.projectFunctionBuildLogs(projectId, selectedID, selectedDeploymentID, { limit: 100 }),
     enabled: Boolean(selectedID && selectedDeploymentID && tab === "deployments"),
     refetchInterval: tab === "deployments" && deploymentIsInProgress(selectedDeployment) ? operationPollIntervalMs : false,
   });
   const variablesQuery = useQuery({
-    queryKey: ["function-variables", projectId, selectedID],
+    queryKey: queryKeys.functionVariables(projectId, selectedID),
     queryFn: () =>
       browserAPI.projectFunctionVariables(projectId, selectedID, {
         limit: 100,
@@ -186,7 +187,7 @@ export default function FunctionsRoute() {
     refetchInterval: false,
   });
   const executionsQuery = useQuery({
-    queryKey: ["function-executions", projectId, selectedID],
+    queryKey: queryKeys.functionExecutions(projectId, selectedID),
     queryFn: () =>
       browserAPI.projectFunctionExecutions(projectId, selectedID, {
         limit: 50,
@@ -196,7 +197,7 @@ export default function FunctionsRoute() {
   });
   const selectedExecution = executionsQuery.data?.executions.find((execution) => execution.id === selectedExecutionID);
   const executionLogsQuery = useQuery({
-    queryKey: ["function-execution-logs", projectId, selectedID, selectedExecutionID],
+    queryKey: queryKeys.functionExecutionLogs(projectId, selectedID, selectedExecutionID),
     queryFn: () => browserAPI.projectFunctionExecutionLogs(projectId, selectedID, selectedExecutionID, { limit: 100 }),
     enabled: Boolean(selectedID && selectedExecutionID && tab === "executions"),
     refetchInterval: tab === "executions" && executionIsInProgress(selectedExecution) ? operationPollIntervalMs : false,
@@ -225,7 +226,7 @@ export default function FunctionsRoute() {
       setCreateOpen(false);
       setSelectedID(result.function.id);
       await queryClient.invalidateQueries({
-        queryKey: ["project-functions", projectId],
+        queryKey: queryKeys.projectFunctions(projectId),
       });
     } catch (reason) {
       report(reason, "The function could not be created.");
@@ -265,7 +266,7 @@ export default function FunctionsRoute() {
         artifact_quota_bytes: quota,
       });
       await queryClient.invalidateQueries({
-        queryKey: ["project-functions", projectId],
+        queryKey: queryKeys.projectFunctions(projectId),
       });
     } catch (reason) {
       report(reason, "Function settings could not be saved.");
@@ -286,7 +287,7 @@ export default function FunctionsRoute() {
     try {
       await browserAPI.deleteProjectFunction(projectId, selected.id);
       await queryClient.invalidateQueries({
-        queryKey: ["project-functions", projectId],
+        queryKey: queryKeys.projectFunctions(projectId),
       });
       setSelectedID("");
     } catch (reason) {
@@ -313,10 +314,10 @@ export default function FunctionsRoute() {
       if (sourceInputRef.current) sourceInputRef.current.value = "";
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["function-deployments", projectId, selected.id],
+          queryKey: queryKeys.functionDeployments(projectId, selected.id),
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-functions", projectId],
+          queryKey: queryKeys.projectFunctions(projectId),
         }),
       ]);
     } catch (reason) {
@@ -337,10 +338,10 @@ export default function FunctionsRoute() {
       );
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["function-deployments", projectId, selected.id],
+          queryKey: queryKeys.functionDeployments(projectId, selected.id),
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-functions", projectId],
+          queryKey: queryKeys.projectFunctions(projectId),
         }),
       ]);
     } catch (reason) {
@@ -367,10 +368,10 @@ export default function FunctionsRoute() {
       );
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["function-deployments", projectId, selected.id],
+          queryKey: queryKeys.functionDeployments(projectId, selected.id),
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-functions", projectId],
+          queryKey: queryKeys.projectFunctions(projectId),
         }),
       ]);
     } catch (reason) {
@@ -403,7 +404,7 @@ export default function FunctionsRoute() {
       setVariableValue("");
       setVariableDescription("");
       await queryClient.invalidateQueries({
-        queryKey: ["function-variables", projectId, selected.id],
+        queryKey: queryKeys.functionVariables(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The variable could not be saved.");
@@ -428,7 +429,7 @@ export default function FunctionsRoute() {
         variable.id,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["function-variables", projectId, selected.id],
+        queryKey: queryKeys.functionVariables(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The variable could not be deleted.");
@@ -455,7 +456,7 @@ export default function FunctionsRoute() {
       });
       setExecutionInput("{}");
       await queryClient.invalidateQueries({
-        queryKey: ["function-executions", projectId, selected.id],
+        queryKey: queryKeys.functionExecutions(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The function invocation could not be queued.");

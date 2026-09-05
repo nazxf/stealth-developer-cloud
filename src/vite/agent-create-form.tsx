@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgentCatalog, type BrowserAgentRole, type BrowserAgentTool } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 
 export type AgentProjectOption = { id: string; name: string };
 
@@ -60,7 +61,7 @@ export function AgentCreateForm({ projects, catalog, onClose }: { projects: Agen
         instructions: parsed.data.instructions || null,
         tools: parsed.data.tools,
       });
-      await queryClient.invalidateQueries({ queryKey: ["agents"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.agents() });
       onClose();
     } catch (requestError) {
       setError(errorMessage(requestError));

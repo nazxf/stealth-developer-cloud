@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 
 const projectNameSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2–63 lowercase letters, numbers, or hyphens.");
 
@@ -28,7 +29,7 @@ export function ProjectCreateForm({ organizationID, onCreated }: { organizationI
     try {
       await browserAPI.createProject(organizationID, { name: parsed.data });
       setName("");
-      await queryClient.invalidateQueries({ queryKey: ["projects", organizationID] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projects(organizationID) });
       onCreated?.();
     } catch (requestError) {
       setError(errorMessage(requestError));

@@ -30,6 +30,7 @@ import {
   type BrowserSiteDomain,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 import { deploymentIsInProgress, deploymentPollInterval, operationPollIntervalMs } from "./polling";
 
@@ -84,7 +85,7 @@ function ErrorState({ error }: { error: unknown }) {
 export default function SitesRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/sites" });
   const sitesQuery = useQuery({
-    queryKey: ["project-sites", projectId],
+    queryKey: queryKeys.projectSites(projectId),
     queryFn: () => browserAPI.projectSites(projectId, { limit: 100 }),
   });
   const [selectedID, setSelectedID] = useState("");
@@ -126,7 +127,7 @@ export default function SitesRoute() {
     setSelectedDeploymentID("");
   }, [selectedID]);
   const deploymentsQuery = useQuery({
-    queryKey: ["site-deployments", projectId, selectedID],
+    queryKey: queryKeys.siteDeployments(projectId, selectedID),
     queryFn: () =>
       browserAPI.projectSiteDeployments(projectId, selectedID, { limit: 50 }),
     enabled: Boolean(selectedID),
@@ -134,7 +135,7 @@ export default function SitesRoute() {
   });
   const selectedDeployment = deploymentsQuery.data?.deployments.find((deployment) => deployment.id === selectedDeploymentID);
   const deploymentLogsQuery = useQuery({
-    queryKey: ["site-build-logs", projectId, selectedID, selectedDeploymentID],
+    queryKey: queryKeys.siteBuildLogs(projectId, selectedID, selectedDeploymentID),
     queryFn: () =>
       browserAPI.projectSiteBuildLogs(
         projectId,
@@ -146,7 +147,7 @@ export default function SitesRoute() {
     refetchInterval: selectedDeploymentID && deploymentIsInProgress(selectedDeployment) ? operationPollIntervalMs : false,
   });
   const domainsQuery = useQuery({
-    queryKey: ["site-domains", projectId, selectedID],
+    queryKey: queryKeys.siteDomains(projectId, selectedID),
     queryFn: () =>
       browserAPI.projectSiteDomains(projectId, selectedID, { limit: 50 }),
     enabled: Boolean(selectedID),
@@ -173,7 +174,7 @@ export default function SitesRoute() {
       setCreateOpen(false);
       setSelectedID(result.site.id);
       await queryClient.invalidateQueries({
-        queryKey: ["project-sites", projectId],
+        queryKey: queryKeys.projectSites(projectId),
       });
     } catch (reason) {
       report(reason, "The site could not be created.");
@@ -202,7 +203,7 @@ export default function SitesRoute() {
         artifact_quota_bytes: quota,
       });
       await queryClient.invalidateQueries({
-        queryKey: ["project-sites", projectId],
+        queryKey: queryKeys.projectSites(projectId),
       });
     } catch (reason) {
       report(reason, "Site settings could not be saved.");
@@ -223,7 +224,7 @@ export default function SitesRoute() {
     try {
       await browserAPI.deleteProjectSite(projectId, selected.id);
       await queryClient.invalidateQueries({
-        queryKey: ["project-sites", projectId],
+        queryKey: queryKeys.projectSites(projectId),
       });
       setSelectedID("");
     } catch (reason) {
@@ -255,10 +256,10 @@ export default function SitesRoute() {
       if (sourceInputRef.current) sourceInputRef.current.value = "";
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["site-deployments", projectId, selected.id],
+          queryKey: queryKeys.siteDeployments(projectId, selected.id),
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-sites", projectId],
+          queryKey: queryKeys.projectSites(projectId),
         }),
       ]);
     } catch (reason) {
@@ -290,7 +291,7 @@ export default function SitesRoute() {
       });
       setRepository("");
       await queryClient.invalidateQueries({
-        queryKey: ["site-deployments", projectId, selected.id],
+        queryKey: queryKeys.siteDeployments(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The Git deployment could not be created.");
@@ -310,10 +311,10 @@ export default function SitesRoute() {
       );
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["site-deployments", projectId, selected.id],
+        queryKey: queryKeys.siteDeployments(projectId, selected.id),
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-sites", projectId],
+          queryKey: queryKeys.projectSites(projectId),
         }),
       ]);
     } catch (reason) {
@@ -340,10 +341,10 @@ export default function SitesRoute() {
       );
       await Promise.all([
         queryClient.invalidateQueries({
-          queryKey: ["site-deployments", projectId, selected.id],
+          queryKey: queryKeys.siteDeployments(projectId, selected.id),
         }),
         queryClient.invalidateQueries({
-          queryKey: ["project-sites", projectId],
+          queryKey: queryKeys.projectSites(projectId),
         }),
       ]);
     } catch (reason) {
@@ -363,7 +364,7 @@ export default function SitesRoute() {
       });
       setHostname("");
       await queryClient.invalidateQueries({
-        queryKey: ["site-domains", projectId, selected.id],
+        queryKey: queryKeys.siteDomains(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The domain could not be added.");
@@ -382,7 +383,7 @@ export default function SitesRoute() {
         domainID,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["site-domains", projectId, selected.id],
+        queryKey: queryKeys.siteDomains(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The domain could not be verified.");
@@ -407,7 +408,7 @@ export default function SitesRoute() {
         domainID,
       );
       await queryClient.invalidateQueries({
-        queryKey: ["site-domains", projectId, selected.id],
+        queryKey: queryKeys.siteDomains(projectId, selected.id),
       });
     } catch (reason) {
       report(reason, "The domain could not be deleted.");

@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 
 export type GitDeploymentRuntime = "node-22" | "python-3.13" | "go-1.24";
 export type GitDeployableResource = { id: string; name: string; type: "function" | "site"; activeDeploymentID: string | null };
@@ -71,8 +72,8 @@ export function GitDeploymentForm({ projectId, resources, canManage, onClose }: 
         activate,
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["project-sites", projectId] }),
-        queryClient.invalidateQueries({ queryKey: ["deployments", projectId] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.projectSites(projectId) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.deployments(projectId) }),
       ]);
       onClose();
     } catch (requestError) {

@@ -4,6 +4,7 @@ import { LoaderCircle, Plus, ShieldCheck, UserCheck, UserX, X } from "lucide-rea
 import { useEffect, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserApplicationUser } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string) {
@@ -24,8 +25,8 @@ function userStatusClass(status: BrowserApplicationUser["status"]) {
 
 export default function AuthRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/auth" });
-  const usersQuery = useQuery({ queryKey: ["project-users", projectId], queryFn: () => browserAPI.projectUsers(projectId, { limit: 50 }) });
-  const settingsQuery = useQuery({ queryKey: ["project-auth-settings", projectId], queryFn: () => browserAPI.projectAuthSettings(projectId) });
+  const usersQuery = useQuery({ queryKey: queryKeys.projectUsers(projectId), queryFn: () => browserAPI.projectUsers(projectId, { limit: 50 }) });
+  const settingsQuery = useQuery({ queryKey: queryKeys.projectAuthSettings(projectId), queryFn: () => browserAPI.projectAuthSettings(projectId) });
   const [additionalUsers, setAdditionalUsers] = useState<BrowserApplicationUser[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadPending, setLoadPending] = useState(false);
@@ -53,7 +54,7 @@ export default function AuthRoute() {
   const canManage = Boolean(usersQuery.data?.can_manage && settingsQuery.data?.can_manage);
 
   async function invalidateUsers() {
-    await queryClient.invalidateQueries({ queryKey: ["project-users", projectId] });
+    await queryClient.invalidateQueries({ queryKey: queryKeys.projectUsers(projectId) });
   }
 
   async function loadMore() {
@@ -78,7 +79,7 @@ export default function AuthRoute() {
     setActionError("");
     try {
       await browserAPI.updateProjectAuthSettings(projectId, { registration_enabled: !settings.registration_enabled });
-      await queryClient.invalidateQueries({ queryKey: ["project-auth-settings", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectAuthSettings(projectId) });
     } catch (error) {
       setActionError(browserAPIErrorMessage(error, "The registration setting could not be updated."));
     } finally {
@@ -93,7 +94,7 @@ export default function AuthRoute() {
     const origins = corsDraft.split(/[\n,]/).map((value) => value.trim()).filter(Boolean);
     try {
       await browserAPI.updateProjectAuthSettings(projectId, { cors_origins: origins });
-      await queryClient.invalidateQueries({ queryKey: ["project-auth-settings", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectAuthSettings(projectId) });
     } catch (error) {
       setActionError(browserAPIErrorMessage(error, "The browser origin allowlist could not be updated."));
     } finally {

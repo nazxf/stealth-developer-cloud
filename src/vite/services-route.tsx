@@ -5,6 +5,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { browserAPI } from "@/lib/browser-api";
 import { ServiceCanvas, type ServiceCanvasService } from "./service-canvas";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryKeys } from "./query-keys";
 
 type ServiceCard = ServiceCanvasService & {
   id: string;
@@ -20,14 +21,14 @@ const kindStyles: Record<ServiceCard["kind"], { label: string; icon: typeof Acti
 export default function ServicesRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/services" });
   const queryClient = useQueryClient();
-  const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => browserAPI.project(projectId) });
-  const layoutQuery = useQuery({ queryKey: ["service-layout", projectId], queryFn: () => browserAPI.projectServiceLayout(projectId) });
+  const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
+  const layoutQuery = useQuery({ queryKey: queryKeys.projectServiceLayout(projectId), queryFn: () => browserAPI.projectServiceLayout(projectId) });
   const resourceQueries = useQueries({
     queries: [
-      { queryKey: ["service-functions", projectId], queryFn: () => browserAPI.projectFunctions(projectId, { limit: 100 }) },
-      { queryKey: ["service-sites", projectId], queryFn: () => browserAPI.projectSites(projectId, { limit: 100 }) },
-      { queryKey: ["service-databases", projectId], queryFn: () => browserAPI.projectDatabases(projectId, { limit: 100 }) },
-      { queryKey: ["service-buckets", projectId], queryFn: () => browserAPI.projectStorageBuckets(projectId, { limit: 100 }) },
+      { queryKey: queryKeys.serviceFunctions(projectId), queryFn: () => browserAPI.projectFunctions(projectId, { limit: 100 }) },
+      { queryKey: queryKeys.serviceSites(projectId), queryFn: () => browserAPI.projectSites(projectId, { limit: 100 }) },
+      { queryKey: queryKeys.serviceDatabases(projectId), queryFn: () => browserAPI.projectDatabases(projectId, { limit: 100 }) },
+      { queryKey: queryKeys.serviceBuckets(projectId), queryFn: () => browserAPI.projectStorageBuckets(projectId, { limit: 100 }) },
     ],
   });
   const services: ServiceCard[] = [
@@ -41,7 +42,7 @@ export default function ServicesRoute() {
   const canManage = layoutQuery.data?.can_manage ?? resourceQueries.some((query) => query.data?.can_manage);
   const saveLayout = useCallback(async (layout: Parameters<typeof browserAPI.replaceProjectServiceLayout>[1]) => {
     const saved = await browserAPI.replaceProjectServiceLayout(projectId, layout);
-    queryClient.setQueryData(["service-layout", projectId], saved);
+    queryClient.setQueryData(queryKeys.projectServiceLayout(projectId), saved);
     return saved;
   }, [projectId, queryClient]);
 

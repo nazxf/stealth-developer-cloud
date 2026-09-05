@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgentRun } from "@/lib/browser-api";
 import { AgentRunForm } from "./agent-run-form";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string | null | undefined) {
@@ -28,20 +29,20 @@ function ErrorState({ error }: { error: unknown }) {
 
 export default function AgentDetailRoute() {
   const { agentId } = useParams({ from: "/agent/$agentId" });
-  const agentQuery = useQuery({ queryKey: ["agent", agentId], queryFn: () => browserAPI.agent(agentId) });
-  const runsQuery = useQuery({ queryKey: ["agent-runs", agentId], queryFn: () => browserAPI.agentRuns(agentId, { limit: 50 }) });
+  const agentQuery = useQuery({ queryKey: queryKeys.agent(agentId), queryFn: () => browserAPI.agent(agentId) });
+  const runsQuery = useQuery({ queryKey: queryKeys.agentRuns(agentId), queryFn: () => browserAPI.agentRuns(agentId, { limit: 50 }) });
   const [selectedRunID, setSelectedRunID] = useState<string | null>(null);
   const [cancelPending, setCancelPending] = useState<string | null>(null);
   const [error, setError] = useState("");
   const selectedRun = runsQuery.data?.runs.find((run) => run.id === selectedRunID) ?? runsQuery.data?.runs[0];
-  const logsQuery = useQuery({ queryKey: ["agent-run-logs", agentId, selectedRun?.id], queryFn: () => browserAPI.agentRunLogs(agentId, selectedRun!.id, { limit: 100 }), enabled: Boolean(selectedRun?.id) });
+  const logsQuery = useQuery({ queryKey: queryKeys.agentRunLogs(agentId, selectedRun?.id), queryFn: () => browserAPI.agentRunLogs(agentId, selectedRun!.id, { limit: 100 }), enabled: Boolean(selectedRun?.id) });
 
   useEffect(() => {
     const hasActiveRun = runsQuery.data?.runs.some((run) => run.status === "queued" || run.status === "running");
     if (!hasActiveRun) return;
     const timer = window.setInterval(() => {
-      void queryClient.invalidateQueries({ queryKey: ["agent-runs", agentId] });
-      void queryClient.invalidateQueries({ queryKey: ["agent", agentId] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.agentRuns(agentId) });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.agent(agentId) });
     }, 2500);
     return () => window.clearInterval(timer);
   }, [agentId, runsQuery.data?.runs]);
@@ -52,7 +53,7 @@ export default function AgentDetailRoute() {
     setError("");
     try {
       await browserAPI.cancelAgentRun(agentId, runID);
-      await queryClient.invalidateQueries({ queryKey: ["agent-runs", agentId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.agentRuns(agentId) });
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The agent run could not be cancelled."));
     } finally {

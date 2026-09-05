@@ -5,18 +5,19 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserOrganization, type BrowserOrganizationMembershipManageRole } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryKeys } from "./query-keys";
 
 const adminSections = ["usage", "incidents", "traces", "users", "runs", "workers", "settings"] as const;
 
 export default function AdminRoute() {
-  const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: () => browserAPI.organizations({ limit: 100 }) });
+  const organizationsQuery = useQuery({ queryKey: queryKeys.organizations(), queryFn: () => browserAPI.organizations({ limit: 100 }) });
   const organizations = organizationsQuery.data?.organizations ?? [];
-  const projectQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-projects", organization.id], queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
+  const projectQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.adminProjects(organization.id), queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
   const projects = useMemo(() => projectQueries.flatMap((query) => query.data?.projects ?? []), [projectQueries]);
-  const usageQueries = useQueries({ queries: projects.map((project) => ({ queryKey: ["admin-project-usage", project.id], queryFn: () => browserAPI.projectUsage(project.id) })) });
-  const incidentQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-incidents", organization.id], queryFn: () => browserAPI.organizationIncidents(organization.id) })) });
-  const healthQuery = useQuery({ queryKey: ["healthz"], queryFn: browserAPI.health, refetchInterval: 15_000 });
-  const readinessQuery = useQuery({ queryKey: ["readyz"], queryFn: browserAPI.readiness, refetchInterval: 15_000 });
+  const usageQueries = useQueries({ queries: projects.map((project) => ({ queryKey: queryKeys.adminProjectUsage(project.id), queryFn: () => browserAPI.projectUsage(project.id) })) });
+  const incidentQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.organizationIncidents(organization.id), queryFn: () => browserAPI.organizationIncidents(organization.id) })) });
+  const healthQuery = useQuery({ queryKey: queryKeys.health(), queryFn: browserAPI.health, refetchInterval: 15_000 });
+  const readinessQuery = useQuery({ queryKey: queryKeys.readiness(), queryFn: browserAPI.readiness, refetchInterval: 15_000 });
   const usages = usageQueries.flatMap((query) => query.data ? [query.data.usage] : []);
   const incidents = incidentQueries.flatMap((query, index) => query.data?.incidents.map((incident) => ({ ...incident, organizationName: organizations[index]?.name ?? "Organization" })) ?? []).sort((first, second) => Date.parse(second.created_at) - Date.parse(first.created_at));
   const totals = {
@@ -35,10 +36,10 @@ export default function AdminRoute() {
 export function AdminSectionRoute() {
   const { section } = useParams({ from: "/admin/$section" });
   const validSection = adminSections.includes(section as (typeof adminSections)[number]);
-  const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: () => browserAPI.organizations({ limit: 100 }) });
+  const organizationsQuery = useQuery({ queryKey: queryKeys.organizations(), queryFn: () => browserAPI.organizations({ limit: 100 }) });
   const organizations = organizationsQuery.data?.organizations ?? [];
-  const incidentQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-incidents", organization.id], queryFn: () => browserAPI.organizationIncidents(organization.id), enabled: section === "incidents" })) });
-  const traceQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-traces", organization.id], queryFn: () => browserAPI.organizationTraces(organization.id), enabled: section === "traces" })) });
+  const incidentQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.organizationIncidents(organization.id), queryFn: () => browserAPI.organizationIncidents(organization.id), enabled: section === "incidents" })) });
+  const traceQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.organizationTraces(organization.id), queryFn: () => browserAPI.organizationTraces(organization.id), enabled: section === "traces" })) });
   if (!validSection) return <AdminFrame><ErrorState error={new Error("That admin section does not exist.")} /></AdminFrame>;
   if (organizationsQuery.isPending) return <AdminFrame><LoadingState /></AdminFrame>;
   if (organizationsQuery.error) return <AdminFrame><ErrorState error={organizationsQuery.error} /></AdminFrame>;
@@ -55,9 +56,9 @@ function IncidentList({ incidents }: { incidents: Array<{ id: string; title: str
 function TraceList({ traces }: { traces: Array<{ id: string; service: string; method: string; route: string; status: number; duration_ms: number }> }) { return <section className="mt-6 overflow-x-auto rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)]"><table className="w-full min-w-[680px] text-left text-sm"><caption className="sr-only">Recent HTTP traces</caption><thead className="border-b border-[var(--projects-divider)] bg-[var(--projects-control)] text-xs uppercase tracking-[0.08em] text-[var(--projects-muted)]"><tr><th scope="col" className="px-4 py-3">Service</th><th scope="col" className="px-4 py-3">Route</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-4 py-3">Duration</th></tr></thead><tbody className="divide-y divide-[var(--projects-divider)]">{traces.slice(0, 100).map((trace) => <tr key={trace.id}><td className="px-4 py-3">{trace.service}<span className="mt-0.5 block text-xs text-[var(--projects-muted)]">{trace.method}</span></td><td className="px-4 py-3 font-mono text-xs">{trace.route}</td><td className={`px-4 py-3 font-mono text-xs ${trace.status >= 500 ? "text-[var(--projects-danger)]" : "text-[var(--projects-accent)]"}`}>{trace.status}</td><td className="px-4 py-3 text-xs text-[var(--projects-muted)]">{trace.duration_ms} ms</td></tr>)}</tbody></table>{traces.length === 0 ? <p className="m-0 p-8 text-center text-sm text-[var(--projects-muted)]">No traces found.</p> : null}</section>; }
 
 function AdminUsagePanel({ organizations }: { organizations: BrowserOrganization[] }) {
-  const projectQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-usage-projects", organization.id], queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
+  const projectQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.adminUsageProjects(organization.id), queryFn: () => browserAPI.projects(organization.id, { limit: 100 }) })) });
   const projects = projectQueries.flatMap((query) => query.data?.projects ?? []);
-  const usageQueries = useQueries({ queries: projects.map((project) => ({ queryKey: ["admin-usage-detail", project.id], queryFn: () => browserAPI.projectUsage(project.id) })) });
+  const usageQueries = useQueries({ queries: projects.map((project) => ({ queryKey: queryKeys.adminUsageDetail(project.id), queryFn: () => browserAPI.projectUsage(project.id) })) });
   return <section className="mt-6 overflow-x-auto rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)]"><table className="w-full min-w-[760px] text-left text-sm"><caption className="sr-only">Project usage</caption><thead className="border-b border-[var(--projects-divider)] bg-[var(--projects-control)] text-xs uppercase tracking-[0.08em] text-[var(--projects-muted)]"><tr><th scope="col" className="px-4 py-3">Project</th><th scope="col" className="px-4 py-3">Users</th><th scope="col" className="px-4 py-3">Databases</th><th scope="col" className="px-4 py-3">Storage</th><th scope="col" className="px-4 py-3">Functions</th><th scope="col" className="px-4 py-3">Sites</th><th scope="col" className="px-4 py-3">Captured</th></tr></thead><tbody className="divide-y divide-[var(--projects-divider)]">{projects.map((project, index) => { const usage = usageQueries[index]?.data?.usage; return <tr key={project.id}><td className="px-4 py-3"><Link to="/projects/$projectId" params={{ projectId: project.id }} className="font-medium text-[var(--projects-accent)] hover:underline">{project.name}</Link><span className="mt-0.5 block font-mono text-xs text-[var(--projects-muted)]">{project.id}</span></td><td className="px-4 py-3 font-mono text-xs">{usage?.application_users ?? "—"}</td><td className="px-4 py-3 font-mono text-xs">{usage?.database_count ?? "—"}</td><td className="px-4 py-3 font-mono text-xs">{usage?.storage_file_count ?? "—"}</td><td className="px-4 py-3 font-mono text-xs">{usage?.function_count ?? "—"}</td><td className="px-4 py-3 font-mono text-xs">{usage?.site_count ?? "—"}</td><td className="px-4 py-3 text-xs text-[var(--projects-muted)]">{usage ? new Date(usage.captured_at).toLocaleString() : "Loading…"}</td></tr>; })}</tbody></table>{projects.length === 0 ? <p className="m-0 p-8 text-center text-sm text-[var(--projects-muted)]">No projects found in the available organizations.</p> : null}</section>;
 }
 
@@ -69,8 +70,8 @@ function AdminUsersPanel({ organizations }: { organizations: BrowserOrganization
   const [inviteRole, setInviteRole] = useState<BrowserOrganizationMembershipManageRole>("developer");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState("");
-  const membershipQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-memberships", organization.id], queryFn: () => browserAPI.organizationMemberships(organization.id, { limit: 100 }) })) });
-  const invitationQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: ["admin-invitations", organization.id], queryFn: () => browserAPI.organizationInvitations(organization.id, { limit: 100 }) })) });
+  const membershipQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.organizationMemberships(organization.id), queryFn: () => browserAPI.organizationMemberships(organization.id, { limit: 100 }) })) });
+  const invitationQueries = useQueries({ queries: organizations.map((organization) => ({ queryKey: queryKeys.organizationInvitations(organization.id), queryFn: () => browserAPI.organizationInvitations(organization.id, { limit: 100 }) })) });
   const selectedOrganization = organizations.find((organization) => organization.id === organizationID) ?? organizations[0];
   const selectedIndex = selectedOrganization ? organizations.findIndex((organization) => organization.id === selectedOrganization.id) : -1;
   const memberships = selectedIndex >= 0 ? membershipQueries[selectedIndex]?.data?.memberships ?? [] : [];
@@ -85,7 +86,7 @@ function AdminUsersPanel({ organizations }: { organizations: BrowserOrganization
       const result = await browserAPI.createOrganizationInvitation(selectedOrganization.id, { email: inviteEmail.trim(), role: inviteRole });
       setInviteEmail("");
       setMessage(result.delivery === "sent" ? "Invitation sent." : "Invitation created, but email delivery failed.");
-      await queryClient.invalidateQueries({ queryKey: ["admin-invitations", selectedOrganization.id] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizationInvitations(selectedOrganization.id) });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -99,7 +100,7 @@ function AdminUsersPanel({ organizations }: { organizations: BrowserOrganization
     setMessage("");
     try {
       await browserAPI.updateOrganizationMembership(selectedOrganization.id, accountID, role);
-      await queryClient.invalidateQueries({ queryKey: ["admin-memberships", selectedOrganization.id] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizationMemberships(selectedOrganization.id) });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -113,7 +114,7 @@ function AdminUsersPanel({ organizations }: { organizations: BrowserOrganization
     setMessage("");
     try {
       await browserAPI.removeOrganizationMembership(selectedOrganization.id, accountID);
-      await queryClient.invalidateQueries({ queryKey: ["admin-memberships", selectedOrganization.id] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizationMemberships(selectedOrganization.id) });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -127,7 +128,7 @@ function AdminUsersPanel({ organizations }: { organizations: BrowserOrganization
     setMessage("");
     try {
       await browserAPI.revokeOrganizationInvitation(selectedOrganization.id, invitationID);
-      await queryClient.invalidateQueries({ queryKey: ["admin-invitations", selectedOrganization.id] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizationInvitations(selectedOrganization.id) });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -139,23 +140,23 @@ function AdminUsersPanel({ organizations }: { organizations: BrowserOrganization
 }
 
 function AdminRunsPanel() {
-  const agentsQuery = useQuery({ queryKey: ["admin-runs-agents"], queryFn: () => browserAPI.agents({ limit: 100 }) });
+  const agentsQuery = useQuery({ queryKey: queryKeys.adminRuns(), queryFn: () => browserAPI.agents({ limit: 100 }) });
   const agents = agentsQuery.data?.agents ?? [];
-  const runQueries = useQueries({ queries: agents.map((agent) => ({ queryKey: ["admin-runs", agent.id], queryFn: () => browserAPI.agentRuns(agent.id, { limit: 50 }), enabled: agentsQuery.isSuccess })) });
+  const runQueries = useQueries({ queries: agents.map((agent) => ({ queryKey: queryKeys.adminAgentRuns(agent.id), queryFn: () => browserAPI.agentRuns(agent.id, { limit: 50 }), enabled: agentsQuery.isSuccess })) });
   const runs = runQueries.flatMap((query, index) => query.data?.runs.map((run) => ({ ...run, agentName: agents[index]?.name ?? "Agent" })) ?? []).sort((first, second) => Date.parse(second.created_at) - Date.parse(first.created_at));
   return <section className="mt-6 overflow-x-auto rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)]"><table className="w-full min-w-[860px] text-left text-sm"><caption className="sr-only">Agent runs</caption><thead className="border-b border-[var(--projects-divider)] bg-[var(--projects-control)] text-xs uppercase tracking-[0.08em] text-[var(--projects-muted)]"><tr><th scope="col" className="px-4 py-3">Agent</th><th scope="col" className="px-4 py-3">Prompt</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-4 py-3">Queued</th></tr></thead><tbody className="divide-y divide-[var(--projects-divider)]">{runs.slice(0, 100).map((run) => <tr key={run.id}><td className="px-4 py-3 font-medium">{run.agentName}<span className="mt-0.5 block font-mono text-xs text-[var(--projects-muted)]">{run.id}</span></td><td className="max-w-[34rem] truncate px-4 py-3 text-sm">{run.prompt}</td><td className={`px-4 py-3 text-xs font-semibold ${run.status === "failed" ? "text-[var(--projects-danger)]" : run.status === "completed" ? "text-[var(--projects-accent)]" : "text-[var(--projects-warning)]"}`}>{run.status}</td><td className="px-4 py-3 text-xs text-[var(--projects-muted)]">{new Date(run.queued_at).toLocaleString()}</td></tr>)}</tbody></table>{runs.length === 0 ? <p className="m-0 p-8 text-center text-sm text-[var(--projects-muted)]">No agent runs found.</p> : null}</section>;
 }
 
 function AdminWorkersPanel() {
-  const agentsQuery = useQuery({ queryKey: ["admin-workers-agents"], queryFn: () => browserAPI.agents({ limit: 100 }), refetchInterval: 15_000 });
+  const agentsQuery = useQuery({ queryKey: queryKeys.adminWorkers(), queryFn: () => browserAPI.agents({ limit: 100 }), refetchInterval: 15_000 });
   const agents = agentsQuery.data?.agents ?? [];
   const active = agents.filter((agent) => agent.status === "active" || agent.status === "running").length;
   return <section className="mt-6 space-y-4"><div className="grid gap-3 sm:grid-cols-3"><Metric icon={<ServerCog size={18} />} label="Registered workers" value={agents.length} detail="Agent workers visible to the control plane" /><Metric icon={<Activity size={18} />} label="Active workers" value={active} detail="Reported active or running" /><Metric icon={<Workflow size={18} />} label="Idle workers" value={Math.max(agents.length - active, 0)} detail="Available for the next run" /></div><div className="overflow-x-auto rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)]"><table className="w-full min-w-[720px] text-left text-sm"><caption className="sr-only">Agent workers</caption><thead className="border-b border-[var(--projects-divider)] bg-[var(--projects-control)] text-xs uppercase tracking-[0.08em] text-[var(--projects-muted)]"><tr><th scope="col" className="px-4 py-3">Worker</th><th scope="col" className="px-4 py-3">Project</th><th scope="col" className="px-4 py-3">Status</th><th scope="col" className="px-4 py-3">Last active</th></tr></thead><tbody className="divide-y divide-[var(--projects-divider)]">{agents.map((agent) => <tr key={agent.id}><td className="px-4 py-3 font-medium">{agent.name}<span className="mt-0.5 block text-xs text-[var(--projects-muted)]">{agent.provider} · {agent.model}</span></td><td className="px-4 py-3">{agent.project_name}<span className="mt-0.5 block font-mono text-xs text-[var(--projects-muted)]">{agent.project_id}</span></td><td className="px-4 py-3 text-xs">{agent.status}</td><td className="px-4 py-3 text-xs text-[var(--projects-muted)]">{agent.last_active_at ? new Date(agent.last_active_at).toLocaleString() : "No heartbeat"}</td></tr>)}</tbody></table>{agents.length === 0 ? <p className="m-0 p-8 text-center text-sm text-[var(--projects-muted)]">No workers registered.</p> : null}</div></section>;
 }
 
 function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganization[] }) {
-  const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
-  const sessionsQuery = useQuery({ queryKey: ["account-sessions"], queryFn: browserAPI.accountSessions });
+  const accountQuery = useQuery({ queryKey: queryKeys.account(), queryFn: browserAPI.currentAccount });
+  const sessionsQuery = useQuery({ queryKey: queryKeys.accountSessions(), queryFn: browserAPI.accountSessions });
   const [organizationID, setOrganizationID] = useState(organizations[0]?.id ?? "");
   const selectedOrganization = organizations.find((organization) => organization.id === organizationID) ?? organizations[0];
   const [name, setName] = useState(selectedOrganization?.name ?? "");
@@ -164,7 +165,7 @@ function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganizat
   const [newPassword, setNewPassword] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState("");
-  const auditQuery = useQuery({ queryKey: ["admin-settings-audit", selectedOrganization?.id], queryFn: () => browserAPI.organizationAuditEvents(selectedOrganization!.id, { limit: 20 }), enabled: Boolean(selectedOrganization) });
+  const auditQuery = useQuery({ queryKey: queryKeys.organizationAuditEvents(selectedOrganization?.id), queryFn: () => browserAPI.organizationAuditEvents(selectedOrganization!.id, { limit: 20 }), enabled: Boolean(selectedOrganization) });
 
   useEffect(() => {
     setName(selectedOrganization?.name ?? "");
@@ -179,7 +180,7 @@ function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganizat
     try {
       await browserAPI.updateOrganization(selectedOrganization.id, { name: name.trim(), slug: slug.trim() });
       setMessage("Organization settings saved.");
-      await queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations() });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -196,7 +197,7 @@ function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganizat
       setCurrentPassword("");
       setNewPassword("");
       setMessage(`Password updated. ${result.sessions_revoked} other session(s) revoked.`);
-      await queryClient.invalidateQueries({ queryKey: ["account-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.accountSessions() });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -209,7 +210,7 @@ function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganizat
     setMessage("");
     try {
       await browserAPI.revokeAccountSession(sessionID);
-      await queryClient.invalidateQueries({ queryKey: ["account-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.accountSessions() });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {
@@ -223,7 +224,7 @@ function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganizat
     try {
       const result = await browserAPI.revokeOtherAccountSessions();
       setMessage(`${result.revoked} other session(s) revoked.`);
-      await queryClient.invalidateQueries({ queryKey: ["account-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.accountSessions() });
     } catch (error) {
       setMessage(errorMessage(error));
     } finally {

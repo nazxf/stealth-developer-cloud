@@ -4,6 +4,7 @@ import { Check, Clipboard, LoaderCircle, Plus, RefreshCw, Trash2, Webhook, X } f
 import { useEffect, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserProjectWebhook, type BrowserProjectWebhookDelivery } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { queryKeys } from "./query-keys";
 import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string | null | undefined) {
@@ -26,7 +27,7 @@ function deliveryStatusClass(status: BrowserProjectWebhookDelivery["status"]) {
 
 export default function WebhooksRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/webhooks" });
-  const webhooksQuery = useQuery({ queryKey: ["project-webhooks", projectId], queryFn: () => browserAPI.projectWebhooks(projectId, { limit: 50 }) });
+  const webhooksQuery = useQuery({ queryKey: queryKeys.projectWebhooks(projectId), queryFn: () => browserAPI.projectWebhooks(projectId, { limit: 50 }) });
   const [additionalWebhooks, setAdditionalWebhooks] = useState<BrowserProjectWebhook[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadPending, setLoadPending] = useState(false);
@@ -86,7 +87,7 @@ export default function WebhooksRoute() {
       setURL("");
       setEvents("*");
       setCreateOpen(false);
-      await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectWebhooks(projectId) });
     } catch (requestError) {
       setFormError(browserAPIErrorMessage(requestError, "The webhook could not be created."));
     } finally {
@@ -100,7 +101,7 @@ export default function WebhooksRoute() {
     setError("");
     try {
       await browserAPI.updateProjectWebhook(projectId, item.id, { enabled: !item.enabled });
-      await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectWebhooks(projectId) });
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The webhook could not be updated."));
     } finally {
@@ -116,7 +117,7 @@ export default function WebhooksRoute() {
       const response = await browserAPI.rotateProjectWebhookSecret(projectId, item.id);
       setSecret(response.secret);
       setCopied(false);
-      await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectWebhooks(projectId) });
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The webhook secret could not be rotated."));
     } finally {
@@ -130,7 +131,7 @@ export default function WebhooksRoute() {
     setError("");
     try {
       await browserAPI.deleteProjectWebhook(projectId, item.id);
-      await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.projectWebhooks(projectId) });
       if (deliveryOpen === item.id) setDeliveryOpen(null);
     } catch (requestError) {
       setError(browserAPIErrorMessage(requestError, "The webhook could not be deleted."));

@@ -4,6 +4,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserOrganizationAuditEvent, type BrowserTrace } from "@/lib/browser-api";
 import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryKeys } from "./query-keys";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value));
@@ -34,9 +35,9 @@ function formatBytes(value: number) {
 
 export default function LogsRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/logs" });
-  const projectQuery = useQuery({ queryKey: ["project", projectId], queryFn: () => browserAPI.project(projectId) });
-  const eventsQuery = useQuery({ queryKey: ["project-audit-events", projectId], queryFn: () => browserAPI.projectAuditEvents(projectId, { limit: 50 }) });
-  const tracesQuery = useQuery({ queryKey: ["project-traces", projectId], queryFn: () => browserAPI.projectTraces(projectId, { limit: 50 }) });
+  const projectQuery = useQuery({ queryKey: queryKeys.project(projectId), queryFn: () => browserAPI.project(projectId) });
+  const eventsQuery = useQuery({ queryKey: queryKeys.projectAuditEvents(projectId), queryFn: () => browserAPI.projectAuditEvents(projectId, { limit: 50 }) });
+  const tracesQuery = useQuery({ queryKey: queryKeys.projectTraces(projectId), queryFn: () => browserAPI.projectTraces(projectId, { limit: 50 }) });
   const [events, setEvents] = useState<BrowserOrganizationAuditEvent[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadPending, setLoadPending] = useState(false);
