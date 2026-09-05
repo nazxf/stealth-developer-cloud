@@ -172,20 +172,82 @@ const storageFileSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const functionRuntimeSchema = z.enum(["node-22", "python-3.13", "go-1.24"]);
 const functionSchema = z.object({
   id: z.string(),
   project_id: z.string(),
   name: z.string(),
+  runtime: functionRuntimeSchema,
+  entrypoint: z.string(),
+  commands: z.string(),
+  timeout_seconds: z.number(),
+  enabled: z.boolean(),
+  logging: z.boolean(),
+  execute_permissions: z.array(z.string()),
+  description: z.string().nullable().optional(),
+  status: z.enum(["active", "disabled"]),
+  artifact_quota_bytes: z.number(),
+  artifact_used_bytes: z.number(),
+  artifact_reserved_bytes: z.number(),
   active_deployment_id: z.string().nullable().optional(),
-  status: z.string(),
-}).passthrough();
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const functionVariableSchema = z.object({
+  id: z.string(),
+  function_id: z.string(),
+  project_id: z.string(),
+  key: z.string(),
+  kind: z.enum(["variable", "secret"]),
+  is_secret: z.boolean(),
+  has_value: z.boolean(),
+  description: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const functionExecutionSchema = z.object({
+  id: z.string(),
+  function_id: z.string(),
+  deployment_id: z.string(),
+  project_id: z.string(),
+  status: z.enum(["accepted", "running", "succeeded", "failed", "cancelled"]),
+  trigger: z.string(),
+  response_status: z.number().nullable().optional(),
+  error_message: z.string().nullable().optional(),
+  started_at: z.string().nullable().optional(),
+  finished_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const siteSchema = z.object({
   id: z.string(),
   project_id: z.string(),
   name: z.string(),
+  framework: z.literal("static"),
+  enabled: z.boolean(),
+  status: z.enum(["active", "disabled"]),
+  artifact_quota_bytes: z.number(),
+  artifact_used_bytes: z.number(),
+  artifact_reserved_bytes: z.number(),
   active_deployment_id: z.string().nullable().optional(),
-  status: z.string(),
-}).passthrough();
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const siteDomainSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  site_id: z.string(),
+  hostname: z.string(),
+  status: z.enum(["pending", "verified", "disabled"]),
+  verification_token: z.string(),
+  verification_record_name: z.string(),
+  verification_record_type: z.literal("TXT"),
+  verification_record_value: z.string(),
+  verified_at: z.string().nullable().optional(),
+  tls_status: z.enum(["external", "pending", "active", "failed"]),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const deploymentSchema = z.object({
   id: z.string(),
   version: z.number(),
@@ -332,6 +394,12 @@ export type BrowserProjectDatabase = z.infer<typeof projectDatabaseSchema>;
 export type BrowserDatabaseTable = z.infer<typeof databaseTableSchema>;
 export type BrowserStorageBucket = z.infer<typeof storageBucketSchema>;
 export type BrowserStorageFile = z.infer<typeof storageFileSchema>;
+export type BrowserFunction = z.infer<typeof functionSchema>;
+export type BrowserFunctionVariable = z.infer<typeof functionVariableSchema>;
+export type BrowserFunctionExecution = z.infer<typeof functionExecutionSchema>;
+export type BrowserFunctionRuntime = z.infer<typeof functionRuntimeSchema>;
+export type BrowserSite = z.infer<typeof siteSchema>;
+export type BrowserSiteDomain = z.infer<typeof siteDomainSchema>;
 
 export class BrowserAPIError extends Error {
   constructor(
@@ -580,16 +648,97 @@ export const browserAPI = {
     const query = params.toString();
     return request(`/v1/agents/${encodeURIComponent(agentID)}/runs/${encodeURIComponent(runID)}/logs${query ? `?${query}` : ""}`, z.object({ logs: z.array(agentRunLogSchema), pagination: paginationSchema }).passthrough());
   },
-  projectFunctions: (projectID: string) =>
-    request(`/v1/projects/${encodeURIComponent(projectID)}/functions?limit=100`, z.object({ functions: z.array(functionSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
-  projectSites: (projectID: string) =>
-    request(`/v1/projects/${encodeURIComponent(projectID)}/sites?limit=100`, z.object({ sites: z.array(siteSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
-  projectFunctionDeployments: (projectID: string, functionID: string) =>
-    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments?limit=50`, z.object({ deployments: z.array(deploymentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
-  projectSiteDeployments: (projectID: string, siteID: string) =>
-    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments?limit=50`, z.object({ deployments: z.array(deploymentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
-  createProjectSite: (projectID: string, input: { name: string }) =>
+  projectFunctions: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/functions${query ? `?${query}` : ""}`, z.object({ functions: z.array(functionSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  projectFunction: (projectID: string, functionID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}`, z.object({ function: functionSchema })),
+  createProjectFunction: (projectID: string, input: { name: string; runtime?: BrowserFunctionRuntime; entrypoint?: string; commands?: string; timeout_seconds?: number; enabled?: boolean; logging?: boolean; execute_permissions?: string[]; description?: string; artifact_quota_bytes?: number }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions`, z.object({ function: functionSchema }), { method: "POST", body: JSON.stringify(input) }),
+  updateProjectFunction: (projectID: string, functionID: string, input: Partial<{ name: string; runtime: BrowserFunctionRuntime; entrypoint: string; commands: string; timeout_seconds: number; enabled: boolean; logging: boolean; execute_permissions: string[]; description: string; artifact_quota_bytes: number }>) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}`, z.object({ function: functionSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  deleteProjectFunction: (projectID: string, functionID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}`, z.undefined(), { method: "DELETE" }),
+  projectFunctionVariables: (projectID: string, functionID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/variables${query ? `?${query}` : ""}`, z.object({ variables: z.array(functionVariableSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createProjectFunctionVariable: (projectID: string, functionID: string, input: { key: string; kind?: "variable" | "secret"; is_secret?: boolean; value: string; description?: string }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/variables`, z.object({ variable: functionVariableSchema }), { method: "POST", body: JSON.stringify(input) }),
+  updateProjectFunctionVariable: (projectID: string, functionID: string, variableID: string, input: Partial<{ key: string; value: string; description: string }>) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/variables/${encodeURIComponent(variableID)}`, z.object({ variable: functionVariableSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  deleteProjectFunctionVariable: (projectID: string, functionID: string, variableID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/variables/${encodeURIComponent(variableID)}`, z.undefined(), { method: "DELETE" }),
+  projectSites: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/sites${query ? `?${query}` : ""}`, z.object({ sites: z.array(siteSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  projectSite: (projectID: string, siteID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}`, z.object({ site: siteSchema })),
+  createProjectSite: (projectID: string, input: { name: string; artifact_quota_bytes?: number }) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/sites`, z.object({ site: siteSchema }), { method: "POST", body: JSON.stringify({ ...input, framework: "static", enabled: true }) }),
+  updateProjectSite: (projectID: string, siteID: string, input: Partial<{ name: string; enabled: boolean; status: "active" | "disabled"; artifact_quota_bytes: number }>) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}`, z.object({ site: siteSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  deleteProjectSite: (projectID: string, siteID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}`, z.undefined(), { method: "DELETE" }),
+  projectFunctionDeployments: (projectID: string, functionID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments${query ? `?${query}` : ""}`, z.object({ deployments: z.array(deploymentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  uploadProjectFunctionDeployment: (projectID: string, functionID: string, form: FormData) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments`, z.object({ deployment: deploymentSchema }), { method: "POST", body: form }),
+  activateProjectFunctionDeployment: (projectID: string, functionID: string, deploymentID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}/activate`, z.object({ function: functionSchema, deployment: deploymentSchema }), { method: "POST" }),
+  deleteProjectFunctionDeployment: (projectID: string, functionID: string, deploymentID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments/${encodeURIComponent(deploymentID)}`, z.undefined(), { method: "DELETE" }),
+  projectFunctionExecutions: (projectID: string, functionID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/executions${query ? `?${query}` : ""}`, z.object({ executions: z.array(functionExecutionSchema), pagination: paginationSchema }).passthrough());
+  },
+  createProjectFunctionExecution: (projectID: string, functionID: string, input: { trigger?: string; input?: unknown }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/executions`, z.object({ execution: functionExecutionSchema }), { method: "POST", body: JSON.stringify(input) }),
+  projectSiteDeployments: (projectID: string, siteID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments${query ? `?${query}` : ""}`, z.object({ deployments: z.array(deploymentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  uploadProjectSiteDeployment: (projectID: string, siteID: string, form: FormData) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments`, z.object({ deployment: deploymentSchema }), { method: "POST", body: form }),
+  activateProjectSiteDeployment: (projectID: string, siteID: string, deploymentID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments/${encodeURIComponent(deploymentID)}/activate`, z.object({ site: siteSchema, deployment: deploymentSchema }), { method: "POST" }),
+  deleteProjectSiteDeployment: (projectID: string, siteID: string, deploymentID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments/${encodeURIComponent(deploymentID)}`, z.undefined(), { method: "DELETE" }),
+  projectSiteDomains: (projectID: string, siteID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/domains${query ? `?${query}` : ""}`, z.object({ domains: z.array(siteDomainSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createProjectSiteDomain: (projectID: string, siteID: string, input: { hostname: string }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/domains`, z.object({ domain: siteDomainSchema }), { method: "POST", body: JSON.stringify(input) }),
+  verifyProjectSiteDomain: (projectID: string, siteID: string, domainID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/domains/${encodeURIComponent(domainID)}/verify`, z.object({ domain: siteDomainSchema }), { method: "POST" }),
+  deleteProjectSiteDomain: (projectID: string, siteID: string, domainID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/domains/${encodeURIComponent(domainID)}`, z.undefined(), { method: "DELETE" }),
   createProjectSiteGitDeployment: (projectID: string, siteID: string, input: { repository: string; ref?: string; build_runtime?: "node-22" | "python-3.13" | "go-1.24"; build_command: string; output_directory?: string; activate?: boolean }) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments/git`, z.object({ deployment: deploymentSchema }), { method: "POST", body: JSON.stringify(input) }),
   projectResource: (projectID: string, resource: string) => {
@@ -618,6 +767,7 @@ export const browserAPI = {
       signal: options.signal,
     });
   },
+  publicSiteURL: (siteID: string) => apiURL(`/v1/sites/${encodeURIComponent(siteID)}`),
   projectMessagingProviders: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers`, z.object({ providers: z.array(messagingProviderSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
   projectMessagingTopics: (projectID: string) =>
