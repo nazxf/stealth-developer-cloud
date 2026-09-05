@@ -51,6 +51,7 @@ function RootLayout() {
           </Link>
           <nav className="flex items-center gap-1 text-sm" aria-label="Main navigation">
             <Link to="/" activeProps={{ className: "bg-[var(--projects-control)] text-[var(--projects-text)]" }} className="rounded-md px-3 py-1.5 text-[var(--projects-muted)] hover:text-[var(--projects-text)]">Projects</Link>
+            <Link to="/agent" activeProps={{ className: "bg-[var(--projects-control)] text-[var(--projects-text)]" }} className="rounded-md px-3 py-1.5 text-[var(--projects-muted)] hover:text-[var(--projects-text)]">Agents</Link>
             <Link to="/admin" activeProps={{ className: "bg-[var(--projects-control)] text-[var(--projects-text)]" }} className="rounded-md px-3 py-1.5 text-[var(--projects-muted)] hover:text-[var(--projects-text)]">Admin</Link>
             {account ? <><span className="ml-2 hidden max-w-52 truncate text-xs text-[var(--projects-muted)] sm:inline">{account.email}</span><LogoutControl /></> : null}
           </nav>
@@ -345,6 +346,8 @@ const forgotPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path:
 const resetPasswordRoute = createRoute({ getParentRoute: () => rootRoute, path: "/reset-password", component: ResetPasswordRoute });
 const verifyEmailRoute = createRoute({ getParentRoute: () => rootRoute, path: "/verify-email", component: VerifyEmailRoute });
 const acceptInvitationRoute = createRoute({ getParentRoute: () => rootRoute, path: "/accept-invitation", component: AcceptInvitationRoute });
+const agentRoute = createRoute({ getParentRoute: () => rootRoute, path: "/agent", component: lazyRouteComponent(() => import("./agent-route")) });
+const agentDetailRoute = createRoute({ getParentRoute: () => rootRoute, path: "/agent/$agentId", component: lazyRouteComponent(() => import("./agent-detail-route")) });
 const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: "/admin", component: lazyRouteComponent(() => import("./admin-route")) });
 const adminSectionRoute = createRoute({ getParentRoute: () => rootRoute, path: "/admin/$section", component: lazyRouteComponent(() => import("./admin-route"), "AdminSectionRoute") });
 const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects", component: ProjectsRoute });
@@ -354,7 +357,7 @@ const projectMessagingRoute = createRoute({ getParentRoute: () => rootRoute, pat
 const projectAPIKeysRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/api-keys", component: lazyRouteComponent(() => import("./api-keys-route")) });
 const projectAuthRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/auth", component: lazyRouteComponent(() => import("./auth-route")) });
 const projectResourceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/$resource", component: ProjectResourceRoute });
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, adminRoute, adminSectionRoute, projectsRoute, projectRoute, projectDeploymentsRoute, projectMessagingRoute, projectAPIKeysRoute, projectAuthRoute, projectResourceRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, agentRoute, agentDetailRoute, adminRoute, adminSectionRoute, projectsRoute, projectRoute, projectDeploymentsRoute, projectMessagingRoute, projectAPIKeysRoute, projectAuthRoute, projectResourceRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 
