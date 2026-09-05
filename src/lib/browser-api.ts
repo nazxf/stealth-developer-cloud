@@ -128,6 +128,20 @@ const projectWebhookDeliverySchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const projectDatabaseSchema = z.object({ id: z.string(), project_id: z.string(), name: z.string(), created_at: z.string(), updated_at: z.string() });
+const databaseTableSchema = z.object({
+  id: z.string(),
+  database_id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  row_security: z.boolean(),
+  create_permissions: z.array(z.string()),
+  read_permissions: z.array(z.string()),
+  update_permissions: z.array(z.string()),
+  delete_permissions: z.array(z.string()),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const functionSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -284,6 +298,8 @@ export type BrowserProjectAPIKey = z.infer<typeof projectAPIKeySchema>;
 export type BrowserProjectAPIKeyScope = z.infer<typeof projectAPIKeyScopeSchema>;
 export type BrowserProjectWebhook = z.infer<typeof projectWebhookSchema>;
 export type BrowserProjectWebhookDelivery = z.infer<typeof projectWebhookDeliverySchema>;
+export type BrowserProjectDatabase = z.infer<typeof projectDatabaseSchema>;
+export type BrowserDatabaseTable = z.infer<typeof databaseTableSchema>;
 
 export class BrowserAPIError extends Error {
   constructor(
@@ -430,6 +446,28 @@ export const browserAPI = {
     const query = params.toString();
     return request(`/v1/projects/${encodeURIComponent(projectID)}/webhooks/${encodeURIComponent(webhookID)}/deliveries${query ? `?${query}` : ""}`, z.object({ deliveries: z.array(projectWebhookDeliverySchema), pagination: paginationSchema }).passthrough());
   },
+  projectDatabases: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/databases${query ? `?${query}` : ""}`, z.object({ databases: z.array(projectDatabaseSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createProjectDatabase: (projectID: string, input: { name: string }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/databases`, z.object({ database: projectDatabaseSchema }), { method: "POST", body: JSON.stringify(input) }),
+  deleteProjectDatabase: (projectID: string, databaseID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}`, z.undefined(), { method: "DELETE" }),
+  projectDatabaseTables: (projectID: string, databaseID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables${query ? `?${query}` : ""}`, z.object({ tables: z.array(databaseTableSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createProjectDatabaseTable: (projectID: string, databaseID: string, input: { name: string; row_security?: boolean; create_permissions?: string[]; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables`, z.object({ table: databaseTableSchema }), { method: "POST", body: JSON.stringify(input) }),
+  deleteProjectDatabaseTable: (projectID: string, databaseID: string, tableID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}`, z.undefined(), { method: "DELETE" }),
   health: () => request("/healthz", z.object({ status: z.string() })),
   readiness: () => request("/readyz", z.object({ status: z.string() })),
   organizationIncidents: (organizationID: string) =>
