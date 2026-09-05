@@ -343,8 +343,9 @@ const acceptInvitationRoute = createRoute({ getParentRoute: () => rootRoute, pat
 const adminRoute = createRoute({ getParentRoute: () => rootRoute, path: "/admin", component: lazyRouteComponent(() => import("./admin-route")) });
 const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects", component: ProjectsRoute });
 const projectRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId", component: ProjectRoute });
+const projectMessagingRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/messaging", component: lazyRouteComponent(() => import("./messaging-route")) });
 const projectResourceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/$resource", component: ProjectResourceRoute });
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, adminRoute, projectsRoute, projectRoute, projectResourceRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, adminRoute, projectsRoute, projectRoute, projectMessagingRoute, projectResourceRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 
