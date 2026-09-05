@@ -102,6 +102,32 @@ const projectAPIKeySchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const projectWebhookSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  url: z.string().url(),
+  events: z.array(z.string()),
+  enabled: z.boolean(),
+  failure_count: z.number(),
+  last_delivery_at: z.string().nullable().optional(),
+  last_failure_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const projectWebhookDeliverySchema = z.object({
+  id: z.string(),
+  webhook_id: z.string(),
+  event_id: z.string(),
+  event_name: z.string(),
+  status: z.enum(["pending", "running", "succeeded", "failed"]),
+  attempt_count: z.number(),
+  last_status_code: z.number().nullable().optional(),
+  last_error: z.string().nullable().optional(),
+  delivered_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const functionSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -256,6 +282,8 @@ export type BrowserAgentRole = z.infer<typeof agentRoleSchema>;
 export type BrowserAgentTool = z.infer<typeof agentToolSchema>;
 export type BrowserProjectAPIKey = z.infer<typeof projectAPIKeySchema>;
 export type BrowserProjectAPIKeyScope = z.infer<typeof projectAPIKeyScopeSchema>;
+export type BrowserProjectWebhook = z.infer<typeof projectWebhookSchema>;
+export type BrowserProjectWebhookDelivery = z.infer<typeof projectWebhookDeliverySchema>;
 
 export class BrowserAPIError extends Error {
   constructor(
@@ -376,6 +404,28 @@ export const browserAPI = {
     ),
   revokeProjectAPIKey: (projectID: string, keyID: string) =>
     request<void>(`/v1/projects/${encodeURIComponent(projectID)}/api-keys/${encodeURIComponent(keyID)}`, z.undefined(), { method: "DELETE" }),
+  projectWebhooks: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/webhooks${query ? `?${query}` : ""}`, z.object({ webhooks: z.array(projectWebhookSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createProjectWebhook: (projectID: string, input: { name: string; url: string; events?: string[]; enabled?: boolean }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/webhooks`, z.object({ webhook: projectWebhookSchema, secret: z.string() }), { method: "POST", body: JSON.stringify(input) }),
+  updateProjectWebhook: (projectID: string, webhookID: string, input: { enabled?: boolean; name?: string; url?: string; events?: string[] }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/webhooks/${encodeURIComponent(webhookID)}`, z.object({ webhook: projectWebhookSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  rotateProjectWebhookSecret: (projectID: string, webhookID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/webhooks/${encodeURIComponent(webhookID)}/rotate-secret`, z.object({ webhook: projectWebhookSchema, secret: z.string() }), { method: "POST", body: "{}" }),
+  deleteProjectWebhook: (projectID: string, webhookID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/webhooks/${encodeURIComponent(webhookID)}`, z.undefined(), { method: "DELETE" }),
+  projectWebhookDeliveries: (projectID: string, webhookID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/webhooks/${encodeURIComponent(webhookID)}/deliveries${query ? `?${query}` : ""}`, z.object({ deliveries: z.array(projectWebhookDeliverySchema), pagination: paginationSchema }).passthrough());
+  },
   health: () => request("/healthz", z.object({ status: z.string() })),
   readiness: () => request("/readyz", z.object({ status: z.string() })),
   organizationIncidents: (organizationID: string) =>
