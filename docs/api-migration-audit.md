@@ -155,10 +155,11 @@ simulated async behavior (timers standing in for network calls).
 - The Vite project overview renders application users, database count, storage
   files, Functions, and Sites from the PostgreSQL snapshot; it has no hardcoded
   `usageRows` or local project store.
-- The dedicated `/projects/{projectID}/usage` route remains the detailed view;
-  rolling counters are now sourced from durable metering, while the daily
-  `/usage/metering` endpoint is available for API egress and Function compute.
-  Invoice calculation remains future work.
+- The dedicated `/projects/{projectID}/usage` route is now the Vite
+  `usage-route` and reads the durable `/usage/metering` endpoint with TanStack
+  Query. It renders live resource totals, a daily request chart, a bounded
+  table, and the authenticated CSV export. Invoice calculation remains future
+  work.
 
 ## Agents
 

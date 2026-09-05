@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
   Activity,
+  BarChart3,
   Boxes,
   Database,
   Gauge,
@@ -25,6 +26,7 @@ const navigationItems: NavigationItem[] = [
   { label: "Overview", resource: "__overview__", icon: LayoutDashboard },
   { label: "Services", resource: "services", icon: Server },
   { label: "Deployments", resource: "deployments", icon: Workflow },
+  { label: "Usage", resource: "usage", icon: BarChart3 },
   { label: "Auth", resource: "auth", icon: ShieldCheck },
   { label: "Databases", resource: "databases", icon: Database },
   { label: "Storage", resource: "storage", icon: Boxes },
@@ -107,6 +109,7 @@ function ProjectNavLink({
 
   const explicitResources = new Set([
     "deployments",
+    "usage",
     "auth",
     "databases",
     "storage",

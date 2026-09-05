@@ -91,11 +91,41 @@ const projectUsageSchema = z.object({
   captured_at: z.string(),
   application_users: z.number(),
   database_count: z.number(),
+  database_table_count: z.number(),
+  database_row_count: z.number(),
   storage_file_count: z.number(),
+  storage_bytes: z.number(),
+  storage_quota_bytes: z.number(),
   function_count: z.number(),
+  function_artifact_bytes: z.number(),
+  function_quota_bytes: z.number(),
   site_count: z.number(),
+  site_artifact_bytes: z.number(),
+  site_reserved_bytes: z.number(),
+  site_quota_bytes: z.number(),
+  realtime_event_count: z.number(),
   webhook_delivery_count_7d: z.number(),
+  api_request_count_30d: z.number(),
+  api_egress_bytes_30d: z.number(),
+  function_invocation_count_30d: z.number(),
+  function_failure_count_30d: z.number(),
+  function_compute_ms_30d: z.number(),
 }).passthrough();
+const projectUsageDaySchema = z.object({
+  date: z.string(),
+  api_request_count: z.number(),
+  api_egress_bytes: z.number(),
+  function_invocation_count: z.number(),
+  function_failure_count: z.number(),
+  function_compute_ms: z.number(),
+});
+const projectUsageMeteringSchema = z.object({
+  project_id: z.string(),
+  from: z.string(),
+  to: z.string(),
+  days: z.array(projectUsageDaySchema),
+  totals: projectUsageDaySchema,
+});
 const applicationUserSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -426,6 +456,9 @@ export type BrowserOrganization = z.infer<typeof organizationSchema>;
 export type BrowserProject = z.infer<typeof projectSchema>;
 export type BrowserOrganizationsResponse = z.infer<typeof organizationsResponseSchema>;
 export type BrowserProjectsResponse = z.infer<typeof projectsResponseSchema>;
+export type BrowserProjectUsage = z.infer<typeof projectUsageSchema>;
+export type BrowserProjectUsageDay = z.infer<typeof projectUsageDaySchema>;
+export type BrowserProjectUsageMetering = z.infer<typeof projectUsageMeteringSchema>;
 export type BrowserApplicationUser = z.infer<typeof applicationUserSchema>;
 export type BrowserProjectAuthSettings = z.infer<typeof projectAuthSettingsSchema>;
 export type BrowserAgent = z.infer<typeof agentSchema>;
@@ -570,6 +603,22 @@ export const browserAPI = {
     request<void>(`/v1/projects/${encodeURIComponent(projectID)}`, z.undefined(), { method: "DELETE", body: JSON.stringify({ confirm_name: confirmName }) }),
   projectUsage: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/usage`, z.object({ usage: projectUsageSchema })),
+  projectUsageMetering: (projectID: string, options: { from?: string; to?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.from) params.set("from", options.from);
+    if (options.to) params.set("to", options.to);
+    const query = params.toString();
+    return request(
+      `/v1/projects/${encodeURIComponent(projectID)}/usage/metering${query ? `?${query}` : ""}`,
+      z.object({ metering: projectUsageMeteringSchema }),
+    );
+  },
+  downloadProjectUsageMetering: (projectID: string, options: { from?: string; to?: string } = {}) => {
+    const params = new URLSearchParams({ format: "csv" });
+    if (options.from) params.set("from", options.from);
+    if (options.to) params.set("to", options.to);
+    return download(`/v1/projects/${encodeURIComponent(projectID)}/usage/metering?${params.toString()}`);
+  },
   projectUsers: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
