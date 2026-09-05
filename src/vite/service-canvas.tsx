@@ -79,6 +79,7 @@ export function ServiceCanvas({
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{ key: string; pointerId: number; offsetX: number; offsetY: number } | null>(null);
   const dirtyRef = useRef(false);
+  const changeGenerationRef = useRef(0);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [positions, setPositions] = useState<Record<string, ServiceCanvasPosition>>(() => buildServiceCanvasPositions(services, savedLayout));
   const [saveState, setSaveState] = useState<SaveState>("idle");
@@ -96,14 +97,22 @@ export function ServiceCanvas({
 
   useEffect(() => {
     if (!dirtyRef.current || !canManage) return;
+    const generation = changeGenerationRef.current;
     const timeout = window.setTimeout(async () => {
       setSaveState("saving");
       try {
         await onSave(serviceCanvasLayout(services, positions));
+        // A second drag can happen while the first request is in flight. Only
+        // the request for the latest generation may clear the dirty flag;
+        // otherwise its response would make the newer layout look persisted.
+        if (changeGenerationRef.current !== generation) {
+          setSaveState("idle");
+          return;
+        }
         dirtyRef.current = false;
         setSaveState("saved");
       } catch {
-        setSaveState("error");
+        if (changeGenerationRef.current === generation) setSaveState("error");
       }
     }, 650);
     return () => window.clearTimeout(timeout);
@@ -111,6 +120,7 @@ export function ServiceCanvas({
 
   const moveService = (key: string, x: number, y: number) => {
     setPositions((current) => ({ ...current, [key]: { x, y } }));
+    changeGenerationRef.current += 1;
     dirtyRef.current = true;
     setSaveState("idle");
   };
