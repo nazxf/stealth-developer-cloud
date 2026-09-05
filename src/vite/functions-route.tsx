@@ -32,6 +32,7 @@ import {
   type BrowserFunctionVariable,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "./polling";
 
 type Tab = "deployments" | "variables" | "executions" | "settings";
 const tabs: Array<{ id: Tab; label: string }> = [
@@ -172,13 +173,14 @@ export default function FunctionsRoute() {
         limit: 50,
       }),
     enabled: Boolean(selectedID),
-    refetchInterval: tab === "deployments" ? 2500 : false,
+    refetchInterval: (query) => deploymentPollInterval(query.state.data, tab === "deployments"),
   });
+  const selectedDeployment = deploymentsQuery.data?.deployments.find((deployment) => deployment.id === selectedDeploymentID);
   const deploymentLogsQuery = useQuery({
     queryKey: ["function-build-logs", projectId, selectedID, selectedDeploymentID],
     queryFn: () => browserAPI.projectFunctionBuildLogs(projectId, selectedID, selectedDeploymentID, { limit: 100 }),
     enabled: Boolean(selectedID && selectedDeploymentID && tab === "deployments"),
-    refetchInterval: tab === "deployments" ? 2500 : false,
+    refetchInterval: tab === "deployments" && deploymentIsInProgress(selectedDeployment) ? operationPollIntervalMs : false,
   });
   const variablesQuery = useQuery({
     queryKey: ["function-variables", projectId, selectedID],
@@ -196,13 +198,14 @@ export default function FunctionsRoute() {
         limit: 50,
       }),
     enabled: Boolean(selectedID),
-    refetchInterval: tab === "executions" ? 2500 : false,
+    refetchInterval: (query) => executionPollInterval(query.state.data, tab === "executions"),
   });
+  const selectedExecution = executionsQuery.data?.executions.find((execution) => execution.id === selectedExecutionID);
   const executionLogsQuery = useQuery({
     queryKey: ["function-execution-logs", projectId, selectedID, selectedExecutionID],
     queryFn: () => browserAPI.projectFunctionExecutionLogs(projectId, selectedID, selectedExecutionID, { limit: 100 }),
     enabled: Boolean(selectedID && selectedExecutionID && tab === "executions"),
-    refetchInterval: tab === "executions" ? 2500 : false,
+    refetchInterval: tab === "executions" && executionIsInProgress(selectedExecution) ? operationPollIntervalMs : false,
   });
 
   function report(reason: unknown, fallback: string) {

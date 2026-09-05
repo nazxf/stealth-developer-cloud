@@ -30,6 +30,7 @@ import {
   type BrowserSiteDomain,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { deploymentIsInProgress, deploymentPollInterval, operationPollIntervalMs } from "./polling";
 
 type Runtime = "node-22" | "python-3.13" | "go-1.24";
 function Field({ label, children }: { label: string; children: ReactNode }) {
@@ -135,8 +136,9 @@ export default function SitesRoute() {
     queryFn: () =>
       browserAPI.projectSiteDeployments(projectId, selectedID, { limit: 50 }),
     enabled: Boolean(selectedID),
-    refetchInterval: selectedID ? 2500 : false,
+    refetchInterval: (query) => deploymentPollInterval(query.state.data, Boolean(selectedID)),
   });
+  const selectedDeployment = deploymentsQuery.data?.deployments.find((deployment) => deployment.id === selectedDeploymentID);
   const deploymentLogsQuery = useQuery({
     queryKey: ["site-build-logs", projectId, selectedID, selectedDeploymentID],
     queryFn: () =>
@@ -147,7 +149,7 @@ export default function SitesRoute() {
         { limit: 100 },
       ),
     enabled: Boolean(selectedID && selectedDeploymentID),
-    refetchInterval: selectedDeploymentID ? 2500 : false,
+    refetchInterval: selectedDeploymentID && deploymentIsInProgress(selectedDeployment) ? operationPollIntervalMs : false,
   });
   const domainsQuery = useQuery({
     queryKey: ["site-domains", projectId, selectedID],
