@@ -98,7 +98,7 @@ func Load() (Config, error) {
 	if err != nil || passwordResetTTL <= 0 || passwordResetTTL > 24*time.Hour {
 		return Config{}, fmt.Errorf("AUTH_PASSWORD_RESET_TTL must be a positive duration no longer than 24h")
 	}
-	publicAppURL := value("PUBLIC_APP_URL", "http://localhost:3000")
+	publicAppURL := value("PUBLIC_APP_URL", "http://localhost:4173")
 	if !isPublicAppURL(publicAppURL) {
 		return Config{}, fmt.Errorf("PUBLIC_APP_URL must be an absolute HTTP(S) URL without credentials, query, or fragment")
 	}

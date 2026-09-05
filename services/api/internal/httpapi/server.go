@@ -107,7 +107,7 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		cfg.AuthPasswordResetTTL = time.Hour
 	}
 	if strings.TrimSpace(cfg.PublicAppURL) == "" {
-		cfg.PublicAppURL = "http://localhost:3000"
+		cfg.PublicAppURL = "http://localhost:4173"
 	}
 	if emailSender == nil {
 		emailSender = mailer.NewFromConfig(cfg, logger)

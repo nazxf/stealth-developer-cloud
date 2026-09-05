@@ -167,7 +167,7 @@ func main() {
 	defer stop()
 	metricsServer := &http.Server{
 		Addr:              cfg.FunctionsRunnerMetricsAddress,
-		Handler:           worker.MetricsHandler(),
+		Handler:           workerMetricsHandler(worker.MetricsHandler()),
 		ReadHeaderTimeout: 5 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
@@ -289,4 +289,19 @@ func firstNonEmpty(value, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+// workerMetricsHandler keeps the private Prometheus listener useful to an
+// orchestrator as well as a scraper. The health endpoint intentionally only
+// reports that the worker process and listener are alive; the process exits
+// when its queue loops fail, so a supervisor can restart it from that signal.
+func workerMetricsHandler(metrics http.Handler) http.Handler {
+	mux := http.NewServeMux()
+	mux.Handle("/metrics", metrics)
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+	return mux
 }

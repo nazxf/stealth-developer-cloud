@@ -33,6 +33,12 @@ API/Worker ── OTLP/HTTP ──▶ Tempo ────────────
   redacted before it is persisted or logged; Site build logs are available per
   deployment through the project API.
 
+The worker's private listener exposes both `/metrics` and `/healthz`. The latter
+is process-level readiness for the Compose supervisor; queue-loop failures exit
+the worker so Docker can restart it. If `FUNCTIONS_RUNNER_ENABLED=false`, the
+worker intentionally does not open the Functions metrics listener because only
+the webhook and messaging loops remain active.
+
 ## Local stack
 
 ```bash

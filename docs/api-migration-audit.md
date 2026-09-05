@@ -445,6 +445,10 @@ index are query-backed by the Vite route tree.
   OpenTelemetry server/consumer spans with W3C trace propagation. The
   `observability` Compose profile provisions Prometheus, Grafana, Loki, Tempo,
   and Grafana Alloy log shipping with a preloaded overview dashboard.
+- The optional `console` Compose profile builds the Vite bundle into a static
+  Nginx image with SPA fallback, hashed-asset caching, and a container
+  `/healthz`; the worker metrics listener also exposes `/healthz` for restart
+  supervision.
 - Migration: replace the remaining admin mock pages with authenticated
   query-backed views over the remaining metrics, logs, and provider data; add retention and
   alert-management APIs before exposing them to tenant operators.

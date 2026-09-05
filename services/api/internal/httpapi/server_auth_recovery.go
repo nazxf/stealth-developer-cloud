@@ -368,7 +368,7 @@ func validateEmail(raw string) (string, error) {
 func (s *Server) authLink(path string, projectID *uuid.UUID, token string) string {
 	base := strings.TrimRight(strings.TrimSpace(s.config.PublicAppURL), "/")
 	if base == "" {
-		base = "http://localhost:3000"
+		base = "http://localhost:4173"
 	}
 	parsed, err := url.Parse(base + "/" + strings.TrimLeft(path, "/"))
 	if err != nil {

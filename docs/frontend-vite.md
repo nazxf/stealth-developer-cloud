@@ -39,6 +39,18 @@ Publish `dist/` behind a static host or reverse proxy with SPA fallback to
 use an explicit exact-origin `CONSOLE_CORS_ORIGINS` list and HTTPS with
 `COOKIE_SECURE=true`. Never use `*` with credentialed requests.
 
+For a self-contained local/container deployment, the repository also ships a
+static Nginx image. It can be started alongside the Go stack with:
+
+```bash
+docker compose --profile console up --build
+```
+
+The image bakes only the browser-safe `VITE_API_URL`, serves hashed assets with
+long-lived cache headers, returns a separate `/healthz`, and falls back unknown
+document paths to `index.html`. Use a CDN or reverse proxy instead of this
+image when production traffic needs edge caching or TLS termination.
+
 Project overview, the API-backed Services workspace (including its persisted
 project canvas), Usage, Logs, deployments, Auth, the Databases workspace (typed
 columns, indexes, and permission-filtered row CRUD), Storage, Functions, Sites,

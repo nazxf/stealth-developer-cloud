@@ -20,8 +20,8 @@ services:
       APP_SESSION_TTL: ${APP_SESSION_TTL:-720h}
       AUTH_VERIFICATION_TTL: ${AUTH_VERIFICATION_TTL:-24h}
       AUTH_PASSWORD_RESET_TTL: ${AUTH_PASSWORD_RESET_TTL:-1h}
-      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
-      CONSOLE_CORS_ORIGINS: ${CONSOLE_CORS_ORIGINS:-}
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:4173}
+      CONSOLE_CORS_ORIGINS: ${CONSOLE_CORS_ORIGINS:-http://localhost:4173}
       EMAIL_DELIVERY_MODE: ${EMAIL_DELIVERY_MODE:-disabled}
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
@@ -63,6 +63,28 @@ services:
       start_period: 10s
     volumes:
       - stealth-storage-data:/var/lib/stealth/storage
+
+  # The Console is a static Vite bundle. Keep it behind an explicit profile so
+  # operators can use their own CDN/reverse proxy in production without
+  # changing the API stack; local users can start it with `--profile console`.
+  console:
+    profiles: ["console"]
+    build:
+      context: .
+      dockerfile: deploy/console/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    ports:
+      - "${CONSOLE_PORT:-4173}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   storage-init:
     build:
@@ -129,6 +151,12 @@ services:
     # over the Compose network at worker:9091.
     expose:
       - "9091"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9091/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
 
   prometheus:
     image: prom/prometheus:v3.5.0

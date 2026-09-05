@@ -97,6 +97,19 @@ never trigger an unexpected network pull. In production, pin those images by
 digest through the `FUNCTIONS_RUNNER_*_IMAGE` settings and isolate the worker
 host because it is the only service with access to Docker's socket.
 
+To run the browser Console from the same local stack, enable its static Nginx
+profile:
+
+```bash
+docker compose --profile console up --build
+# open http://localhost:4173
+```
+
+The profile builds the Vite `dist/` output, serves TanStack Router's SPA
+fallback, and waits for the API readiness check. Set `VITE_API_URL` and
+`CONSOLE_CORS_ORIGINS` to exact HTTPS origins when the Console is deployed on a
+different host; the bundle never receives backend secrets.
+
 The API is available at `http://localhost:8080` by default:
 
 ```bash

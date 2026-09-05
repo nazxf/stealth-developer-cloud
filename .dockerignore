@@ -1,0 +1,13 @@
+.git
+.gitignore
+node_modules
+dist
+dist-ssr
+.next
+*.tsbuildinfo
+*.local
+.env
+.env.*
+docs
+ai-token-usage.html
+REFACTOR-REACT-VITE.md
