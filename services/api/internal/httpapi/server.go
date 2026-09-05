@@ -229,6 +229,7 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireSession).Patch("/projects/{projectID}", s.updateProject)
 		r.With(s.requireSession).Delete("/projects/{projectID}", s.deleteProject)
 		r.With(s.requireSession).Get("/projects/{projectID}/audit-events", s.listProjectAuditEvents)
+		r.With(s.requireSession).Get("/projects/{projectID}/traces", s.listProjectTraces)
 		r.With(s.requireSession).Get("/agents", s.listAgents)
 		r.With(s.requireSession).Post("/agents", s.createAgent)
 		r.With(s.requireSession).Get("/agents/{agentID}", s.getAgent)

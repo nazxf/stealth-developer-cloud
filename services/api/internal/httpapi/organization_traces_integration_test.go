@@ -107,6 +107,46 @@ func TestOrganizationTracesIntegration(t *testing.T) {
 		t.Fatalf("trace pagination = %+v", listed.Pagination)
 	}
 
+	var project struct {
+		Project struct {
+			ID string `json:"id"`
+		} `json:"project"`
+	}
+	requestJSON(t, ownerClient, http.MethodPost, projectsURL, map[string]string{"name": "trace-project"}, http.StatusCreated, &project)
+	projectURL := server.URL + "/v1/projects/" + project.Project.ID
+	projectResponse, err := ownerClient.Get(projectURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	projectResponse.Body.Close()
+	projectTraceID := projectResponse.Header.Get("X-Trace-ID")
+	if projectResponse.StatusCode != http.StatusOK || len(projectTraceID) != 32 {
+		t.Fatalf("project trace request status=%d trace=%q", projectResponse.StatusCode, projectTraceID)
+	}
+	var projectTraces struct {
+		Traces []struct {
+			ID        string  `json:"id"`
+			TraceID   string  `json:"trace_id"`
+			ProjectID *string `json:"project_id"`
+			Route     string  `json:"route"`
+			Method    string  `json:"method"`
+		} `json:"traces"`
+	}
+	requestJSON(t, ownerClient, http.MethodGet, projectURL+"/traces?limit=100", nil, http.StatusOK, &projectTraces)
+	var projectTraceFound bool
+	for _, trace := range projectTraces.Traces {
+		if trace.TraceID != projectTraceID {
+			continue
+		}
+		projectTraceFound = true
+		if trace.ID == "" || trace.ProjectID == nil || *trace.ProjectID != project.Project.ID || trace.Route != "/v1/projects/{projectID}" || trace.Method != http.MethodGet {
+			t.Fatalf("project trace projection = %+v", trace)
+		}
+	}
+	if !projectTraceFound {
+		t.Fatalf("project trace %q was not returned: %+v", projectTraceID, projectTraces.Traces)
+	}
+
 	outsiderClient := newIntegrationClient(t)
 	outsiderEmail := fmt.Sprintf("trace-outsider-%s@example.test", uuid.Must(uuid.NewV7()))
 	var outsider struct {
@@ -127,4 +167,5 @@ func TestOrganizationTracesIntegration(t *testing.T) {
 		_, _ = pool.Exec(cleanupCtx, `DELETE FROM accounts WHERE id=$1`, outsider.Account.ID)
 	})
 	requestJSON(t, outsiderClient, http.MethodGet, server.URL+"/v1/organizations/"+owner.Organization.ID+"/traces", nil, http.StatusForbidden, nil)
+	requestJSON(t, outsiderClient, http.MethodGet, projectURL+"/traces", nil, http.StatusForbidden, nil)
 }

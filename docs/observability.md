@@ -22,9 +22,11 @@ API/Worker ── OTLP/HTTP ──▶ Tempo ────────────
   the same global propagator. The default sample ratio is 10%; set
   `OTEL_TRACES_SAMPLER_ARG` between `0` and `1` for another ratio.
   Authenticated organization members can query the bounded root-request index
-  at `GET /v1/organizations/{organizationID}/traces`; it contains route,
-  status, latency, response size, and tenant-safe names. Full nested spans and
-  attributes stay in Tempo and are never copied into the Console database.
+  at `GET /v1/organizations/{organizationID}/traces`, while project members
+  can use `GET /v1/projects/{projectID}/traces` for a project-scoped view. Both
+  contain route, status, latency, response size, and tenant-safe names. Full
+  nested spans and attributes stay in Tempo and are never copied into the
+  Console database.
 - **Logs** remain structured JSON on stdout. Grafana Alloy tails Docker's log
   stream, preserves `service`, `container`, and `level` labels, and forwards
   entries to Loki. Function output is still bounded and redacted before it is

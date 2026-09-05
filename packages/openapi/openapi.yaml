@@ -271,6 +271,13 @@ paths:
       security: [{ sessionCookie: [] }]
       parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
       responses: { '200': { description: Durable audit events scoped to a project, content: { application/json: { schema: { $ref: '#/components/schemas/AuditEventsPage' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' } }
+  /v1/projects/{projectID}/traces:
+    get:
+      operationId: listProjectTraces
+      description: List the bounded durable root-request trace index for project members. Nested spans and full OpenTelemetry attributes remain in the private telemetry backend.
+      security: [{ sessionCookie: [] }]
+      parameters: [{ $ref: '#/components/parameters/ProjectID' }, { $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
+      responses: { '200': { description: Durable project request traces, content: { application/json: { schema: { $ref: '#/components/schemas/OrganizationTracesPage' } } } }, '400': { $ref: '#/components/responses/BadRequest' }, '401': { $ref: '#/components/responses/Unauthorized' }, '403': { $ref: '#/components/responses/Forbidden' }, '404': { $ref: '#/components/responses/NotFound' }, '422': { $ref: '#/components/responses/ValidationError' }, '500': { $ref: '#/components/responses/InternalError' } }
   /v1/agents:
     get:
       operationId: listAgents

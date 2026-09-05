@@ -114,9 +114,12 @@ simulated async behavior (timers standing in for network calls).
   operations stamp the project ID into their audit metadata so events from
   another project cannot appear in this view.
 - The page supports cursor pagination, action/service/level filters, and
-  detail inspection of the stored actor, target, timestamp, and metadata.
-  Request IDs, trace IDs, and synthetic live-tail entries remain unavailable
-  until the telemetry query contract is exposed.
+  detail inspection of the stored actor, target, timestamp, and metadata. It
+  also reads the bounded root-request index through
+  `GET /v1/projects/{projectID}/traces`, with cursor pagination and status,
+  route, duration, egress, timestamp, and trace ID metadata. Nested spans and
+  full attributes remain private telemetry; no synthetic live-tail entries are
+  generated.
 
 ### Project Settings — migrated identity slice
 - `/projects/{projectID}/settings` loads the project through the authenticated

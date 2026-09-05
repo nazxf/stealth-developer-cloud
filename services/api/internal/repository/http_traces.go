@@ -9,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/stealth-cloud/stealth/services/api/internal/domain"
 )
 
@@ -155,6 +156,53 @@ func (r *Repository) ListOrganizationHTTPTraces(ctx context.Context, organizatio
 		  AND ($2='' OR t.id::text < $2)
 		ORDER BY t.id DESC
 		LIMIT $3`, organizationID, cursor, limit+1)
+	if err != nil {
+		return nil, "", err
+	}
+	defer rows.Close()
+	items := make([]domain.HTTPTrace, 0, limit)
+	for rows.Next() {
+		item, scanErr := scanHTTPTrace(rows)
+		if scanErr != nil {
+			return nil, "", scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, "", err
+	}
+	next := ""
+	if len(items) > limit {
+		next = items[limit-1].ID
+		items = items[:limit]
+	}
+	return items, next, nil
+}
+
+// ListProjectHTTPTraces returns the newest durable root requests recorded for
+// one project. Project membership is checked before querying so a caller can
+// never use a guessed project ID to inspect another tenant's traffic.
+func (r *Repository) ListProjectHTTPTraces(ctx context.Context, projectID, accountID uuid.UUID, limit int, cursor string) ([]domain.HTTPTrace, string, error) {
+	if limit < 1 || limit > 100 {
+		return nil, "", fmt.Errorf("%w: limit must be between 1 and 100", ErrInvalidHTTPTrace)
+	}
+	var organizationID uuid.UUID
+	if err := r.pool.QueryRow(ctx, `SELECT organization_id FROM projects WHERE id=$1`, projectID).Scan(&organizationID); errors.Is(err, pgx.ErrNoRows) {
+		return nil, "", ErrNotFound
+	} else if err != nil {
+		return nil, "", err
+	}
+	if err := r.requireMembership(ctx, organizationID, accountID); err != nil {
+		return nil, "", err
+	}
+	rows, err := r.pool.Query(ctx, `
+		SELECT `+httpTraceProjection+`
+		FROM http_traces t
+		LEFT JOIN projects p ON p.id=t.project_id
+		LEFT JOIN organizations o ON o.id=COALESCE(t.organization_id,p.organization_id)
+		WHERE t.project_id=$1 AND ($2='' OR t.id::text<$2)
+		ORDER BY t.id DESC
+		LIMIT $3`, projectID, cursor, limit+1)
 	if err != nil {
 		return nil, "", err
 	}

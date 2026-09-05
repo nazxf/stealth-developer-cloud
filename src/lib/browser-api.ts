@@ -369,6 +369,7 @@ const traceSchema = z.object({
   route: z.string(),
   status: z.number(),
   duration_ms: z.number(),
+  response_bytes: z.number(),
   started_at: z.string(),
 }).passthrough();
 const agentRoleSchema = z.enum(["General", "Frontend", "Reviewer", "Documentation"]);
@@ -499,6 +500,7 @@ export type BrowserFunctionExecution = z.infer<typeof functionExecutionSchema>;
 export type BrowserFunctionExecutionLog = z.infer<typeof functionExecutionLogSchema>;
 export type BrowserFunctionBuildLog = z.infer<typeof functionBuildLogSchema>;
 export type BrowserFunctionRuntime = z.infer<typeof functionRuntimeSchema>;
+export type BrowserTrace = z.infer<typeof traceSchema>;
 export type BrowserSite = z.infer<typeof siteSchema>;
 export type BrowserSiteDomain = z.infer<typeof siteDomainSchema>;
 
@@ -613,6 +615,13 @@ export const browserAPI = {
     if (options.cursor) params.set("cursor", options.cursor);
     const query = params.toString();
     return request(`/v1/projects/${encodeURIComponent(projectID)}/audit-events${query ? `?${query}` : ""}`, z.object({ events: z.array(organizationAuditEventSchema), pagination: paginationSchema }).passthrough());
+  },
+  projectTraces: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/traces${query ? `?${query}` : ""}`, z.object({ traces: z.array(traceSchema), pagination: paginationSchema }).passthrough());
   },
   projects: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
