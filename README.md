@@ -55,7 +55,8 @@ authenticated query contracts are implemented.
 
 ## Structure
 
-- `src/app/` — routes (`/`, `/projects/[projectId]`, `/projects/[projectId]/deployments`, `/agent`, `/agent/[agentId]`, `/login`, `/signup`, `/forgot-password`, `/verify-email`, `/reset-password`, `/accept-invitation`, `/admin/*`)
+- `src/vite/` — default React + Vite route tree (`/`, auth flows, projects, deployments, Auth, Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents, and Admin)
+- `src/app/` — legacy Next compatibility routes retained only while the remaining admin detail panels and service canvas migrate
 - `src/components/` — cross-feature shell (`application-shell.tsx`, `top-bar.tsx`) and primitives
 - `src/features/` — feature-first modules: `projects/` (list, detail, service-overview, pre-deploy), `console/` (project Auth, Databases, Storage, Functions, Sites, Messaging, and Webhooks control planes), `agents/` (API-backed configuration plus staged run workspace), `navigation/`, `auth/`, `admin/`
 - `src/lib/`, `src/styles/` — shared utilities and stylesheets
@@ -251,12 +252,14 @@ plus OTLP headers/mTLS in production.
 
 ## Connected Console contract
 
-The Next.js Console uses the private `STEALTH_API_URL` server environment
-variable (default `http://127.0.0.1:8080`) plus a fixed same-origin
-`/api/stealth/*` bridge for browser mutations. Its authenticated browser
-integration uses `credentials: "include"` and the endpoints in
+The default Vite Console uses the browser-safe `VITE_API_URL` origin (or
+relative `/v1` requests in a same-origin deployment) and the central
+`src/lib/browser-api.ts` client. Its authenticated browser integration uses
+`credentials: "include"` and the endpoints in
 `packages/openapi/openapi.yaml`. Session tokens and password hashes are never
-returned to JavaScript. The connected Console path is: register/login → `GET
+returned to JavaScript. The legacy Next compatibility path uses the private
+`STEALTH_API_URL` server variable and fixed `/api/stealth/*` bridge. The
+connected Console path is: register/login → `GET
 /v1/account` → `GET /v1/organizations` → organization-scoped projects →
 project Auth identity management, owner/admin-only Auth settings, owner/admin
 project API-key management, and the Agent configuration control plane. Project

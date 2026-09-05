@@ -1,9 +1,9 @@
 # Stealth Console — API Migration Audit
 
-The long-term architecture is:
+The active architecture is:
 
 ```
-Stealth Console (Next.js)
+Stealth Console (React + Vite)
         ↓
 Stealth JavaScript SDK / API client
         ↓
@@ -12,7 +12,7 @@ Stealth API
 Stealth backend
 ```
 
-The browser must eventually **not** use `localStorage` as the source of truth
+The Vite browser must **not** use `localStorage` as the source of truth
 for projects, deployments, agents, usage, or any other product data. This
 document inventories every location where the current UI still runs on
 in-browser data so each can be migrated to the Stealth API when its surface is
@@ -47,7 +47,7 @@ simulated async behavior (timers standing in for network calls).
 - Migration: projects from the API; usage metrics from the usage/billing
   endpoints.
 
-### Connected project shell and resource routes — partially migrated
+### Connected project shell and resource routes — migrated in Vite
 - `/projects/[projectId]` and its resource routes authenticate and resolve the
   project through the API. The project identity, organization ID, and access
   boundary are real. Project Auth identity management and owner/admin-only
@@ -63,11 +63,11 @@ simulated async behavior (timers standing in for network calls).
   rows. Server keys use independent `databases.read` and `databases.write`
   scopes, and the dependency-free server SDK exposes the same operations.
   Storage is connected with bucket/file controls and streamed local artifacts.
-  The Functions control plane and isolated worker are connected for
+  The Vite Functions control plane and isolated worker are connected for
   configuration, encrypted write-only variables, versioned source uploads,
   immutable asynchronous builds with deployment-scoped variable snapshots,
   atomic activation, asynchronous execution, bounded results, and redacted
-  logs. Sites are now connected for pre-built static archive upload, bounded
+  logs. The Vite Sites control plane is now connected for pre-built static archive upload, bounded
   safe extraction, immutable deployments, atomic activation, quota accounting,
   and public serving of only the active publication. Webhooks are now connected
   end to end: signed transactional outbox events, leased delivery retries,
