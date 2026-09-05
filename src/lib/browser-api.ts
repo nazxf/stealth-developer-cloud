@@ -56,6 +56,31 @@ const projectUsageSchema = z.object({
   site_count: z.number(),
   webhook_delivery_count_7d: z.number(),
 }).passthrough();
+const functionSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  active_deployment_id: z.string().nullable().optional(),
+  status: z.string(),
+}).passthrough();
+const siteSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  active_deployment_id: z.string().nullable().optional(),
+  status: z.string(),
+}).passthrough();
+const deploymentSchema = z.object({
+  id: z.string(),
+  version: z.number(),
+  source: z.string(),
+  source_name: z.string().nullable().optional(),
+  status: z.string(),
+  build_status: z.string(),
+  error_message: z.string().nullable().optional(),
+  created_at: z.string(),
+  activated_at: z.string().nullable().optional(),
+}).passthrough();
 const messagingChannelSchema = z.enum(["email", "sms", "push"]);
 const messagingProviderSchema = z.object({
   id: z.string(),
@@ -182,6 +207,18 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema })),
   projectUsage: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/usage`, z.object({ usage: projectUsageSchema })),
+  projectFunctions: (projectID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions?limit=100`, z.object({ functions: z.array(functionSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
+  projectSites: (projectID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites?limit=100`, z.object({ sites: z.array(siteSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
+  projectFunctionDeployments: (projectID: string, functionID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/functions/${encodeURIComponent(functionID)}/deployments?limit=50`, z.object({ deployments: z.array(deploymentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
+  projectSiteDeployments: (projectID: string, siteID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments?limit=50`, z.object({ deployments: z.array(deploymentSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
+  createProjectSite: (projectID: string, input: { name: string }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites`, z.object({ site: siteSchema }), { method: "POST", body: JSON.stringify({ ...input, framework: "static", enabled: true }) }),
+  createProjectSiteGitDeployment: (projectID: string, siteID: string, input: { repository: string; ref?: string; build_runtime?: "node-22" | "python-3.13" | "go-1.24"; build_command: string; output_directory?: string; activate?: boolean }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/sites/${encodeURIComponent(siteID)}/deployments/git`, z.object({ deployment: deploymentSchema }), { method: "POST", body: JSON.stringify(input) }),
   projectResource: (projectID: string, resource: string) => {
     const paths: Record<string, string> = {
       auth: "auth/settings",
