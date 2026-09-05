@@ -42,7 +42,7 @@ type Server struct {
 	repo           *repository.Repository
 	logger         *slog.Logger
 	limiter        ratelimit.Limiter
-	storage        *storage.Store
+	storage        storage.BlobStore
 	storageReady   bool
 	functions      *functionstore.Store
 	functionCipher *functionsecret.Cipher
@@ -160,7 +160,23 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 	if cfg.SitesGitFetchConcurrency > 32 {
 		cfg.SitesGitFetchConcurrency = 32
 	}
-	storageStore, storageErr := storage.New(cfg.StorageRoot, cfg.StorageMaxFileSize)
+	var storageStore storage.BlobStore
+	var storageErr error
+	if strings.EqualFold(strings.TrimSpace(cfg.StorageDriver), "s3") {
+		storageStore, storageErr = storage.NewS3(storage.S3Options{
+			Endpoint:       cfg.StorageS3Endpoint,
+			Region:         cfg.StorageS3Region,
+			Bucket:         cfg.StorageS3Bucket,
+			AccessKey:      cfg.StorageS3AccessKey,
+			SecretKey:      cfg.StorageS3SecretKey,
+			UseSSL:         cfg.StorageS3UseSSL,
+			ForcePathStyle: cfg.StorageS3PathStyle,
+			Prefix:         cfg.StorageS3Prefix,
+			StagingRoot:    cfg.StorageS3StagingRoot,
+		}, cfg.StorageMaxFileSize)
+	} else {
+		storageStore, storageErr = storage.New(cfg.StorageRoot, cfg.StorageMaxFileSize)
+	}
 	if storageErr != nil {
 		logger.Error("storage configuration error", "error", storageErr)
 	}

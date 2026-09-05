@@ -547,7 +547,7 @@ func (s *Server) uploadStorageFile(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, map[string]domain.StorageFile{"file": item})
 }
 
-func cleanupPrepared(store *storage.Store, prepared *storage.PreparedFile) {
+func cleanupPrepared(store storage.BlobStore, prepared *storage.PreparedFile) {
 	if store != nil {
 		store.Cleanup(prepared)
 	}

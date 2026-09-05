@@ -218,15 +218,19 @@ bodies, and exits non-zero when a dependency or listener is not ready. Keep
 `/metrics` reachable only from the internal scraper network or an authenticated
 reverse-proxy policy.
 
-Storage uses the local filesystem for bytes and PostgreSQL for tenant-scoped
-metadata/accounting. `STORAGE_ROOT` is the private root directory; objects are
-written to UUID-only paths using a fsynced temporary file and atomic rename.
+Storage uses PostgreSQL for tenant-scoped metadata/accounting and supports two
+blob drivers. The default `STORAGE_DRIVER=local` writes UUID-only objects below
+`STORAGE_ROOT` using a fsynced temporary file and atomic rename. For a
+self-hosted multi-node deployment set `STORAGE_DRIVER=s3` and configure
+`STORAGE_S3_ENDPOINT`, `STORAGE_S3_BUCKET`, `STORAGE_S3_ACCESS_KEY`,
+`STORAGE_S3_SECRET_KEY`, and (when needed) `STORAGE_S3_REGION`/
+`STORAGE_S3_PATH_STYLE`; the same settings work with MinIO, AWS S3, R2, and
+other SigV4-compatible services. Uploads still use the bounded local
+`STORAGE_S3_STAGING_ROOT` scratch directory, while committed bytes live in the
+bucket. `/readyz` verifies the configured bucket before reporting readiness.
 `STORAGE_MAX_FILE_SIZE` is the global hard limit and
 `STORAGE_DEFAULT_QUOTA_BYTES` is the default bucket quota. Both accept plain
-bytes or IEC quantities such as `50MiB` and `1GiB`. Compose mounts
-`stealth-storage-data` at this root and the API image prepares it for the
-non-root `stealth` user. Keep the root on durable storage and back it up with
-the database metadata; PostgreSQL never stores blob content.
+bytes or IEC quantities such as `50MiB` and `1GiB`.
 
 ### Observability
 
@@ -385,12 +389,14 @@ size, and a verified SHA-256 checksum. Downloads use a safe attachment header,
 file size are serialized transactionally with row locks, and failed metadata
 creation removes the already-published blob.
 
-S3-compatible adapters, resumable/chunked uploads, image transforms, antivirus
-scanning, CDN delivery, and crash-time orphan reconciliation are intentionally
-deferred. The current local store can leave an invisible orphan after a
-process crash between filesystem publication and metadata insertion; operators
-should reconcile UUID object paths against `storage_files` before deleting any
-unreferenced data.
+Resumable/chunked uploads, image transforms, antivirus scanning, CDN delivery,
+and crash-time orphan reconciliation are intentionally deferred. The local
+store can leave an invisible orphan after a process crash between filesystem
+publication and metadata insertion; operators should reconcile UUID object
+paths against `storage_files` before deleting any unreferenced data. The S3
+adapter uses the same bounded staging/checksum contract, but production
+operators should still schedule bucket lifecycle/orphan reconciliation until
+that control-plane job is added.
 
 ### Functions contract
 

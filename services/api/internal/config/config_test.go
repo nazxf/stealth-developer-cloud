@@ -106,6 +106,34 @@ func TestLoadRequiresDatabaseURL(t *testing.T) {
 	}
 }
 
+func TestLoadS3StorageConfiguration(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://example.invalid/stealth")
+	t.Setenv("STORAGE_DRIVER", "s3")
+	t.Setenv("STORAGE_S3_ENDPOINT", "http://minio.example.test:9000")
+	t.Setenv("STORAGE_S3_REGION", "us-east-1")
+	t.Setenv("STORAGE_S3_BUCKET", "stealth-files")
+	t.Setenv("STORAGE_S3_ACCESS_KEY", "access")
+	t.Setenv("STORAGE_S3_SECRET_KEY", "secret")
+	t.Setenv("STORAGE_S3_USE_SSL", "false")
+	t.Setenv("STORAGE_S3_PATH_STYLE", "true")
+	t.Setenv("STORAGE_S3_PREFIX", "tenant-blobs")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.StorageDriver != "s3" || cfg.StorageS3Endpoint != "http://minio.example.test:9000" || cfg.StorageS3Bucket != "stealth-files" || cfg.StorageS3Prefix != "tenant-blobs" || cfg.StorageS3UseSSL || !cfg.StorageS3PathStyle {
+		t.Fatalf("unexpected S3 storage config: %+v", cfg)
+	}
+	if err := cfg.ValidateStorage(); err != nil {
+		t.Fatalf("ValidateStorage() = %v", err)
+	}
+
+	t.Setenv("STORAGE_S3_SECRET_KEY", "")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "STORAGE_S3_ENDPOINT") {
+		t.Fatalf("missing S3 secret returned %v", err)
+	}
+}
+
 func TestLoadRunnerImageReferences(t *testing.T) {
 	t.Setenv("DATABASE_URL", "postgres://example.invalid/stealth")
 	t.Setenv("FUNCTIONS_SECRET_KEY", base64.StdEncoding.EncodeToString([]byte(strings.Repeat("r", 32))))

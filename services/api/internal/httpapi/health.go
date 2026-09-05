@@ -23,6 +23,11 @@ func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "not_ready", "storage is not ready")
 		return
 	}
+	if err := s.storage.Ping(r.Context()); err != nil {
+		s.logger.Error("storage is not ready", "error", err)
+		writeError(w, http.StatusServiceUnavailable, "not_ready", "storage is not ready")
+		return
+	}
 	if !s.functionsReady || s.functions == nil || s.functionCipher == nil {
 		writeError(w, http.StatusServiceUnavailable, "not_ready", "function services are not ready")
 		return

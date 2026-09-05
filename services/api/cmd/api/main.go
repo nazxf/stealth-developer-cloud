@@ -36,6 +36,10 @@ func main() {
 		logger.Error("functions configuration error", "error", err)
 		os.Exit(1)
 	}
+	if err := cfg.ValidateStorage(); err != nil {
+		logger.Error("storage configuration error", "error", err)
+		os.Exit(1)
+	}
 	if err := cfg.ValidateSites(); err != nil {
 		logger.Error("sites configuration error", "error", err)
 		os.Exit(1)

@@ -33,6 +33,16 @@ services:
       STORAGE_ROOT: ${STORAGE_ROOT:-/var/lib/stealth/storage}
       STORAGE_MAX_FILE_SIZE: ${STORAGE_MAX_FILE_SIZE:-50MiB}
       STORAGE_DEFAULT_QUOTA_BYTES: ${STORAGE_DEFAULT_QUOTA_BYTES:-1GiB}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-}
+      STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:-}
+      STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:-}
+      STORAGE_S3_USE_SSL: ${STORAGE_S3_USE_SSL:-true}
+      STORAGE_S3_PATH_STYLE: ${STORAGE_S3_PATH_STYLE:-true}
+      STORAGE_S3_PREFIX: ${STORAGE_S3_PREFIX:-stealth}
+      STORAGE_S3_STAGING_ROOT: ${STORAGE_S3_STAGING_ROOT:-/var/lib/stealth/storage/s3-staging}
       FUNCTIONS_SECRET_KEY: ${FUNCTIONS_SECRET_KEY:?set FUNCTIONS_SECRET_KEY in .env}
       FUNCTIONS_MAX_ARTIFACT_SIZE: ${FUNCTIONS_MAX_ARTIFACT_SIZE:-50MiB}
       FUNCTIONS_DEFAULT_QUOTA_BYTES: ${FUNCTIONS_DEFAULT_QUOTA_BYTES:-1GiB}
@@ -95,7 +105,7 @@ services:
     # Docker creates a named volume as root. Initialize it before the API
     # starts so the non-root API user can create tenant object directories.
     entrypoint: ["/bin/sh", "-c"]
-    command: ["mkdir -p /var/lib/stealth/storage/functions /var/lib/stealth/storage/sites /var/lib/stealth/storage/site-archives && chown -R stealth:stealth /var/lib/stealth/storage"]
+    command: ["mkdir -p /var/lib/stealth/storage/functions /var/lib/stealth/storage/sites /var/lib/stealth/storage/site-archives /var/lib/stealth/storage/s3-staging && chown -R stealth:stealth /var/lib/stealth/storage"]
     user: "0:0"
     restart: "no"
     volumes:
@@ -116,6 +126,16 @@ services:
       STORAGE_ROOT: ${STORAGE_ROOT:-/var/lib/stealth/storage}
       STORAGE_MAX_FILE_SIZE: ${STORAGE_MAX_FILE_SIZE:-50MiB}
       STORAGE_DEFAULT_QUOTA_BYTES: ${STORAGE_DEFAULT_QUOTA_BYTES:-1GiB}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_S3_ENDPOINT: ${STORAGE_S3_ENDPOINT:-}
+      STORAGE_S3_REGION: ${STORAGE_S3_REGION:-us-east-1}
+      STORAGE_S3_BUCKET: ${STORAGE_S3_BUCKET:-}
+      STORAGE_S3_ACCESS_KEY: ${STORAGE_S3_ACCESS_KEY:-}
+      STORAGE_S3_SECRET_KEY: ${STORAGE_S3_SECRET_KEY:-}
+      STORAGE_S3_USE_SSL: ${STORAGE_S3_USE_SSL:-true}
+      STORAGE_S3_PATH_STYLE: ${STORAGE_S3_PATH_STYLE:-true}
+      STORAGE_S3_PREFIX: ${STORAGE_S3_PREFIX:-stealth}
+      STORAGE_S3_STAGING_ROOT: ${STORAGE_S3_STAGING_ROOT:-/var/lib/stealth/storage/s3-staging}
       FUNCTIONS_SECRET_KEY: ${FUNCTIONS_SECRET_KEY:?set FUNCTIONS_SECRET_KEY in .env}
       FUNCTIONS_MAX_ARTIFACT_SIZE: ${FUNCTIONS_MAX_ARTIFACT_SIZE:-50MiB}
       FUNCTIONS_DEFAULT_QUOTA_BYTES: ${FUNCTIONS_DEFAULT_QUOTA_BYTES:-1GiB}

@@ -48,6 +48,16 @@ type Config struct {
 	StorageRoot              string
 	StorageMaxFileSize       int64
 	StorageDefaultQuotaBytes int64
+	StorageDriver            string
+	StorageS3Endpoint        string
+	StorageS3Region          string
+	StorageS3Bucket          string
+	StorageS3AccessKey       string
+	StorageS3SecretKey       string
+	StorageS3UseSSL          bool
+	StorageS3PathStyle       bool
+	StorageS3Prefix          string
+	StorageS3StagingRoot     string
 	// Functions source archives use a separate child store under StorageRoot.
 	// The global storage values are used as fallbacks for older deployments.
 	FunctionsMaxArtifactSize      int64
@@ -261,6 +271,39 @@ func Load() (Config, error) {
 	if err != nil || strings.TrimSpace(storageRoot) == "" {
 		return Config{}, fmt.Errorf("STORAGE_ROOT must be a valid filesystem path")
 	}
+	storageDriver := strings.ToLower(value("STORAGE_DRIVER", "local"))
+	if storageDriver != "local" && storageDriver != "s3" {
+		return Config{}, fmt.Errorf("STORAGE_DRIVER must be local or s3")
+	}
+	storageS3Endpoint := strings.TrimSpace(os.Getenv("STORAGE_S3_ENDPOINT"))
+	storageS3Region := value("STORAGE_S3_REGION", "us-east-1")
+	storageS3Bucket := strings.TrimSpace(os.Getenv("STORAGE_S3_BUCKET"))
+	storageS3AccessKey := strings.TrimSpace(os.Getenv("STORAGE_S3_ACCESS_KEY"))
+	storageS3SecretKey := os.Getenv("STORAGE_S3_SECRET_KEY")
+	storageS3UseSSL, err := strconv.ParseBool(value("STORAGE_S3_USE_SSL", "true"))
+	if err != nil {
+		return Config{}, fmt.Errorf("STORAGE_S3_USE_SSL must be true or false")
+	}
+	storageS3PathStyle, err := strconv.ParseBool(value("STORAGE_S3_PATH_STYLE", "true"))
+	if err != nil {
+		return Config{}, fmt.Errorf("STORAGE_S3_PATH_STYLE must be true or false")
+	}
+	storageS3Prefix := strings.Trim(strings.TrimSpace(os.Getenv("STORAGE_S3_PREFIX")), "/")
+	if len(storageS3Prefix) > 512 || strings.ContainsAny(storageS3Prefix, "\\\r\n\x00") {
+		return Config{}, fmt.Errorf("STORAGE_S3_PREFIX must be a safe object prefix")
+	}
+	if storageDriver == "s3" {
+		if storageS3Endpoint == "" || storageS3Bucket == "" || storageS3AccessKey == "" || storageS3SecretKey == "" {
+			return Config{}, fmt.Errorf("STORAGE_S3_ENDPOINT, STORAGE_S3_BUCKET, STORAGE_S3_ACCESS_KEY, and STORAGE_S3_SECRET_KEY are required when STORAGE_DRIVER is s3")
+		}
+		if !isStorageS3Endpoint(storageS3Endpoint) {
+			return Config{}, fmt.Errorf("STORAGE_S3_ENDPOINT must be an HTTP(S) endpoint without path or credentials")
+		}
+	}
+	storageS3StagingRoot, err := filepath.Abs(value("STORAGE_S3_STAGING_ROOT", filepath.Join(storageRoot, "s3-staging")))
+	if err != nil || strings.TrimSpace(storageS3StagingRoot) == "" || storageS3StagingRoot == string(filepath.Separator) {
+		return Config{}, fmt.Errorf("STORAGE_S3_STAGING_ROOT must be a valid non-root filesystem path")
+	}
 	acmeEnabled, err := strconv.ParseBool(value("ACME_ENABLED", "false"))
 	if err != nil {
 		return Config{}, fmt.Errorf("ACME_ENABLED must be true or false")
@@ -324,6 +367,16 @@ func Load() (Config, error) {
 		StorageRoot:                   filepath.Clean(storageRoot),
 		StorageMaxFileSize:            storageMaxFileSize,
 		StorageDefaultQuotaBytes:      storageDefaultQuota,
+		StorageDriver:                 storageDriver,
+		StorageS3Endpoint:             storageS3Endpoint,
+		StorageS3Region:               storageS3Region,
+		StorageS3Bucket:               storageS3Bucket,
+		StorageS3AccessKey:            storageS3AccessKey,
+		StorageS3SecretKey:            storageS3SecretKey,
+		StorageS3UseSSL:               storageS3UseSSL,
+		StorageS3PathStyle:            storageS3PathStyle,
+		StorageS3Prefix:               storageS3Prefix,
+		StorageS3StagingRoot:          filepath.Clean(storageS3StagingRoot),
 		FunctionsMaxArtifactSize:      functionsMaxArtifactSize,
 		FunctionsDefaultQuotaBytes:    functionsDefaultQuota,
 		FunctionsSecretKey:            functionsSecretKey,
@@ -371,6 +424,27 @@ func (c Config) ValidateFunctions() error {
 	}
 	if c.FunctionsMaxArtifactSize <= 0 || c.FunctionsDefaultQuotaBytes <= 0 || c.FunctionsMaxArtifactSize > c.FunctionsDefaultQuotaBytes {
 		return fmt.Errorf("function artifact size and quota settings are invalid")
+	}
+	return nil
+}
+
+func (c Config) ValidateStorage() error {
+	if c.StorageDriver != "local" && c.StorageDriver != "s3" {
+		return fmt.Errorf("storage driver must be local or s3")
+	}
+	if c.StorageMaxFileSize <= 0 || c.StorageDefaultQuotaBytes <= 0 {
+		return fmt.Errorf("storage size and quota settings are invalid")
+	}
+	if c.StorageDriver == "s3" {
+		if strings.TrimSpace(c.StorageS3Endpoint) == "" || strings.TrimSpace(c.StorageS3Bucket) == "" || strings.TrimSpace(c.StorageS3AccessKey) == "" || c.StorageS3SecretKey == "" {
+			return fmt.Errorf("S3 storage credentials and bucket are required")
+		}
+		if !isStorageS3Endpoint(c.StorageS3Endpoint) {
+			return fmt.Errorf("S3 storage endpoint is invalid")
+		}
+		if strings.TrimSpace(c.StorageS3StagingRoot) == "" || !filepath.IsAbs(c.StorageS3StagingRoot) || filepath.Clean(c.StorageS3StagingRoot) == string(filepath.Separator) {
+			return fmt.Errorf("S3 storage staging root is invalid")
+		}
 	}
 	return nil
 }
@@ -423,6 +497,22 @@ func isWorkerID(value string) bool {
 		return false
 	}
 	return value != ""
+}
+
+func isStorageS3Endpoint(raw string) bool {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || strings.ContainsAny(raw, "\r\n\x00") {
+		return false
+	}
+	endpointURL := raw
+	if !strings.Contains(raw, "://") {
+		endpointURL = "http://" + raw
+	}
+	parsed, err := url.Parse(endpointURL)
+	if err != nil || parsed.Host == "" || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+		return false
+	}
+	return true
 }
 
 func isDockerName(value string) bool {

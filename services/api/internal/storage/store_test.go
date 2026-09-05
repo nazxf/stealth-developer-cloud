@@ -150,3 +150,34 @@ func TestBeginUploadHonorsCanceledContextAndRejectsTraversal(t *testing.T) {
 		t.Fatalf("absolute RemoveRelative error = %v, want ErrInvalidPath", err)
 	}
 }
+
+func TestNewS3ValidatesConfigurationAndUsesBoundedStaging(t *testing.T) {
+	store, err := NewS3(S3Options{
+		Endpoint:       "http://minio.example.test:9000",
+		Region:         "us-east-1",
+		Bucket:         "stealth-files",
+		AccessKey:      "access",
+		SecretKey:      "secret",
+		ForcePathStyle: true,
+		Prefix:         "tenant-blobs",
+		StagingRoot:    t.TempDir(),
+	}, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := store.objectKey("project/bucket/file")
+	if err != nil || key != "tenant-blobs/project/bucket/file" {
+		t.Fatalf("objectKey() = %q, %v", key, err)
+	}
+	if _, err := store.objectKey("../outside"); !errors.Is(err, ErrInvalidPath) {
+		t.Fatalf("objectKey traversal error = %v, want ErrInvalidPath", err)
+	}
+	for _, invalid := range []S3Options{
+		{Endpoint: "http://minio.example.test:9000/path", Bucket: "stealth-files", AccessKey: "a", SecretKey: "s", StagingRoot: t.TempDir()},
+		{Endpoint: "http://minio.example.test:9000", Bucket: "bad_bucket", AccessKey: "a", SecretKey: "s", StagingRoot: t.TempDir()},
+	} {
+		if _, err := NewS3(invalid, 1024); err == nil {
+			t.Fatalf("NewS3(%+v) succeeded for invalid configuration", invalid)
+		}
+	}
+}

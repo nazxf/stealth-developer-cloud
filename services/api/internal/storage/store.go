@@ -34,6 +34,27 @@ var (
 	ErrInvalidMIME     = errors.New("invalid MIME type")
 )
 
+// ReadSeekCloser is the stream returned to HTTP handlers. Local storage uses
+// an *os.File; remote backends may materialize a temporary download so
+// http.ServeContent can still support range/seek semantics safely.
+type ReadSeekCloser interface {
+	io.ReadSeeker
+	io.Closer
+}
+
+// BlobStore is the storage contract shared by local and S3-compatible
+// backends. Database metadata remains the source of truth for ownership and
+// permissions; the store only publishes and retrieves opaque blob paths.
+type BlobStore interface {
+	Ping(context.Context) error
+	BeginUploadWithLimit(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, io.Reader, string, int64) (PreparedFile, error)
+	Commit(*PreparedFile) error
+	Cleanup(*PreparedFile)
+	RemoveRelative(string) error
+	RemoveProject(uuid.UUID) error
+	OpenRelative(string) (ReadSeekCloser, error)
+}
+
 // Store is a self-hosted local blob store. A Store is safe for concurrent use;
 // PostgreSQL owns quota/accounting serialization while this type owns atomic
 // file creation and path validation.
@@ -72,6 +93,13 @@ func New(root string, maxSize int64) (*Store, error) {
 }
 
 func (s *Store) Root() string { return s.root }
+
+func (s *Store) Ping(context.Context) error {
+	if s == nil || strings.TrimSpace(s.root) == "" {
+		return ErrInvalidPath
+	}
+	return nil
+}
 
 // ValidateFilename validates a display filename without normalizing it into a
 // path. It rejects separators, control characters, dot-segments, and header
@@ -258,7 +286,7 @@ func (s *Store) RemoveProject(projectID uuid.UUID) error {
 	return nil
 }
 
-func (s *Store) OpenRelative(relative string) (*os.File, error) {
+func (s *Store) OpenRelative(relative string) (ReadSeekCloser, error) {
 	path, err := s.resolveRelative(relative)
 	if err != nil {
 		return nil, err
