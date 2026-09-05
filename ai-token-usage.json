@@ -1,0 +1,227 @@
+[
+  {
+    "id": "seed-01-eksplorasi",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 185000,
+    "output": 9000,
+    "note": "Baca codebase (~9.000 baris), docs Next.js 16.3, baseline git"
+  },
+  {
+    "id": "seed-02-move",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 125000,
+    "output": 14000,
+    "note": "Tahap 1: pindah/rename 35+ file ke struktur feature-first kebab-case"
+  },
+  {
+    "id": "seed-03-overview",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 160000,
+    "output": 38000,
+    "note": "Tahap 2-3: pecah ServiceOverview jadi model + hook + canvas/panel/dialog"
+  },
+  {
+    "id": "seed-04-predeploy",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 95000,
+    "output": 26000,
+    "note": "Tahap 4: pecah PreDeployFlow jadi 3 step + summary + model"
+  },
+  {
+    "id": "seed-05-shell-css",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 85000,
+    "output": 12000,
+    "note": "Tahap 5-6: application shell bersama + pecah index.css ke src/styles"
+  },
+  {
+    "id": "seed-06-verifikasi",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 140000,
+    "output": 18000,
+    "note": "Typecheck, production build, smoke test 3 route via browser, screenshot tema"
+  },
+  {
+    "id": "seed-07-pr",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 45000,
+    "output": 7000,
+    "note": "Commit, push, buat PR #1 + bikin file tracker ini"
+  },
+  {
+    "id": "seed-08-skill",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 90000,
+    "output": 9000,
+    "note": "Pasang skill vercel-react-best-practices ke project, commit & push"
+  },
+  {
+    "id": "seed-09-tracker",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 75000,
+    "output": 14000,
+    "note": "Upgrade tracker token: filter proyek, grafik harian, target biaya, parser 125k"
+  },
+  {
+    "id": "seed-10-audit",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 340000,
+    "output": 16000,
+    "note": "Audit penuh 70 aturan skill via 2 subagent paralel di seluruh src (~6.900 baris)"
+  },
+  {
+    "id": "seed-11-fixes",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 120000,
+    "output": 12000,
+    "note": "Fix performa: debounce localStorage canvas, memo node + handler stabil, isPanning state, context shell, timer chat"
+  },
+  {
+    "id": "seed-12-verifikasi",
+    "date": "2026-08-28",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 110000,
+    "output": 8000,
+    "note": "tsc + next build + smoke test browser: drag node, pan canvas, class panning, localStorage, chat reply"
+  },
+  {
+    "id": "seed-13-review",
+    "date": "2026-08-29",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 210000,
+    "output": 26000,
+    "note": "Baca & triase 19 komentar review PR #1; fix 11 temuan app code (a11y canvas, XSS, wheel pasif, clipboard, ul/li)"
+  },
+  {
+    "id": "seed-14-merge",
+    "date": "2026-08-29",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 55000,
+    "output": 6000,
+    "note": "Login ulang GCM (device flow), push ulang branch, squash-merge PR #1 ke master"
+  },
+  {
+    "id": "seed-15-sort",
+    "date": "2026-08-29",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 145000,
+    "output": 21000,
+    "note": "Animasi tombol sort motion/react: crossfade ikon + rolling text; root-cause bug klik hilang, slot lebar konstan"
+  },
+  {
+    "id": "seed-16-login",
+    "date": "2026-08-29",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 130000,
+    "output": 18000,
+    "note": "Buat halaman /login gaya Cloudflare: social auth, SSO, toggle password, checkbox, iterasi visual sampai match referensi"
+  },
+  {
+    "id": "seed-17-verifikasi",
+    "date": "2026-08-29",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 60000,
+    "output": 9000,
+    "note": "tsc + build + screenshot headless Edge untuk verifikasi visual /login, update tracker, siapkan PR #2"
+  },
+  {
+    "id": "seed-18-tunnel",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 40000,
+    "output": 4000,
+    "note": "Clone ulang repo, install deps, build produksi, jalankan server + quick tunnel Cloudflare (trycloudflare)"
+  },
+  {
+    "id": "seed-19-sidebar",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 260000,
+    "output": 28000,
+    "note": "Fix mobile sidebar: tombol Menu tumpang tindih di header, drawer flush kiri full-height, toggle ikon gaya CodeRabbit, wrap header Projects/Agents"
+  },
+  {
+    "id": "seed-20-reactgrab",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 70000,
+    "output": 6000,
+    "note": "Nyalakan react-grab: dev server + allowedDevOrigins *.trycloudflare.com, verifikasi lewat headless browser"
+  },
+  {
+    "id": "seed-21-polish",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 150000,
+    "output": 16000,
+    "note": "Ikon toggle SVG kustom (PanelToggleIcon) + polish mobile halaman Projects: CTA full-width, kartu ringkas, tanggal tidak terpotong"
+  },
+  {
+    "id": "seed-22-pr2",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 55000,
+    "output": 5000,
+    "note": "Merge PR #2 fast-forward: login page, animasi sort, tracker update — tanpa konflik dengan perubahan lokal"
+  },
+  {
+    "id": "seed-23-login",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 420000,
+    "output": 48000,
+    "note": "Redesign total /login: font Inter Variable 500, validasi error, halaman /forgot-password, iterasi warna (tombol #0F0F0F, input #171717, gradient Sign in), hapus Apple"
+  },
+  {
+    "id": "seed-24-agent",
+    "date": "2026-08-30",
+    "model": "glm-5.3-flash",
+    "project": "stealth-console",
+    "input": 620000,
+    "output": 75000,
+    "note": "Redesign total fitur Agent jadi AI coding agent: overview + workspace 5 tab (chat/steps animasi, changes, activity) + dialog create, 15 file baru/rewrite, hapus UI lama"
+  },
+  {
+    "id": "seed-25-tanstack-start",
+    "date": "2026-09-05",
+    "model": "gpt-5.6-luna",
+    "project": "stealth-console",
+    "input": 420000,
+    "output": 36000,
+    "note": "Migrasi frontend React/Vite ke TanStack Start SPA-first: route tree file-based, auth boundary, QueryClient, build/deployment, test dan Docker smoke test"
+  }
+]
