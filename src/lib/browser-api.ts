@@ -567,6 +567,7 @@ export class BrowserAPIError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    public readonly traceID?: string,
   ) {
     super(message);
     this.name = "BrowserAPIError";
@@ -597,6 +598,7 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
       response.status,
       payload?.error?.code ?? "upstream_error",
       payload?.error?.message ?? "Stealth API request failed",
+      response.headers.get("X-Trace-ID")?.trim() || undefined,
     );
   }
   if (response.status === 204) return undefined as T;
@@ -615,6 +617,7 @@ async function download(path: string) {
       response.status,
       payload?.error?.code ?? "upstream_error",
       payload?.error?.message ?? "Stealth API request failed",
+      response.headers.get("X-Trace-ID")?.trim() || undefined,
     );
   }
   return response.blob();

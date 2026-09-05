@@ -68,7 +68,7 @@ describe("browser API boundary", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
         JSON.stringify({ error: { code: "forbidden", message: "not allowed" } }),
-        { status: 403 },
+        { status: 403, headers: { "X-Trace-ID": "trace-403" } },
       ),
     );
 
@@ -76,6 +76,7 @@ describe("browser API boundary", () => {
       status: 403,
       code: "forbidden",
       message: "not allowed",
+      traceID: "trace-403",
     });
   });
 
