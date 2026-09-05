@@ -175,5 +175,8 @@ server-only client because they require a project API key. Git deployments
 accept only public HTTPS GitHub/GitLab repositories and run their build in the
 same isolated worker as uploaded source archives.
 
-Backups, resumable uploads, image transforms, and
+Logical database backups are available from the server client through
+`client.databases.backups`: create a bounded checksummed snapshot, download it,
+restore it atomically, list metadata, or delete it. Backup blobs never expose
+their local/S3 storage paths. Resumable uploads, image transforms, and
 antivirus/CDN integration remain later milestones.

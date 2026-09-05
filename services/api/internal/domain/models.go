@@ -432,6 +432,18 @@ type ProjectDatabase struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+// DatabaseBackup describes an immutable logical snapshot. The storage path is
+// intentionally omitted; callers receive a download endpoint instead of an
+// internal filesystem/S3 key.
+type DatabaseBackup struct {
+	ID             string    `json:"id"`
+	ProjectID      string    `json:"project_id"`
+	DatabaseID     string    `json:"database_id"`
+	SizeBytes      int64     `json:"size_bytes"`
+	ChecksumSHA256 string    `json:"checksum_sha256"`
+	CreatedAt      time.Time `json:"created_at"`
+}
+
 type DatabaseTable struct {
 	ID                string    `json:"id"`
 	DatabaseID        string    `json:"database_id"`

@@ -257,6 +257,18 @@ const databaseRelationshipSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const databaseBackupSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  database_id: z.string(),
+  size_bytes: z.number().int().positive(),
+  checksum_sha256: z.string().length(64),
+  created_at: z.string(),
+});
+const databaseBackupRestoreSchema = z.object({
+  backup_id: z.string(),
+  result: z.object({ tables: z.number().int().nonnegative(), columns: z.number().int().nonnegative(), indexes: z.number().int().nonnegative(), rows: z.number().int().nonnegative(), relationships: z.number().int().nonnegative() }),
+});
 const databaseRowSchema = z.object({
   id: z.string(),
   table_id: z.string(),
@@ -577,6 +589,8 @@ export type BrowserDatabaseColumnType = z.infer<typeof databaseColumnTypeSchema>
 export type BrowserDatabaseColumn = z.infer<typeof databaseColumnSchema>;
 export type BrowserDatabaseIndex = z.infer<typeof databaseIndexSchema>;
 export type BrowserDatabaseRelationship = z.infer<typeof databaseRelationshipSchema>;
+export type BrowserDatabaseBackup = z.infer<typeof databaseBackupSchema>;
+export type BrowserDatabaseBackupRestore = z.infer<typeof databaseBackupRestoreSchema>;
 export type BrowserDatabaseRow = z.infer<typeof databaseRowSchema>;
 export type BrowserDatabaseRowsExport = z.infer<typeof databaseRowsExportSchema>;
 export type BrowserDatabaseRowsImportResponse = z.infer<typeof databaseRowsImportSchema>;
@@ -867,6 +881,26 @@ export const browserAPI = {
       z.undefined(),
       { method: "DELETE" },
     ),
+  projectDatabaseBackups: (projectID: string, databaseID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/backups${query ? `?${query}` : ""}`, z.object({ backups: z.array(databaseBackupSchema), pagination: paginationSchema }).passthrough());
+  },
+  createProjectDatabaseBackup: (projectID: string, databaseID: string, options: { max_rows?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (options.max_rows !== undefined) params.set("max_rows", String(options.max_rows));
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/backups${params.toString() ? `?${params.toString()}` : ""}`, z.object({ backup: databaseBackupSchema }), { method: "POST" });
+  },
+  getProjectDatabaseBackup: (projectID: string, databaseID: string, backupID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}`, z.object({ backup: databaseBackupSchema })),
+  downloadProjectDatabaseBackup: (projectID: string, databaseID: string, backupID: string) =>
+    download(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}/download`),
+  restoreProjectDatabaseBackup: (projectID: string, databaseID: string, backupID: string) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}/restore`, databaseBackupRestoreSchema, { method: "POST" }),
+  deleteProjectDatabaseBackup: (projectID: string, databaseID: string, backupID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}`, z.undefined(), { method: "DELETE" }),
   projectDatabaseRows: (projectID: string, databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

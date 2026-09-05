@@ -1193,7 +1193,7 @@ func TestProjectDatabasesCoreIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour, AppSessionTTL: time.Hour}, repository.New(pool), logger, integrationLimiter(t, ctx)))
+	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour, AppSessionTTL: time.Hour, StorageRoot: t.TempDir(), StorageMaxFileSize: 50 << 20}, repository.New(pool), logger, integrationLimiter(t, ctx)))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)
@@ -1402,6 +1402,44 @@ func TestProjectDatabasesCoreIntegration(t *testing.T) {
 	if transactionResult.Count != 1 || len(transactionResult.DeletedIDs) != 1 {
 		t.Fatalf("delete transaction result = %#v", transactionResult)
 	}
+	// Logical backups include schema, indexes, relationships, and rows. The
+	// restore replaces the whole database under one transaction, so a table
+	// created after the snapshot must disappear when restore succeeds.
+	var backupResponse struct {
+		Backup struct {
+			ID        string `json:"id"`
+			SizeBytes int64  `json:"size_bytes"`
+			Checksum  string `json:"checksum_sha256"`
+		} `json:"backup"`
+	}
+	requestJSON(t, ownerClient, http.MethodPost, databaseURLPath+"/backups?max_rows=1000", nil, http.StatusCreated, &backupResponse)
+	if backupResponse.Backup.ID == "" || backupResponse.Backup.SizeBytes < 1 || len(backupResponse.Backup.Checksum) != 64 {
+		t.Fatalf("invalid backup metadata = %#v", backupResponse.Backup)
+	}
+	backupPath := databaseURLPath + "/backups/" + backupResponse.Backup.ID
+	backupPayload := requestJSONRaw(t, ownerClient, http.MethodGet, backupPath+"/download", nil, http.StatusOK)
+	var backupSnapshot map[string]any
+	if err := json.Unmarshal(backupPayload, &backupSnapshot); err != nil || backupSnapshot["version"] == nil {
+		t.Fatalf("invalid downloaded backup: err=%v payload=%s", err, backupPayload)
+	}
+	requestJSON(t, ownerClient, http.MethodPost, databaseURLPath+"/tables", map[string]any{"name": "Restore me"}, http.StatusCreated, &struct{}{})
+	var restoreResponse struct {
+		Result struct {
+			Tables        int `json:"tables"`
+			Columns       int `json:"columns"`
+			Indexes       int `json:"indexes"`
+			Rows          int `json:"rows"`
+			Relationships int `json:"relationships"`
+		} `json:"result"`
+	}
+	requestJSON(t, ownerClient, http.MethodPost, backupPath+"/restore", nil, http.StatusOK, &restoreResponse)
+	if restoreResponse.Result.Tables < 2 || restoreResponse.Result.Columns < 2 || restoreResponse.Result.Rows < 1 {
+		t.Fatalf("unexpected restore result = %#v", restoreResponse.Result)
+	}
+	requestJSON(t, ownerClient, http.MethodGet, databaseURLPath+"/tables", nil, http.StatusOK, &struct{}{})
+	requestJSON(t, ownerClient, http.MethodGet, databaseURLPath+"/tables/00000000-0000-7000-8000-000000000000", nil, http.StatusNotFound, nil)
+	requestJSON(t, ownerClient, http.MethodDelete, backupPath, nil, http.StatusNoContent, nil)
+	requestJSON(t, ownerClient, http.MethodGet, backupPath, nil, http.StatusNotFound, nil)
 	requestJSON(t, ownerClient, http.MethodGet, tableURL+"/rows?filter.count=2", nil, http.StatusUnprocessableEntity, nil)
 	requestJSON(t, ownerClient, http.MethodPost, tableURL+"/indexes", map[string]any{"name": "count key", "type": "key", "column_keys": []string{"count"}}, http.StatusCreated, &struct{}{})
 	var rowsPage struct {

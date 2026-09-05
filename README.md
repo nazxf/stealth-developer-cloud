@@ -313,8 +313,10 @@ available as an authenticated, cursor-aware Server-Sent Events stream; see
   full-text search is available on explicitly declared PostgreSQL GIN indexes;
   many-to-one relationships are enforced transactionally between text/varchar
   row-id columns and target rows (target deletion is restricted), and bounded
-  create/update/delete row transactions are atomic; backups remain a future
-  module.
+  create/update/delete row transactions are atomic. Logical database backups
+  are stored as checksummed, bounded JSON blobs in the configured local or
+  S3-compatible BlobStore and can be downloaded, restored atomically, listed,
+  and deleted through the management API.
 
 ### Webhooks contract
 

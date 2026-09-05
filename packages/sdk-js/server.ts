@@ -30,6 +30,8 @@ export type ServerDatabaseTable = { id: string; database_id: string; project_id:
 export type ServerDatabaseColumn = { id: string; table_id: string; key: string; type: ServerDatabaseColumnType; required: boolean; varchar_size?: number | null; default?: unknown; created_at: string; updated_at: string };
 export type ServerDatabaseIndex = { id: string; table_id: string; name: string; type: "key" | "unique" | "fulltext"; column_keys: string[]; directions: Array<"asc" | "desc">; created_at: string; updated_at: string };
 export type ServerDatabaseRelationship = { id: string; project_id: string; database_id: string; source_table_id: string; source_column_key: string; target_table_id: string; type: "many_to_one"; on_delete: "restrict"; created_at: string; updated_at: string };
+export type ServerDatabaseBackup = { id: string; project_id: string; database_id: string; size_bytes: number; checksum_sha256: string; created_at: string };
+export type ServerDatabaseBackupRestoreResult = { tables: number; columns: number; indexes: number; rows: number; relationships: number };
 export type ServerDatabaseRow = { id: string; table_id: string; project_id: string; data: Record<string, unknown>; read_permissions: string[]; update_permissions: string[]; delete_permissions: string[]; creator_project_user_id?: string; created_at: string; updated_at: string };
 export type ServerDatabaseRowImportInput = { id?: string; data: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] };
 export type ServerDatabaseRowsExport = { rows: ServerDatabaseRow[]; count: number };
@@ -43,6 +45,7 @@ export type ServerUpdateDatabaseTableInput = Omit<ServerCreateDatabaseTableInput
 export type ServerCreateDatabaseColumnInput = { key: string; type: ServerDatabaseColumnType; required?: boolean; varchar_size?: number | null; default?: unknown };
 export type ServerCreateDatabaseIndexInput = { name: string; type: "key" | "unique" | "fulltext"; column_keys: string[]; directions?: Array<"asc" | "desc"> };
 export type ServerCreateDatabaseRelationshipInput = { source_table_id: string; source_column_key: string; target_table_id: string; type?: "many_to_one"; on_delete?: "restrict" };
+export type ServerCreateDatabaseBackupOptions = { max_rows?: number };
 export type ServerCreateDatabaseRowInput = { data: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] };
 export type ServerUpdateDatabaseRowInput = { data?: Record<string, unknown>; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[] };
 
@@ -133,6 +136,14 @@ export class ServerStealthClient {
       get: (databaseID: string, relationshipID: string) => Promise<ServerDatabaseRelationship>;
       create: (databaseID: string, input: ServerCreateDatabaseRelationshipInput) => Promise<ServerDatabaseRelationship>;
       delete: (databaseID: string, relationshipID: string) => Promise<void>;
+    };
+    backups: {
+      list: (databaseID: string, options?: { limit?: number; cursor?: string }) => Promise<{ backups: ServerDatabaseBackup[]; pagination: { limit: number; next_cursor: string | null } }>;
+      get: (databaseID: string, backupID: string) => Promise<ServerDatabaseBackup>;
+      create: (databaseID: string, options?: ServerCreateDatabaseBackupOptions) => Promise<ServerDatabaseBackup>;
+      download: (databaseID: string, backupID: string) => Promise<ArrayBuffer>;
+      restore: (databaseID: string, backupID: string) => Promise<{ backup_id: string; result: ServerDatabaseBackupRestoreResult }>;
+      delete: (databaseID: string, backupID: string) => Promise<void>;
     };
     rows: {
       list: (databaseID: string, tableID: string, options?: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> }) => Promise<{ rows: ServerDatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>;
@@ -309,6 +320,14 @@ export class ServerStealthClient {
         get: (databaseID, relationshipID) => this.getRelationship(databaseID, relationshipID),
         create: (databaseID, input) => this.createRelationship(databaseID, input),
         delete: (databaseID, relationshipID) => this.deleteRelationship(databaseID, relationshipID),
+      },
+      backups: {
+        list: (databaseID, listOptions) => this.listBackups(databaseID, listOptions),
+        get: (databaseID, backupID) => this.getBackup(databaseID, backupID),
+        create: (databaseID, options) => this.createBackup(databaseID, options),
+        download: (databaseID, backupID) => this.downloadBackup(databaseID, backupID),
+        restore: (databaseID, backupID) => this.restoreBackup(databaseID, backupID),
+        delete: (databaseID, backupID) => this.deleteBackup(databaseID, backupID),
       },
       rows: {
         list: (databaseID, tableID, listOptions) => this.listRows(databaseID, tableID, listOptions),
@@ -493,6 +512,12 @@ export class ServerStealthClient {
   private async getRelationship(databaseID: string, relationshipID: string) { const response = await this.request<{ relationship: ServerDatabaseRelationship }>(`/databases/${encodeURIComponent(databaseID)}/relationships/${encodeURIComponent(relationshipID)}`); return response.relationship; }
   private async createRelationship(databaseID: string, input: ServerCreateDatabaseRelationshipInput) { const response = await this.request<{ relationship: ServerDatabaseRelationship }>(`/databases/${encodeURIComponent(databaseID)}/relationships`, { method: "POST", body: JSON.stringify(input) }); return response.relationship; }
   private async deleteRelationship(databaseID: string, relationshipID: string) { await this.request<void>(`/databases/${encodeURIComponent(databaseID)}/relationships/${encodeURIComponent(relationshipID)}`, { method: "DELETE" }); }
+  private async listBackups(databaseID: string, options?: { limit?: number; cursor?: string }) { const query = this.pageQuery(options); return this.request<{ backups: ServerDatabaseBackup[]; pagination: { limit: number; next_cursor: string | null } }>(`/databases/${encodeURIComponent(databaseID)}/backups${query ? `?${query}` : ""}`); }
+  private async getBackup(databaseID: string, backupID: string) { const response = await this.request<{ backup: ServerDatabaseBackup }>(`/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}`); return response.backup; }
+  private async createBackup(databaseID: string, options: ServerCreateDatabaseBackupOptions = {}) { const query = new URLSearchParams(); if (options.max_rows !== undefined) query.set("max_rows", String(options.max_rows)); const response = await this.request<{ backup: ServerDatabaseBackup }>(`/databases/${encodeURIComponent(databaseID)}/backups${query.toString() ? `?${query.toString()}` : ""}`, { method: "POST" }); return response.backup; }
+  private async downloadBackup(databaseID: string, backupID: string) { const response = await fetch(`${this.endpoint}/v1/projects/${encodeURIComponent(this.projectID)}/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}/download`, { headers: { accept: "application/json", "x-stealth-key": this.apiKey } }); if (!response.ok) throw await this.errorFromResponse(response); return response.arrayBuffer(); }
+  private async restoreBackup(databaseID: string, backupID: string) { return this.request<{ backup_id: string; result: ServerDatabaseBackupRestoreResult }>(`/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}/restore`, { method: "POST" }); }
+  private async deleteBackup(databaseID: string, backupID: string) { await this.request<void>(`/databases/${encodeURIComponent(databaseID)}/backups/${encodeURIComponent(backupID)}`, { method: "DELETE" }); }
   private async listRows(databaseID: string, tableID: string, options: { limit?: number; cursor?: string; order_by?: string; order_direction?: "asc" | "desc"; search?: string; search_column?: string; filters?: Record<string, string> } = {}) { const query = new URLSearchParams(this.pageQuery(options)); if (options.order_by) query.set("order_by", options.order_by); if (options.order_direction) query.set("order_direction", options.order_direction); if (options.search) query.set("search", options.search); if (options.search_column) query.set("search_column", options.search_column); for (const [key, value] of Object.entries(options.filters ?? {})) query.set(`filter.${key}`, value); return this.request<{ rows: ServerDatabaseRow[]; pagination: { limit: number; next_cursor: string | null } }>(`/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows${query.toString() ? `?${query.toString()}` : ""}`); }
   private async exportRows(databaseID: string, tableID: string, options: { limit?: number } = {}) { const query = new URLSearchParams({ format: "json" }); if (options.limit !== undefined) query.set("limit", String(options.limit)); return this.request<ServerDatabaseRowsExport>(`/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/export?${query.toString()}`); }
   private async importRows(databaseID: string, tableID: string, input: { rows: ServerDatabaseRowImportInput[] }) { return this.request<ServerDatabaseRowsImportResponse>(`/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}/rows/import`, { method: "POST", body: JSON.stringify(input) }); }

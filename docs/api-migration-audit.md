@@ -84,8 +84,9 @@ simulated async behavior (timers standing in for network calls).
   through the same centralized browser API. Permission-filtered table export,
   atomic typed-row import (up to 1,000 rows), and PostgreSQL-backed full-text
   search, enforced many-to-one relationships, and bounded atomic row
-  transactions are now available. Backups remain explicitly disabled until
-  their backend module exists. Messaging provider/topic/subscriber
+  transactions are now available. Logical database backup metadata, verified
+  downloads, and atomic schema/row/index/relationship restore are now
+  available through the management API. Messaging provider/topic/subscriber
   configuration and the trusted delivery worker are connected end to end;
   production push delivery still depends on configuring a real provider.
   Project Settings now updates the
@@ -288,10 +289,9 @@ simulated async behavior (timers standing in for network calls).
   code. It now exposes the database/table/column/index/row methods with
   independent Database, Storage, Functions, and Sites read/write
   authorization, including cursor-based Function and Site build-log reads.
-  Table export, atomic typed-row import, indexed full-text search, and enforced
-  many-to-one relationships and bounded atomic row transactions are available
-  through the database endpoints; backups remain unavailable until its backend
-  module exists.
+  Table export, atomic typed-row import, indexed full-text search, enforced
+  many-to-one relationships, bounded atomic row transactions, and checksummed
+  logical database backup/restore are available through the database endpoints.
 
 ## Admin (Vite route tree)
 
