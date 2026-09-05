@@ -152,7 +152,9 @@ services:
     expose:
       - "9091"
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:9091/healthz"]
+      # The metrics listener is intentionally disabled when the Functions
+      # runner is disabled; webhook/messaging-only workers are still healthy.
+      test: ["CMD-SHELL", "if [ \"$${FUNCTIONS_RUNNER_ENABLED:-true}\" = \"true\" ]; then wget -q -O /dev/null http://localhost:9091/healthz; else exit 0; fi"]
       interval: 10s
       timeout: 3s
       retries: 10
