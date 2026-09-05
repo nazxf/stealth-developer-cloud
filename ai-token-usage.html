@@ -234,6 +234,7 @@
 // Angka ini hanya untuk estimasi; sesuaikan sendiri bila harga berubah.
 const MODELS = [
   { id: "glm-5.3-flash",    name: "GLM-5.3 Flash (Z.ai)", in: 0,     out: 0 },
+  { id: "gpt-5.6-luna",     name: "GPT-5.6 Luna (Codex)", in: 0,     out: 0 },
   { id: "gpt-4o",           name: "GPT-4o",             in: 2.50,  out: 10.00 },
   { id: "gpt-4o-mini",      name: "GPT-4o mini",        in: 0.15,  out: 0.60 },
   { id: "o3",               name: "o3",                 in: 2.00,  out: 8.00 },
@@ -279,6 +280,8 @@ const SEED_ENTRIES = [
   { id: "seed-22-pr2",          date: "2026-08-30", model: "glm-5.3-flash", project: "stealth-console", input: 55000,  output: 5000,  note: "Merge PR #2 fast-forward: login page, animasi sort, tracker update — tanpa konflik dengan perubahan lokal" },
   { id: "seed-23-login",        date: "2026-08-30", model: "glm-5.3-flash", project: "stealth-console", input: 420000, output: 48000, note: "Redesign total /login: font Inter Variable 500, validasi error, halaman /forgot-password, iterasi warna (tombol #0F0F0F, input #171717, gradient Sign in), hapus Apple" },
   { id: "seed-24-agent",        date: "2026-08-30", model: "glm-5.3-flash", project: "stealth-console", input: 620000, output: 75000, note: "Redesign total fitur Agent jadi AI coding agent: overview + workspace 5 tab (chat/steps animasi, changes, activity) + dialog create, 15 file baru/rewrite, hapus UI lama" },
+  // Estimasi manual sesi terbaru; token telemetry provider tidak tersedia di repo.
+  { id: "seed-25-tanstack-start", date: "2026-09-05", model: "gpt-5.6-luna", project: "stealth-console", input: 420000, output: 36000, note: "Migrasi frontend React/Vite ke TanStack Start SPA-first: route tree file-based, auth boundary, QueryClient, build/deployment, test dan Docker smoke test" },
 ];
 
 function load() {
@@ -288,11 +291,18 @@ function load() {
       const parsed = JSON.parse(raw);
       entries = Array.isArray(parsed) ? parsed.map(normalizeEntry).filter(Boolean) : [];
     } else {
-      entries = SEED_ENTRIES.map((e) => ({ ...e }));
+      entries = [];
+    }
+    // Tambahkan seed baru ke instalasi lama tanpa menimpa catatan pengguna.
+    // Ini membuat pembaruan tracker tetap terlihat setelah file dibuka ulang.
+    const knownIds = new Set(entries.map((e) => e.id));
+    const missingSeeds = SEED_ENTRIES.filter((e) => !knownIds.has(e.id)).map((e) => ({ ...e }));
+    if (missingSeeds.length) {
+      entries.push(...missingSeeds);
       save();
     }
     budget = parseFloat(localStorage.getItem(BUDGET_KEY)) || 0;
-  } catch { entries = []; }
+  } catch { entries = SEED_ENTRIES.map((e) => ({ ...e })); }
 }
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(entries)); } catch {}
