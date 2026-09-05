@@ -226,7 +226,9 @@ simulated async behavior (timers standing in for network calls).
 ### Login, signup, and recovery — migrated
 - Login and signup call the browser API client and receive only HttpOnly
   session cookies. Forgot-password, verification, and reset pages use the
-  API's one-time token endpoints. The Vite shell gates every non-auth route on
+  API's one-time token endpoints. The shared Vite auth forms validate email,
+  password, and organization bounds with Zod before submitting and surface
+  safe API errors with pending states. The Vite shell gates every non-auth route on
   the current Console session and redirects a 401 to sign-in before rendering
   protected data.
 

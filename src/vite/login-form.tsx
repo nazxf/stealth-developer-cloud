@@ -4,7 +4,7 @@ import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
 
 const loginInputSchema = z.object({
   email: z.string().email("Enter a valid email address."),
-  password: z.string().min(1, "Enter your password."),
+  password: z.string().min(1, "Enter your password.").max(256, "Password must be 256 characters or fewer."),
 });
 
 export function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> | void }) {
@@ -39,7 +39,7 @@ export function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<
       <label className="block text-sm font-medium" htmlFor="vite-login-email">Email</label>
       <input id="vite-login-email" required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />
       <label className="mt-4 block text-sm font-medium" htmlFor="vite-login-password">Password</label>
-      <input id="vite-login-password" required type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />
+      <input id="vite-login-password" required maxLength={256} type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />
       {error ? <p className="mt-3 text-sm text-[var(--projects-danger)]" role="alert">{error}</p> : null}
       <button type="submit" disabled={pending} className="mt-5 h-10 w-full rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--projects-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60">{pending ? "Signing in…" : "Sign in"}</button>
     </form>

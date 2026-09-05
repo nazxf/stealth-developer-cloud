@@ -18,6 +18,7 @@ import { queryClient } from "./query-client";
 import { ProjectShellNavigation } from "./project-shell";
 import { LoginForm } from "./login-form";
 import { LogoutButton } from "./logout-button";
+import { PasswordRecoveryForm, ResetPasswordForm, SignupForm } from "./auth-forms";
 
 const publicAuthPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation"]);
 
@@ -98,88 +99,17 @@ function LoginRoute() {
 
 function SignupRoute() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [organizationName, setOrganizationName] = useState("");
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    setError("");
-    try {
-      await browserAPI.register({ email: email.trim(), password, organization_name: organizationName.trim() || undefined });
-      await queryClient.invalidateQueries({ queryKey: ["account"] });
-      await navigate({ to: "/" });
-    } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Unable to create the account. Please try again.");
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center justify-center">
-      <form onSubmit={submit} className="w-full rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-6 shadow-2xl" noValidate>
-        <div className="mb-6 text-center"><img src="/stealth-mark.png" alt="Stealth" className="mx-auto size-12" /><h1 className="m-0 mt-4 text-2xl font-semibold">Create your Stealth account</h1><p className="m-0 mt-2 text-sm text-[var(--projects-muted)]">A personal organization is created with your account.</p></div>
-        <label className="block text-sm font-medium" htmlFor="vite-signup-email">Email</label>
-        <input id="vite-signup-email" required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />
-        <label className="mt-4 block text-sm font-medium" htmlFor="vite-signup-password">Password</label>
-        <input id="vite-signup-password" required minLength={12} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />
-        <label className="mt-4 block text-sm font-medium" htmlFor="vite-signup-organization">Organization name <span className="font-normal text-[var(--projects-muted)]">(optional)</span></label>
-        <input id="vite-signup-organization" autoComplete="organization" value={organizationName} onChange={(event) => setOrganizationName(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />
-        {error ? <p className="mt-3 text-sm text-[var(--projects-danger)]" role="alert">{error}</p> : null}
-        <button type="submit" disabled={pending} className="mt-5 h-10 w-full rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white transition-colors hover:bg-[var(--projects-accent-hover)] disabled:cursor-not-allowed disabled:opacity-60">{pending ? "Creating account…" : "Create account"}</button>
-        <p className="m-0 mt-4 text-center text-sm text-[var(--projects-muted)]">Already have an account? <Link to="/login" className="text-[var(--projects-accent)] hover:underline">Sign in</Link></p>
-      </form>
-    </div>
-  );
+  return <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center justify-center"><div className="w-full"><SignupForm onAuthenticated={async () => { await queryClient.invalidateQueries({ queryKey: ["account"] }); await navigate({ to: "/" }); }} /><p className="m-0 mt-4 text-center text-sm text-[var(--projects-muted)]">Already have an account? <Link to="/login" className="text-[var(--projects-accent)] hover:underline">Sign in</Link></p></div></div>;
 }
 
 function ForgotPasswordRoute() {
-  const [email, setEmail] = useState("");
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    setError("");
-    setMessage("");
-    try {
-      await browserAPI.requestPasswordRecovery({ email: email.trim(), url: `${window.location.origin}/reset-password` });
-      setMessage("If an account exists for that email, a reset link has been sent.");
-    } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Unable to request a reset link.");
-    } finally {
-      setPending(false);
-    }
-  }
-  return <AuthCard title="Reset your password" detail="We will send a one-time link if the account exists."><form onSubmit={submit} noValidate><label className="block text-sm font-medium" htmlFor="vite-recovery-email">Email</label><input id="vite-recovery-email" required type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />{error ? <p className="mt-3 text-sm text-[var(--projects-danger)]" role="alert">{error}</p> : null}{message ? <p className="mt-3 text-sm text-[var(--projects-accent)]" role="status">{message}</p> : null}<button type="submit" disabled={pending} className="mt-5 h-10 w-full rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)] disabled:opacity-60">{pending ? "Sending…" : "Send reset link"}</button><p className="m-0 mt-4 text-center text-sm text-[var(--projects-muted)]"><Link to="/login" className="text-[var(--projects-accent)] hover:underline">Back to sign in</Link></p></form></AuthCard>;
+  return <AuthCard title="Reset your password" detail="We will send a one-time link if the account exists."><PasswordRecoveryForm resetURL={`${window.location.origin}/reset-password`} /><p className="m-0 mt-4 text-center text-sm text-[var(--projects-muted)]"><Link to="/login" className="text-[var(--projects-accent)] hover:underline">Back to sign in</Link></p></AuthCard>;
 }
 
 function ResetPasswordRoute() {
   const navigate = useNavigate();
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [pending, setPending] = useState(false);
   const token = new URLSearchParams(window.location.search).get("token") ?? "";
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!token) { setError("This reset link is missing its token."); return; }
-    setPending(true);
-    setError("");
-    try {
-      await browserAPI.resetPassword({ token, password });
-      await navigate({ to: "/login" });
-    } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Unable to reset the password.");
-    } finally {
-      setPending(false);
-    }
-  }
-  return <AuthCard title="Choose a new password" detail="The reset link can only be used once."><form onSubmit={submit} noValidate><label className="block text-sm font-medium" htmlFor="vite-reset-password">New password</label><input id="vite-reset-password" required minLength={12} type="password" autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1.5 h-10 w-full rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" />{error ? <p className="mt-3 text-sm text-[var(--projects-danger)]" role="alert">{error}</p> : null}<button type="submit" disabled={pending} className="mt-5 h-10 w-full rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)] disabled:opacity-60">{pending ? "Saving…" : "Save password"}</button></form></AuthCard>;
+  return <AuthCard title="Choose a new password" detail="The reset link can only be used once."><ResetPasswordForm token={token} onReset={() => navigate({ to: "/login" })} /></AuthCard>;
 }
 
 function VerifyEmailRoute() {
