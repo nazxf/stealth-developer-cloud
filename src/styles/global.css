@@ -1,5 +1,5 @@
-/* Entry stylesheet — imported once from src/app/layout.tsx. The import order
-   below is the cascade order: framework, base, theme, then feature styles. */
+/* Entry stylesheet — imported once from src/main.tsx. The import order below
+   is the cascade order: framework, base, theme, then feature styles. */
 @import "./tailwind.css";
 @import "./base.css";
 @import "./theme.css";
