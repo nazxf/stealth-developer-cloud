@@ -128,8 +128,8 @@ simulated async behavior (timers standing in for network calls).
   organization uniqueness, is idempotent, and emits a durable `project.update`
   audit/webhook event with the old and new name.
 - The page displays the immutable project ID, organization ID, and creation
-  date. Project deletion is exposed as a separate owner-only API and is not yet
-  represented as an enabled UI control; billing still requires a separate API.
+  date. The danger zone enables owner-only deletion after exact project-name
+  confirmation; billing still requires a separate API.
   Organization invitations live in Admin
   Users rather than project settings.
 
