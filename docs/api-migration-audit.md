@@ -218,6 +218,8 @@ simulated async behavior (timers standing in for network calls).
 - Agent creation and run submission now use isolated Zod-validated Vite forms,
   with component tests for normalization, local validation, queue selection, and
   safe API errors. The route keeps durable list/run state in TanStack Query.
+- An in-memory TanStack Router harness now verifies Agent list-to-workspace
+  navigation against mocked API responses, including the lazy detail route.
 
 ### Agent provider catalog — intentionally bounded
 - Project options now come from the authenticated organization/project API and
@@ -244,6 +246,10 @@ simulated async behavior (timers standing in for network calls).
   project, agent, and admin paths require the Console session, while only the
   six one-time authentication entry paths remain public; this policy is tested
   independently of server responses.
+- The runtime harness also verifies a protected project service URL redirects
+  an unauthenticated account to `/login`, and an authenticated service route
+  fans out to the project, layout, Functions, Sites, Databases, and Storage
+  APIs before rendering inventory data.
 
 ### Project application Auth boundary — connected core
 - Project identity management and the owner/admin registration setting are
