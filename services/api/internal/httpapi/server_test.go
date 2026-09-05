@@ -99,6 +99,30 @@ func TestProjectSessionCookieSameSiteRequiresSecureForCrossOrigin(t *testing.T) 
 	}
 }
 
+func TestConsoleSessionCookieUsesCrossOriginSafeSameSiteMode(t *testing.T) {
+	server := &Server{config: config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour, CookieSecure: true}}
+	recorder := httptest.NewRecorder()
+	server.setSessionCookie(recorder, "opaque-token")
+	cookies := recorder.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Fatalf("got %d cookies, want one", len(cookies))
+	}
+	if cookie := cookies[0]; !cookie.Secure || cookie.SameSite != http.SameSiteNoneMode {
+		t.Fatalf("secure console cookie attributes = %+v, want Secure and SameSite=None", cookie)
+	}
+
+	localServer := &Server{config: config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour}}
+	localRecorder := httptest.NewRecorder()
+	localServer.setSessionCookie(localRecorder, "opaque-token")
+	localCookies := localRecorder.Result().Cookies()
+	if len(localCookies) != 1 {
+		t.Fatalf("got %d local cookies, want one", len(localCookies))
+	}
+	if cookie := localCookies[0]; cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("local console cookie attributes = %+v, want insecure and SameSite=Lax", cookie)
+	}
+}
+
 func TestAllowPublicAuthEnforcesProjectIPBucket(t *testing.T) {
 	server := &Server{
 		config:  config.Config{AuthRateLimit: 1, AuthRateWindow: time.Minute},
