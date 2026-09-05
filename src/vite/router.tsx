@@ -13,13 +13,14 @@ import { useQuery } from "@tanstack/react-query";
 import { m, useReducedMotion } from "motion/react";
 import { Server } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 import { ProjectShellNavigation } from "./project-shell";
 import { LoginForm } from "./login-form";
 import { LogoutButton } from "./logout-button";
 import { PasswordRecoveryForm, ResetPasswordForm, SignupForm } from "./auth-forms";
 import { ProjectCreateForm } from "./project-create-form";
+import { ErrorState } from "./error-state";
 
 const publicAuthPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation"]);
 
@@ -39,16 +40,6 @@ function LoadingState({ label = "Loading Stealth…" }: { label?: string }) {
   );
 }
 
-function ErrorState({ error }: { error: unknown }) {
-  const message = error instanceof Error ? error.message : "Unable to load this view.";
-  return (
-    <div className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-text)]" role="alert">
-      <p className="m-0 font-semibold">Something went wrong</p>
-      <p className="m-0 mt-2 text-[var(--projects-muted)]">{message}</p>
-    </div>
-  );
-}
-
 function RootLayout() {
   const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
   const account = accountQuery.data?.account;
@@ -60,7 +51,7 @@ function RootLayout() {
 
   if (protectedPath && accountQuery.isPending) return <LoadingState label="Loading session…" />;
   if (protectedPath && accountQuery.error instanceof BrowserAPIError && accountQuery.error.status === 401) return <LoginRedirect />;
-  if (protectedPath && accountQuery.error) return <ErrorState error={accountQuery.error} />;
+  if (protectedPath && accountQuery.error) return <ErrorState error={accountQuery.error} fallback="Unable to load this view." onRetry={() => void accountQuery.refetch()} />;
 
   return (
     <div className="min-h-dvh bg-[var(--projects-bg)] text-[var(--projects-text)]">
@@ -123,7 +114,7 @@ function VerifyEmailRoute() {
   const [message, setMessage] = useState("Confirming your email…");
   useEffect(() => {
     if (!token) { setState("error"); setMessage("This verification link is missing its token."); return; }
-    void browserAPI.verifyEmail(token).then(() => { setState("success"); setMessage("Email verified. You can return to the console."); }).catch((error: unknown) => { setState("error"); setMessage(error instanceof BrowserAPIError ? error.message : "Unable to verify this link."); });
+    void browserAPI.verifyEmail(token).then(() => { setState("success"); setMessage("Email verified. You can return to the console."); }).catch((error: unknown) => { setState("error"); setMessage(browserAPIErrorMessage(error, "Unable to verify this link.")); });
   }, [token]);
   return <AuthCard title="Email verification" detail=""><p className={state === "success" ? "text-[var(--projects-accent)]" : state === "error" ? "text-[var(--projects-danger)]" : "text-[var(--projects-muted)]"} role={state === "error" ? "alert" : "status"}>{message}</p><Link to="/" className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-lg bg-[var(--projects-accent-strong)] text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]">Open console</Link></AuthCard>;
 }
@@ -134,7 +125,7 @@ function AcceptInvitationRoute() {
   const [message, setMessage] = useState("Accepting invitation…");
   useEffect(() => {
     if (!token) { setState("error"); setMessage("This invitation link is missing its token."); return; }
-    void browserAPI.acceptInvitation(token).then(() => { setState("success"); setMessage("Invitation accepted. The organization is now available in your Console."); }).catch((error: unknown) => { setState("error"); setMessage(error instanceof BrowserAPIError ? error.message : "Unable to accept this invitation."); });
+    void browserAPI.acceptInvitation(token).then(() => { setState("success"); setMessage("Invitation accepted. The organization is now available in your Console."); }).catch((error: unknown) => { setState("error"); setMessage(browserAPIErrorMessage(error, "Unable to accept this invitation.")); });
   }, [token]);
   return <AuthCard title="Organization invitation" detail=""><p className={state === "success" ? "text-[var(--projects-accent)]" : state === "error" ? "text-[var(--projects-danger)]" : "text-[var(--projects-muted)]"} role={state === "error" ? "alert" : "status"}>{message}</p><Link to="/" className="mt-5 inline-flex h-10 w-full items-center justify-center rounded-lg bg-[var(--projects-accent-strong)] text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]">Open console</Link></AuthCard>;
 }

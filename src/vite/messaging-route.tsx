@@ -2,8 +2,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type FormEvent } from "react";
 import { Bell, CheckCircle2, Clock3, LoaderCircle, XCircle } from "lucide-react";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 type Channel = "email" | "sms" | "push";
 
@@ -62,7 +63,7 @@ export default function MessagingRoute() {
       setSubject("");
       await queryClient.invalidateQueries({ queryKey: ["messaging-messages", projectId] });
     } catch (error) {
-      setFormError(error instanceof BrowserAPIError ? error.message : "Unable to queue this message.");
+      setFormError(browserAPIErrorMessage(error, "Unable to queue this message."));
     } finally {
       setPending(false);
     }
@@ -73,7 +74,7 @@ export default function MessagingRoute() {
       await browserAPI.cancelProjectMessagingMessage(projectId, messageID);
       await queryClient.invalidateQueries({ queryKey: ["messaging-messages", projectId] });
     } catch (error) {
-      setFormError(error instanceof BrowserAPIError ? error.message : "Unable to cancel this message.");
+      setFormError(browserAPIErrorMessage(error, "Unable to cancel this message."));
     }
   }
 
@@ -85,5 +86,4 @@ export default function MessagingRoute() {
 }
 
 function LoadingState() { return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]">Loading messaging…</div>; }
-function ErrorState({ error }: { error: unknown }) { return <div className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]" role="alert">{error instanceof Error ? error.message : "Unable to load messaging."}</div>; }
-
+function ErrorState({ error }: { error: unknown }) { return <AsyncErrorState error={error} fallback="Unable to load messaging." />; }

@@ -1,9 +1,10 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, KeyRound, LockKeyhole, Mail, RefreshCcw, ServerCog, ShieldCheck, UserMinus, UserPlus, Users, Workflow, XCircle } from "lucide-react";
+import { Activity, AlertTriangle, CheckCircle2, Database, HardDrive, KeyRound, LockKeyhole, Mail, RefreshCcw, ServerCog, ShieldCheck, UserMinus, UserPlus, Users, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI, type BrowserOrganization, type BrowserOrganizationMembershipManageRole } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserOrganization, type BrowserOrganizationMembershipManageRole } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 const adminSections = ["usage", "incidents", "traces", "users", "runs", "workers", "settings"] as const;
 
@@ -234,14 +235,8 @@ function AdminSettingsPanel({ organizations }: { organizations: BrowserOrganizat
 }
 
 function errorMessage(error: unknown) {
-  if (error instanceof BrowserAPIError) {
-    if (error.status === 401) return "Your session has expired. Sign in again.";
-    if (error.status === 403) return "You do not have permission to perform this action.";
-    if (error.status === 409) return "This resource already exists or is already in use.";
-    return error.message;
-  }
-  return error instanceof Error ? error.message : "The request could not be completed.";
+  return browserAPIErrorMessage(error, "The request could not be completed.");
 }
 
 function LoadingState() { return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading admin workspace…</div>; }
-function ErrorState({ error }: { error: unknown }) { const message = error instanceof BrowserAPIError && error.status === 401 ? "Your Console session has expired. Sign in again to view admin data." : error instanceof Error ? error.message : "Unable to load admin data."; return <div className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]" role="alert"><XCircle size={18} className="mb-2" aria-hidden="true" />{message}</div>; }
+function ErrorState({ error }: { error: unknown }) { return <AsyncErrorState error={error} fallback="Unable to load admin data." />; }

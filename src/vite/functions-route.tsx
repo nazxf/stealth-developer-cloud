@@ -23,8 +23,8 @@ import {
   type RefObject,
 } from "react";
 import {
-  BrowserAPIError,
   browserAPI,
+  browserAPIErrorMessage,
   type BrowserFunction,
   type BrowserFunctionBuildLog,
   type BrowserFunctionRuntime,
@@ -32,6 +32,7 @@ import {
   type BrowserFunctionVariable,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "./polling";
 
 type Tab = "deployments" | "variables" | "executions" | "settings";
@@ -85,14 +86,7 @@ function LoadingState() {
   );
 }
 function ErrorState({ error }: { error: unknown }) {
-  return (
-    <div
-      role="alert"
-      className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]"
-    >
-      {error instanceof Error ? error.message : "Unable to load functions."}
-    </div>
-  );
+  return <AsyncErrorState error={error} fallback="Unable to load functions." />;
 }
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -209,13 +203,7 @@ export default function FunctionsRoute() {
   });
 
   function report(reason: unknown, fallback: string) {
-    setError(
-      reason instanceof BrowserAPIError
-        ? reason.message
-        : reason instanceof Error
-          ? reason.message
-          : fallback,
-    );
+    setError(browserAPIErrorMessage(reason, fallback));
   }
   async function createFunction(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1077,7 +1065,7 @@ function DeploymentsPanel({
             <p className="m-0 mt-4 text-xs text-[var(--projects-muted)]">Loading build logs…</p>
           ) : buildLogsError ? (
             <p role="alert" className="m-0 mt-4 text-xs text-rose-200">
-              {buildLogsError instanceof Error ? buildLogsError.message : "Unable to load build logs."}
+              {browserAPIErrorMessage(buildLogsError, "Unable to load build logs.")}
             </p>
           ) : buildLogs.length ? (
             <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">
@@ -1421,7 +1409,7 @@ function ExecutionsPanel({
             <span className="font-mono text-[10px] text-[var(--projects-muted)]">execution: {selectedExecutionID}</span>
           </div>
           <p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">Secret-redacted output emitted by the trusted Function worker.</p>
-          {logsLoading ? <p className="m-0 mt-4 text-xs text-[var(--projects-muted)]">Loading logs…</p> : logsError ? <p role="alert" className="m-0 mt-4 text-xs text-rose-200">{logsError instanceof Error ? logsError.message : "Unable to load execution logs."}</p> : logs.length ? <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">{logs.map((log) => <p key={log.id} className="m-0 border-b border-[var(--projects-divider)] py-1.5 font-mono text-[10px] leading-5 last:border-0"><span className={`mr-2 uppercase ${log.level === "error" ? "text-rose-200" : log.level === "warn" ? "text-amber-200" : "text-[var(--projects-accent)]"}`}>{log.level}</span><span className="mr-2 text-[var(--projects-muted)]">#{log.sequence}</span>{log.message}</p>)}</div> : <p className="m-0 mt-4 rounded-lg border border-dashed border-[var(--projects-border)] p-6 text-center text-xs text-[var(--projects-muted)]">No worker logs have been emitted for this execution.</p>}
+          {logsLoading ? <p className="m-0 mt-4 text-xs text-[var(--projects-muted)]">Loading logs…</p> : logsError ? <p role="alert" className="m-0 mt-4 text-xs text-rose-200">{browserAPIErrorMessage(logsError, "Unable to load execution logs.")}</p> : logs.length ? <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">{logs.map((log) => <p key={log.id} className="m-0 border-b border-[var(--projects-divider)] py-1.5 font-mono text-[10px] leading-5 last:border-0"><span className={`mr-2 uppercase ${log.level === "error" ? "text-rose-200" : log.level === "warn" ? "text-amber-200" : "text-[var(--projects-accent)]"}`}>{log.level}</span><span className="mr-2 text-[var(--projects-muted)]">#{log.sequence}</span>{log.message}</p>)}</div> : <p className="m-0 mt-4 rounded-lg border border-dashed border-[var(--projects-border)] p-6 text-center text-xs text-[var(--projects-muted)]">No worker logs have been emitted for this execution.</p>}
         </section>
       ) : null}
     </div>

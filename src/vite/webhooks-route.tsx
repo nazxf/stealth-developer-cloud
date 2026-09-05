@@ -2,8 +2,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Clipboard, LoaderCircle, Plus, RefreshCw, Trash2, Webhook, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI, type BrowserProjectWebhook, type BrowserProjectWebhookDelivery } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserProjectWebhook, type BrowserProjectWebhookDelivery } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) : "Never";
@@ -14,7 +15,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load webhooks."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load webhooks." />;
 }
 
 function deliveryStatusClass(status: BrowserProjectWebhookDelivery["status"]) {
@@ -61,7 +62,7 @@ export default function WebhooksRoute() {
       setAdditionalWebhooks((current) => [...current, ...response.webhooks]);
       setNextCursor(response.pagination.next_cursor);
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "More webhooks could not be loaded.");
+      setError(browserAPIErrorMessage(requestError, "More webhooks could not be loaded."));
     } finally {
       setLoadPending(false);
     }
@@ -87,7 +88,7 @@ export default function WebhooksRoute() {
       setCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
     } catch (requestError) {
-      setFormError(requestError instanceof BrowserAPIError ? requestError.message : "The webhook could not be created.");
+      setFormError(browserAPIErrorMessage(requestError, "The webhook could not be created."));
     } finally {
       setCreatePending(false);
     }
@@ -101,7 +102,7 @@ export default function WebhooksRoute() {
       await browserAPI.updateProjectWebhook(projectId, item.id, { enabled: !item.enabled });
       await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The webhook could not be updated.");
+      setError(browserAPIErrorMessage(requestError, "The webhook could not be updated."));
     } finally {
       setBusyID(null);
     }
@@ -117,7 +118,7 @@ export default function WebhooksRoute() {
       setCopied(false);
       await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The webhook secret could not be rotated.");
+      setError(browserAPIErrorMessage(requestError, "The webhook secret could not be rotated."));
     } finally {
       setBusyID(null);
     }
@@ -132,7 +133,7 @@ export default function WebhooksRoute() {
       await queryClient.invalidateQueries({ queryKey: ["project-webhooks", projectId] });
       if (deliveryOpen === item.id) setDeliveryOpen(null);
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The webhook could not be deleted.");
+      setError(browserAPIErrorMessage(requestError, "The webhook could not be deleted."));
     } finally {
       setBusyID(null);
     }
@@ -149,7 +150,7 @@ export default function WebhooksRoute() {
       setDeliveryCursors((current) => ({ ...current, [item.id]: response.pagination.next_cursor }));
       setDeliveryOpen(item.id);
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Delivery history could not be loaded.");
+      setError(browserAPIErrorMessage(requestError, "Delivery history could not be loaded."));
     } finally {
       setDeliveryPending(null);
     }

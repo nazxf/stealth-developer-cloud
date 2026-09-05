@@ -1,13 +1,13 @@
 import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 
 const projectNameSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2–63 lowercase letters, numbers, or hyphens.");
 
 function errorMessage(error: unknown) {
-  return error instanceof BrowserAPIError || error instanceof Error ? error.message : "Unable to create the project.";
+  return browserAPIErrorMessage(error, "Unable to create the project.");
 }
 
 export function ProjectCreateForm({ organizationID, onCreated }: { organizationID: string; onCreated?: () => void }) {

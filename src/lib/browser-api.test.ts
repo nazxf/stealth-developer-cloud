@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { browserAPI } from "./browser-api";
+import { BrowserAPIError, browserAPI, browserAPIErrorMessage } from "./browser-api";
 
 const accountPayload = {
   account: {
@@ -78,6 +78,34 @@ describe("browser API boundary", () => {
       message: "not allowed",
       traceID: "trace-403",
     });
+  });
+
+  it("turns network failures into safe, typed errors", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("Failed to fetch: internal socket details"));
+
+    await expect(browserAPI.currentAccount()).rejects.toMatchObject({
+      status: 0,
+      code: "network_error",
+      message: "Unable to reach Stealth. Check your connection and try again.",
+    });
+  });
+
+  it("does not leak schema parser details when the API response is invalid", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ account: { id: "not-an-email" } }), { status: 200, headers: { "X-Trace-ID": "trace-invalid" } }),
+    );
+
+    const error = await browserAPI.currentAccount().catch((value: unknown) => value);
+    expect(error).toBeInstanceOf(BrowserAPIError);
+    expect(error).toMatchObject({ status: 502, code: "invalid_api_response", traceID: "trace-invalid" });
+    expect((error as Error).message).toBe("Stealth returned an unexpected response. Try again shortly.");
+    expect((error as Error).message).not.toContain("Zod");
+    expect(browserAPIErrorMessage(error, "fallback")).toBe("Stealth returned an unexpected response. Try again shortly. (Reference: trace-invalid)");
+  });
+
+  it("translates generic HTTP failures and keeps unknown errors on the fallback", () => {
+    expect(browserAPIErrorMessage(new BrowserAPIError(429, "rate_limited", "Stealth API request failed"), "fallback")).toBe("Too many requests. Try again shortly.");
+    expect(browserAPIErrorMessage(new Error("internal parser details"), "Safe fallback")).toBe("Safe fallback");
   });
 
   it("keeps organization project listing pagination URL encoded", async () => {

@@ -2,15 +2,16 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Clipboard, LoaderCircle, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function LoadingState() {
   return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading project settings…</div>;
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load project settings."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load project settings." />;
 }
 
 export default function SettingsRoute() {
@@ -39,7 +40,7 @@ export default function SettingsRoute() {
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
       setMessage("Project settings saved.");
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Project settings could not be saved.");
+      setError(browserAPIErrorMessage(requestError, "Project settings could not be saved."));
     } finally { setPending(false); }
   }
 
@@ -52,7 +53,7 @@ export default function SettingsRoute() {
       await queryClient.clear();
       await navigate({ to: "/", replace: true });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Project could not be deleted.");
+      setError(browserAPIErrorMessage(requestError, "Project could not be deleted."));
       setDeletePending(false);
     }
   }

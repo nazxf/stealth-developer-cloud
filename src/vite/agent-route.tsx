@@ -2,9 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Bot, Cpu, FolderGit2, GitBranch, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { BrowserAPIError, browserAPI, type BrowserAgent, type BrowserAgentRole } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgent, type BrowserAgentRole } from "@/lib/browser-api";
 import { AgentCreateForm, agentRoles } from "./agent-create-form";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatLastActive(value: string | null | undefined) {
   if (!value) return "No activity";
@@ -26,7 +27,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load agents."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load agents." />;
 }
 
 export default function AgentRoute() {
@@ -59,7 +60,7 @@ export default function AgentRoute() {
       await browserAPI.deleteAgent(agent.id);
       await queryClient.invalidateQueries({ queryKey: ["agents"] });
     } catch (error) {
-      setActionError(error instanceof BrowserAPIError ? error.message : "The agent could not be deleted.");
+      setActionError(browserAPIErrorMessage(error, "The agent could not be deleted."));
     } finally {
       setDeleteID(null);
     }

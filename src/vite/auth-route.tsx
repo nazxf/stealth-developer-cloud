@@ -2,8 +2,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle, Plus, ShieldCheck, UserCheck, UserX, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI, type BrowserApplicationUser } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserApplicationUser } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
@@ -14,7 +15,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load Auth."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load Auth." />;
 }
 
 function userStatusClass(status: BrowserApplicationUser["status"]) {
@@ -64,7 +65,7 @@ export default function AuthRoute() {
       setAdditionalUsers((current) => [...current, ...response.users]);
       setNextCursor(response.pagination.next_cursor);
     } catch (error) {
-      setLoadError(error instanceof BrowserAPIError ? error.message : "Unable to load more users.");
+      setLoadError(browserAPIErrorMessage(error, "Unable to load more users."));
     } finally {
       setLoadPending(false);
     }
@@ -79,7 +80,7 @@ export default function AuthRoute() {
       await browserAPI.updateProjectAuthSettings(projectId, { registration_enabled: !settings.registration_enabled });
       await queryClient.invalidateQueries({ queryKey: ["project-auth-settings", projectId] });
     } catch (error) {
-      setActionError(error instanceof BrowserAPIError ? error.message : "The registration setting could not be updated.");
+      setActionError(browserAPIErrorMessage(error, "The registration setting could not be updated."));
     } finally {
       setSettingsPending(false);
     }
@@ -94,7 +95,7 @@ export default function AuthRoute() {
       await browserAPI.updateProjectAuthSettings(projectId, { cors_origins: origins });
       await queryClient.invalidateQueries({ queryKey: ["project-auth-settings", projectId] });
     } catch (error) {
-      setActionError(error instanceof BrowserAPIError ? error.message : "The browser origin allowlist could not be updated.");
+      setActionError(browserAPIErrorMessage(error, "The browser origin allowlist could not be updated."));
     } finally {
       setSettingsPending(false);
     }
@@ -123,7 +124,7 @@ export default function AuthRoute() {
       setCreateOpen(false);
       await invalidateUsers();
     } catch (error) {
-      setFormError(error instanceof BrowserAPIError ? error.message : "The application user could not be created.");
+      setFormError(browserAPIErrorMessage(error, "The application user could not be created."));
     } finally {
       setCreatePending(false);
     }
@@ -137,7 +138,7 @@ export default function AuthRoute() {
       await browserAPI.updateProjectUserStatus(projectId, user.id, user.status === "active" ? "blocked" : "active");
       await invalidateUsers();
     } catch (error) {
-      setActionError(error instanceof BrowserAPIError ? error.message : "The user status could not be updated.");
+      setActionError(browserAPIErrorMessage(error, "The user status could not be updated."));
     } finally {
       setBusyUserId(null);
     }

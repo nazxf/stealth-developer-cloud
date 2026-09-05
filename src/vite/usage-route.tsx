@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, BarChart3, Download, Gauge, HardDrive, LoaderCircle, RefreshCcw, Users, Workflow } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
-import { BrowserAPIError, browserAPI, type BrowserProjectUsageDay } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserProjectUsageDay } from "@/lib/browser-api";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 const rangeOptions = [7, 30, 90, 365] as const;
 type RangeDays = (typeof rangeOptions)[number];
@@ -67,7 +68,7 @@ export default function UsageRoute() {
       anchor.remove();
       URL.revokeObjectURL(url);
     } catch (error) {
-      setDownloadError(error instanceof BrowserAPIError ? error.message : "Unable to download the usage export.");
+      setDownloadError(browserAPIErrorMessage(error, "Unable to download the usage export."));
     } finally {
       setDownloadPending(false);
     }
@@ -75,8 +76,8 @@ export default function UsageRoute() {
 
   if (projectQuery.isPending || usageQuery.isPending || meteringQuery.isPending) return <StateCard title="Loading project usage…" />;
   const error = projectQuery.error ?? usageQuery.error ?? meteringQuery.error;
-  if (error) return <StateCard title="Unable to load usage" detail={error instanceof Error ? error.message : "The Go API did not return usage data."} error />;
-  if (!projectQuery.data || !usageQuery.data || !meteringQuery.data) return <StateCard title="Usage data is unavailable" detail="The API returned an incomplete usage response." error />;
+  if (error) return <AsyncErrorState error={error} fallback="The Go API did not return usage data." />;
+  if (!projectQuery.data || !usageQuery.data || !meteringQuery.data) return <AsyncErrorState error={null} fallback="The API returned an incomplete usage response." />;
 
   const project = projectQuery.data.project;
   const usage = usageQuery.data.usage;

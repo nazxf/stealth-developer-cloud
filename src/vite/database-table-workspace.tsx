@@ -2,8 +2,8 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { Columns3, KeyRound, LoaderCircle, Pencil, Plus, Table2, Trash2, X } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
 import {
-  BrowserAPIError,
   browserAPI,
+  browserAPIErrorMessage,
   type BrowserDatabaseColumn,
   type BrowserDatabaseColumnType,
   type BrowserDatabaseIndex,
@@ -46,7 +46,7 @@ function parsePermissions(value: string) {
 }
 
 function errorMessage(error: unknown, fallback: string) {
-  return error instanceof BrowserAPIError || error instanceof Error ? error.message : fallback;
+  return browserAPIErrorMessage(error, fallback);
 }
 
 function EmptyPanel({ children }: { children: string }) {

@@ -2,9 +2,10 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bot, CheckCircle2, Clock3, GitBranch, LoaderCircle, Square, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { BrowserAPIError, browserAPI, type BrowserAgentRun } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgentRun } from "@/lib/browser-api";
 import { AgentRunForm } from "./agent-run-form";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) : "—";
@@ -22,7 +23,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load this agent."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load this agent." />;
 }
 
 export default function AgentDetailRoute() {
@@ -53,7 +54,7 @@ export default function AgentDetailRoute() {
       await browserAPI.cancelAgentRun(agentId, runID);
       await queryClient.invalidateQueries({ queryKey: ["agent-runs", agentId] });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The agent run could not be cancelled.");
+      setError(browserAPIErrorMessage(requestError, "The agent run could not be cancelled."));
     } finally {
       setCancelPending(null);
     }

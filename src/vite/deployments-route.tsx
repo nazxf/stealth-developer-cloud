@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { browserAPI } from "@/lib/browser-api";
 import { GitDeploymentForm, type GitDeployableResource } from "./git-deployment-form";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 export type DeployableResource = GitDeployableResource;
 export type DeploymentRecord = {
@@ -27,7 +28,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load deployments."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load deployments." />;
 }
 
 function statusClass(status: string) {

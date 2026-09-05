@@ -2,14 +2,15 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Files, FolderPlus, LoaderCircle, Save, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI, type BrowserStorageBucket, type BrowserStorageFile } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserStorageBucket, type BrowserStorageFile } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string) { return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value)); }
 function formatBytes(value: number) { return value === 0 ? "0 B" : `${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)} B`; }
 function parsePermissions(value: string) { return value.split(",").map((item) => item.trim()).filter(Boolean); }
 function LoadingState() { return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading storage…</div>; }
-function ErrorState({ error }: { error: unknown }) { return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load storage."}</div>; }
+function ErrorState({ error }: { error: unknown }) { return <AsyncErrorState error={error} fallback="Unable to load storage." />; }
 
 export default function StorageRoute() {
   const { projectId } = useParams({ from: "/projects/$projectId/storage" });
@@ -56,7 +57,7 @@ export default function StorageRoute() {
     try {
       const response = await browserAPI.createProjectStorageBucket(projectId, { name: normalizedName, file_security: true });
       setBucketName(""); setCreateOpen(false); setSelectedBucketID(response.bucket.id); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] });
-    } catch (requestError) { setError(requestError instanceof BrowserAPIError ? requestError.message : "The bucket could not be created."); } finally { setPending(false); }
+    } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The bucket could not be created.")); } finally { setPending(false); }
   }
 
   async function saveBucket() {
@@ -64,13 +65,13 @@ export default function StorageRoute() {
     const quota = Number(bucketQuota); const maxFile = Number(bucketMaxFile);
     if (!Number.isFinite(quota) || !Number.isFinite(maxFile) || quota <= 0 || maxFile <= 0 || maxFile > quota) { setError("Quota and maximum file size must be positive, and max file size cannot exceed quota."); return; }
     setPending(true); setError("");
-    try { await browserAPI.updateProjectStorageBucket(projectId, selectedBucket.id, { file_security: fileSecurity, quota_bytes: quota, max_file_size_bytes: maxFile, read_permissions: parsePermissions(readPermissions), create_permissions: parsePermissions(createPermissions), update_permissions: parsePermissions(updatePermissions), delete_permissions: parsePermissions(deletePermissions) }); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] }); } catch (requestError) { setError(requestError instanceof BrowserAPIError ? requestError.message : "Bucket settings could not be saved."); } finally { setPending(false); }
+    try { await browserAPI.updateProjectStorageBucket(projectId, selectedBucket.id, { file_security: fileSecurity, quota_bytes: quota, max_file_size_bytes: maxFile, read_permissions: parsePermissions(readPermissions), create_permissions: parsePermissions(createPermissions), update_permissions: parsePermissions(updatePermissions), delete_permissions: parsePermissions(deletePermissions) }); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] }); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "Bucket settings could not be saved.")); } finally { setPending(false); }
   }
 
   async function deleteBucket() {
     if (!selectedBucket || pending || !window.confirm(`Delete bucket “${selectedBucket.name}” and its files?`)) return;
     setPending(true); setError("");
-    try { await browserAPI.deleteProjectStorageBucket(projectId, selectedBucket.id); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] }); setSelectedBucketID(""); } catch (requestError) { setError(requestError instanceof BrowserAPIError ? requestError.message : "The bucket could not be deleted."); } finally { setPending(false); }
+    try { await browserAPI.deleteProjectStorageBucket(projectId, selectedBucket.id); await queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] }); setSelectedBucketID(""); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The bucket could not be deleted.")); } finally { setPending(false); }
   }
 
   async function uploadFile(event: ChangeEvent<HTMLInputElement>) {
@@ -78,13 +79,13 @@ export default function StorageRoute() {
     if (!file || !selectedBucket || pending || !canManage) return;
     const form = new FormData(); form.append("file", file, file.name);
     setPending(true); setError("");
-    try { await browserAPI.uploadProjectStorageFile(projectId, selectedBucket.id, form); await Promise.all([queryClient.invalidateQueries({ queryKey: ["storage-files", projectId, selectedBucket.id] }), queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] })]); } catch (requestError) { setError(requestError instanceof BrowserAPIError ? requestError.message : "File upload failed."); } finally { setPending(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
+    try { await browserAPI.uploadProjectStorageFile(projectId, selectedBucket.id, form); await Promise.all([queryClient.invalidateQueries({ queryKey: ["storage-files", projectId, selectedBucket.id] }), queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] })]); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "File upload failed.")); } finally { setPending(false); if (fileInputRef.current) fileInputRef.current.value = ""; }
   }
 
   async function deleteFile(file: BrowserStorageFile) {
     if (!selectedBucket || pending || !window.confirm(`Delete file “${file.name}”?`)) return;
     setPending(true); setError("");
-    try { await browserAPI.deleteProjectStorageFile(projectId, selectedBucket.id, file.id); await Promise.all([queryClient.invalidateQueries({ queryKey: ["storage-files", projectId, selectedBucket.id] }), queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] })]); } catch (requestError) { setError(requestError instanceof BrowserAPIError ? requestError.message : "The file could not be deleted."); } finally { setPending(false); }
+    try { await browserAPI.deleteProjectStorageFile(projectId, selectedBucket.id, file.id); await Promise.all([queryClient.invalidateQueries({ queryKey: ["storage-files", projectId, selectedBucket.id] }), queryClient.invalidateQueries({ queryKey: ["project-storage-buckets", projectId] })]); } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The file could not be deleted.")); } finally { setPending(false); }
   }
 
   async function downloadFile(file: BrowserStorageFile) {
@@ -100,7 +101,7 @@ export default function StorageRoute() {
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-    } catch (requestError) { setError(requestError instanceof BrowserAPIError ? requestError.message : "The file could not be downloaded."); } finally { setPending(false); }
+    } catch (requestError) { setError(browserAPIErrorMessage(requestError, "The file could not be downloaded.")); } finally { setPending(false); }
   }
 
   if (bucketsQuery.isPending) return <LoadingState />;

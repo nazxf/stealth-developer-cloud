@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 
 const signupInputSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -16,7 +16,7 @@ function firstValidationMessage(result: { success: false; error: z.ZodError }) {
 }
 
 function apiError(error: unknown, fallback: string) {
-  return error instanceof BrowserAPIError || error instanceof Error ? error.message : fallback;
+  return browserAPIErrorMessage(error, fallback);
 }
 
 export function SignupForm({ onAuthenticated }: { onAuthenticated: () => Promise<void> | void }) {

@@ -1,13 +1,13 @@
 import { LoaderCircle, Play } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { BrowserAPIError, browserAPI, type BrowserAgentTool } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgentTool } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 
 const promptSchema = z.string().trim().min(1, "Prompt is required.").max(20_000, "Prompt must be 20000 characters or fewer.").refine((value) => !value.includes("\u0000"), "Prompt cannot contain NUL.");
 
 function errorMessage(error: unknown) {
-  return error instanceof BrowserAPIError || error instanceof Error ? error.message : "The agent run could not be created.";
+  return browserAPIErrorMessage(error, "The agent run could not be created.");
 }
 
 export function AgentRunForm({ agentID, tools, onQueued, onError }: { agentID: string; tools: BrowserAgentTool[]; onQueued: (runID: string) => void; onError: (message: string) => void }) {

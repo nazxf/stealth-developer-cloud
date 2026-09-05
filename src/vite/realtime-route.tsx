@@ -1,7 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { Check, Circle, Copy, Pause, Play, Radio, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { browserAPI } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 
 type ConnectionState = "connecting" | "live" | "reconnecting" | "paused" | "error";
 type StreamFrame = { event: string; id: string | null; data: string };
@@ -51,7 +51,10 @@ export default function RealtimeRoute() {
       controller = new AbortController();
       try {
         const response = await browserAPI.openProjectRealtime(projectId, { events: eventFilter, cursor: cursorRef.current ?? undefined, signal: controller.signal });
-        if (!response.ok) { const payload = await response.json().catch(() => null) as { error?: { message?: string } } | null; throw new Error(payload?.error?.message ?? "The Realtime stream could not be opened."); }
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null) as { error?: { code?: string; message?: string } } | null;
+          throw new BrowserAPIError(response.status, payload?.error?.code ?? "upstream_error", payload?.error?.message ?? "The Realtime stream could not be opened.", response.headers.get("X-Trace-ID")?.trim() || undefined);
+        }
         setStatus("live");
         await streamFrames(response, controller.signal, (frame) => {
           if (stopped || controller?.signal.aborted) return;
@@ -66,7 +69,7 @@ export default function RealtimeRoute() {
       } catch (streamError) {
         if (stopped || controller?.signal.aborted) return;
         setStatus("error");
-        setError(streamError instanceof Error ? streamError.message : "The Realtime stream disconnected.");
+        setError(browserAPIErrorMessage(streamError, "The Realtime stream disconnected."));
       }
       if (!stopped) { setStatus("reconnecting"); timer = window.setTimeout(() => void connect(), 1500); }
     };

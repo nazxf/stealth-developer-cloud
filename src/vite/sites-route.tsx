@@ -23,13 +23,14 @@ import {
   type RefObject,
 } from "react";
 import {
-  BrowserAPIError,
   browserAPI,
+  browserAPIErrorMessage,
   type BrowserSite,
   type BrowserSiteBuildLog,
   type BrowserSiteDomain,
 } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 import { deploymentIsInProgress, deploymentPollInterval, operationPollIntervalMs } from "./polling";
 
 type Runtime = "node-22" | "python-3.13" | "go-1.24";
@@ -77,14 +78,7 @@ function LoadingState() {
   );
 }
 function ErrorState({ error }: { error: unknown }) {
-  return (
-    <div
-      role="alert"
-      className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]"
-    >
-      {error instanceof Error ? error.message : "Unable to load sites."}
-    </div>
-  );
+  return <AsyncErrorState error={error} fallback="Unable to load sites." />;
 }
 
 export default function SitesRoute() {
@@ -159,13 +153,7 @@ export default function SitesRoute() {
   });
 
   function report(reason: unknown, fallback: string) {
-    setError(
-      reason instanceof BrowserAPIError
-        ? reason.message
-        : reason instanceof Error
-          ? reason.message
-          : fallback,
-    );
+    setError(browserAPIErrorMessage(reason, fallback));
   }
   async function createSite(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1217,9 +1205,7 @@ function SiteWorkspace({
               </p>
             ) : buildLogsError ? (
               <p role="alert" className="m-0 mt-4 text-xs text-rose-200">
-                {buildLogsError instanceof Error
-                  ? buildLogsError.message
-                  : "Unable to load build logs."}
+                {browserAPIErrorMessage(buildLogsError, "Unable to load build logs.")}
               </p>
             ) : buildLogs.length ? (
               <div className="mt-3 max-h-64 overflow-auto rounded-lg border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3">

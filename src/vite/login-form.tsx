@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 
 const loginInputSchema = z.object({
   email: z.string().email("Enter a valid email address."),
@@ -27,7 +27,7 @@ export function LoginForm({ onAuthenticated }: { onAuthenticated: () => Promise<
       await browserAPI.login(parsed.data);
       await onAuthenticated();
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Unable to sign in. Please try again.");
+      setError(browserAPIErrorMessage(requestError, "Unable to sign in. Please try again."));
     } finally {
       setPending(false);
     }

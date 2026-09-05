@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { Database, FolderPlus, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI, type BrowserDatabaseTable } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseTable } from "@/lib/browser-api";
 import DatabaseTableWorkspace from "./database-table-workspace";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
@@ -15,7 +16,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load databases."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load databases." />;
 }
 
 export default function DatabasesRoute() {
@@ -70,7 +71,7 @@ export default function DatabasesRoute() {
       setSelectedTableID("");
       await queryClient.invalidateQueries({ queryKey: ["project-databases", projectId] });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The database could not be created.");
+      setError(browserAPIErrorMessage(requestError, "The database could not be created."));
     } finally {
       setPending(false);
     }
@@ -93,7 +94,7 @@ export default function DatabasesRoute() {
       setSelectedTableID(response.table.id);
       await queryClient.invalidateQueries({ queryKey: ["database-tables", projectId, selectedDatabaseID] });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The table could not be created.");
+      setError(browserAPIErrorMessage(requestError, "The table could not be created."));
     } finally {
       setPending(false);
     }
@@ -108,7 +109,7 @@ export default function DatabasesRoute() {
       if (selectedTableID === table.id) setSelectedTableID("");
       await queryClient.invalidateQueries({ queryKey: ["database-tables", projectId, selectedDatabaseID] });
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The table could not be deleted.");
+      setError(browserAPIErrorMessage(requestError, "The table could not be deleted."));
     } finally {
       setBusyTableID(null);
     }
@@ -125,7 +126,7 @@ export default function DatabasesRoute() {
       setSelectedDatabaseID("");
       setSelectedTableID("");
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "The database could not be deleted.");
+      setError(browserAPIErrorMessage(requestError, "The database could not be deleted."));
     } finally {
       setPending(false);
     }

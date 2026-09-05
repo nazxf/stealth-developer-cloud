@@ -4,6 +4,7 @@ import { Activity, Boxes, Database, ExternalLink, FunctionSquare, Plus, Server }
 import { Link, useParams } from "@tanstack/react-router";
 import { browserAPI } from "@/lib/browser-api";
 import { ServiceCanvas, type ServiceCanvasService } from "./service-canvas";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 type ServiceCard = ServiceCanvasService & {
   id: string;
@@ -45,7 +46,7 @@ export default function ServicesRoute() {
   }, [projectId, queryClient]);
 
   if (loading) return <StateCard title="Loading service workspace…" />;
-  if (error) return <StateCard title="Unable to load services" detail={error instanceof Error ? error.message : "The Go API did not return service data."} error />;
+  if (error) return <AsyncErrorState error={error} fallback="The Go API did not return service data." />;
 
   return <section><div className="flex flex-wrap items-end justify-between gap-4 border-b border-[var(--projects-border)] pb-6"><div><Link to="/projects/$projectId" params={{ projectId }} className="text-sm text-[var(--projects-accent)] hover:underline">← Project overview</Link><p className="m-0 mt-5 text-xs uppercase tracking-[0.12em] text-[var(--projects-muted)]">Service workspace</p><h1 className="m-0 mt-2 text-3xl font-semibold tracking-[-0.04em]">{projectQuery.data?.project.name} services</h1><p className="m-0 mt-2 max-w-2xl text-sm text-[var(--projects-muted)]">A live inventory and canvas of deployable and managed resources. State comes from the Go control plane; positions are saved per project.</p></div><Link to="/projects/$projectId/functions" params={{ projectId }} className="inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]"><Plus size={16} aria-hidden="true" />Create resource</Link></div><ServiceCanvas projectId={projectId} services={services} savedLayout={layoutQuery.data?.layout ?? []} canManage={Boolean(canManage)} onSave={saveLayout} /><div className="mt-6 flex items-center gap-2"><Server size={16} className="text-[var(--projects-muted)]" aria-hidden="true" /><h2 className="m-0 text-lg font-semibold">Resource inventory</h2></div><div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{services.map((service) => <ServiceCardView key={`${service.kind}:${service.id}`} projectId={projectId} service={service} />)}</div>{services.length === 0 ? <div className="mt-6 rounded-xl border border-dashed border-[var(--projects-border)] p-12 text-center"><Server size={24} className="mx-auto text-[var(--projects-muted)]" aria-hidden="true" /><h2 className="m-0 mt-4 text-lg font-semibold">No services yet</h2><p className="m-0 mt-2 text-sm text-[var(--projects-muted)]">Create a Function, Site, Database, or Storage bucket to see it here.</p></div> : null}</section>;
 }

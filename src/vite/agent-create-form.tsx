@@ -1,7 +1,7 @@
 import { LoaderCircle, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { BrowserAPIError, browserAPI, type BrowserAgentRole, type BrowserAgentTool } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgentRole, type BrowserAgentTool } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 
 export type AgentProjectOption = { id: string; name: string };
@@ -23,7 +23,7 @@ const agentCreateSchema = z.object({
 });
 
 function errorMessage(error: unknown) {
-  return error instanceof BrowserAPIError || error instanceof Error ? error.message : "The agent could not be created.";
+  return browserAPIErrorMessage(error, "The agent could not be created.");
 }
 
 export function AgentCreateForm({ projects, onClose }: { projects: AgentProjectOption[]; onClose: () => void }) {

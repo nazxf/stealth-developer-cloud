@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 
 export function LogoutButton({ onLoggedOut }: { onLoggedOut: () => Promise<void> | void }) {
   const [pending, setPending] = useState(false);
@@ -13,7 +13,7 @@ export function LogoutButton({ onLoggedOut }: { onLoggedOut: () => Promise<void>
       await browserAPI.logout();
       await onLoggedOut();
     } catch (requestError) {
-      setError(requestError instanceof BrowserAPIError ? requestError.message : "Unable to sign out. Please try again.");
+      setError(browserAPIErrorMessage(requestError, "Unable to sign out. Please try again."));
     } finally {
       setPending(false);
     }

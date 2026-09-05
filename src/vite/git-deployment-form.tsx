@@ -1,7 +1,7 @@
 import { GitBranch, LoaderCircle, Server } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 
 export type GitDeploymentRuntime = "node-22" | "python-3.13" | "go-1.24";
@@ -21,7 +21,7 @@ function firstValidationMessage(result: { success: false; error: z.ZodError }) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof BrowserAPIError || error instanceof Error ? error.message : "The Git deployment could not be created.";
+  return browserAPIErrorMessage(error, "The Git deployment could not be created.");
 }
 
 export function GitDeploymentForm({ projectId, resources, canManage, onClose }: { projectId: string; resources: GitDeployableResource[]; canManage: boolean; onClose: () => void }) {

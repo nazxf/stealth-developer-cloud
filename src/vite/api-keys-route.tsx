@@ -2,8 +2,9 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Clipboard, KeyRound, LoaderCircle, Plus, ShieldAlert, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { BrowserAPIError, browserAPI, type BrowserProjectAPIKey, type BrowserProjectAPIKeyScope } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserProjectAPIKey, type BrowserProjectAPIKeyScope } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
+import { ErrorState as AsyncErrorState } from "./error-state";
 
 const scopeOptions: Array<{ value: BrowserProjectAPIKeyScope; label: string; description: string }> = [
   { value: "users.read", label: "Users read", description: "List and fetch project identities." },
@@ -44,7 +45,7 @@ function LoadingState() {
 }
 
 function ErrorState({ error }: { error: unknown }) {
-  return <div role="alert" className="rounded-xl border border-[var(--projects-danger)]/40 bg-[var(--projects-card-bg)] p-6 text-sm text-[var(--projects-danger)]">{error instanceof Error ? error.message : "Unable to load API keys."}</div>;
+  return <AsyncErrorState error={error} fallback="Unable to load API keys." />;
 }
 
 export default function APIKeysRoute() {
@@ -83,7 +84,7 @@ export default function APIKeysRoute() {
       setAdditionalKeys((current) => [...current, ...response.keys]);
       setNextCursor(response.pagination.next_cursor);
     } catch (error) {
-      setLoadError(error instanceof BrowserAPIError ? error.message : "Unable to load more API keys.");
+      setLoadError(browserAPIErrorMessage(error, "Unable to load more API keys."));
     } finally {
       setLoadPending(false);
     }
@@ -128,7 +129,7 @@ export default function APIKeysRoute() {
       resetCreateForm();
       await queryClient.invalidateQueries({ queryKey: ["project-api-keys", projectId] });
     } catch (error) {
-      setFormError(error instanceof BrowserAPIError ? error.message : "The API key could not be created.");
+      setFormError(browserAPIErrorMessage(error, "The API key could not be created."));
     } finally {
       setCreatePending(false);
     }
@@ -143,7 +144,7 @@ export default function APIKeysRoute() {
       setRevokeKey(null);
       await queryClient.invalidateQueries({ queryKey: ["project-api-keys", projectId] });
     } catch (error) {
-      setActionError(error instanceof BrowserAPIError ? error.message : "The API key could not be revoked.");
+      setActionError(browserAPIErrorMessage(error, "The API key could not be revoked."));
     } finally {
       setRevokePending(false);
     }
