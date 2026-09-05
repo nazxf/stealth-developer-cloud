@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -22,9 +21,8 @@ import (
 	"github.com/stealth-cloud/stealth/services/api/internal/repository"
 	"github.com/stealth-cloud/stealth/services/api/internal/sitestore"
 	"github.com/stealth-cloud/stealth/services/api/internal/storage"
+	"github.com/stealth-cloud/stealth/services/api/internal/validate"
 )
-
-var siteNamePattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,62}$`)
 
 type siteRequest struct {
 	Name               *string `json:"name"`
@@ -156,11 +154,7 @@ func parseSitePatchRequest(req siteRequest) (repository.SitePatch, error) {
 }
 
 func validateSiteName(value string) (string, error) {
-	value = strings.ToLower(strings.TrimSpace(value))
-	if !siteNamePattern.MatchString(value) {
-		return "", errors.New("name must use lowercase letters, numbers, and hyphens and be 2 to 63 characters")
-	}
-	return value, nil
+	return validate.Slug(value, "name")
 }
 
 func parseSiteBuildOptions(runtime, command, outputDirectory string) (siteBuildOptions, error) {

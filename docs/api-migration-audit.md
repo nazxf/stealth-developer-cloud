@@ -31,6 +31,9 @@ simulated async behavior (timers standing in for network calls).
   lists organizations and organization-scoped projects, and creates projects
   through the central browser client. This path does not use seed projects,
   timers, or localStorage authority.
+- The create-project form is isolated as a tested Vite component. Its Zod
+  boundary normalizes the project slug before calling the API and renders safe
+  validation/API errors without duplicating route state.
 
 ### `src/features/projects/project-store.ts` — [LS][H] (legacy deployment UI only)
 - Storage key: `"projects-list-v1"`.
@@ -112,6 +115,9 @@ simulated async behavior (timers standing in for network calls).
 - The browser API client exposes typed `projectSiteDeployments` and
   `projectFunctionDeployments` list methods and keeps the same project-scoped
   authorization boundary as the resource pages.
+- The Git deployment form is an isolated, tested component. It validates site
+  names and build options before submission, while the Go Sites handler now
+  reuses the shared slug validator so project/site naming rules stay aligned.
 - Site deployment rows open a live, sequence-cursor build-log viewer backed by
   `GET /v1/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}/logs`;
   the worker emits only bounded lifecycle messages and failures are redacted.

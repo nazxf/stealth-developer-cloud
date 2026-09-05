@@ -11,14 +11,15 @@ import {
 } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { m, useReducedMotion } from "motion/react";
-import { LogOut, Plus, Server, ShieldCheck } from "lucide-react";
-import { useEffect, useState, type FormEvent } from "react";
+import { Server } from "lucide-react";
+import { useEffect, useState } from "react";
 import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
 import { queryClient } from "./query-client";
 import { ProjectShellNavigation } from "./project-shell";
 import { LoginForm } from "./login-form";
 import { LogoutButton } from "./logout-button";
 import { PasswordRecoveryForm, ResetPasswordForm, SignupForm } from "./auth-forms";
+import { ProjectCreateForm } from "./project-create-form";
 
 const publicAuthPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password", "/verify-email", "/accept-invitation"]);
 
@@ -142,8 +143,6 @@ function ProjectsRoute() {
   const accountQuery = useQuery({ queryKey: ["account"], queryFn: browserAPI.currentAccount });
   const organizationsQuery = useQuery({ queryKey: ["organizations"], queryFn: () => browserAPI.organizations({ limit: 100 }) });
   const [activeOrganizationID, setActiveOrganizationID] = useState<string>();
-  const [newProjectName, setNewProjectName] = useState("");
-  const [createError, setCreateError] = useState("");
   const selectedOrganization = organizationsQuery.data?.organizations.find((organization) => organization.id === activeOrganizationID) ?? organizationsQuery.data?.organizations[0];
   const projectsQuery = useQuery({
     queryKey: ["projects", selectedOrganization?.id],
@@ -158,31 +157,13 @@ function ProjectsRoute() {
   if (!selectedOrganization) return <EmptyState title="No organizations yet" detail="Create an organization through the API to start a project." />;
   const organization = selectedOrganization;
 
-  async function createProject(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const normalizedName = newProjectName.trim().toLowerCase();
-    if (!/^[a-z0-9][a-z0-9-]{1,62}$/.test(normalizedName)) {
-      setCreateError("Use 2–63 lowercase letters, numbers, or hyphens.");
-      return;
-    }
-    setCreateError("");
-    try {
-      await browserAPI.createProject(organization.id, { name: normalizedName });
-      setNewProjectName("");
-      await queryClient.invalidateQueries({ queryKey: ["projects", organization.id] });
-    } catch (requestError) {
-      setCreateError(requestError instanceof Error ? requestError.message : "Unable to create the project.");
-    }
-  }
-
   return (
     <section>
       <header className="flex flex-wrap items-end justify-between gap-5 border-b border-[var(--projects-border)] pb-6">
         <div><p className="m-0 text-xs font-medium uppercase tracking-[0.12em] text-[var(--projects-muted)]">Console</p><h1 className="m-0 mt-2 text-3xl font-semibold tracking-[-0.04em]">Projects</h1><p className="m-0 mt-2 text-sm text-[var(--projects-muted)]">Deploy and operate your services from one control plane.</p></div>
         <label className="text-sm text-[var(--projects-muted)]">Organization<select value={selectedOrganization.id} onChange={(event) => setActiveOrganizationID(event.target.value)} className="mt-1 block h-10 min-w-48 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm text-[var(--projects-text)]"><option value="" disabled>Select organization</option>{organizationsQuery.data?.organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></label>
       </header>
-      <form onSubmit={createProject} className="mt-6 flex flex-wrap gap-2" noValidate><label htmlFor="new-vite-project" className="sr-only">Project name</label><input id="new-vite-project" value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} placeholder="new-project" className="h-10 min-w-56 flex-1 rounded-lg border border-[var(--projects-border)] bg-[var(--projects-control)] px-3 text-sm outline-none focus:border-[var(--projects-accent)]" /><button type="submit" className="inline-flex h-10 items-center gap-2 rounded-lg bg-[var(--projects-accent-strong)] px-4 text-sm font-semibold text-white hover:bg-[var(--projects-accent-hover)]"><Plus size={16} aria-hidden="true" />New project</button></form>
-      {createError ? <p className="mt-2 text-sm text-[var(--projects-danger)]" role="alert">{createError}</p> : null}
+      <ProjectCreateForm organizationID={organization.id} />
       {projectsQuery.isPending ? <div className="mt-6"><LoadingState label="Loading projects…" /></div> : projectsQuery.error ? <div className="mt-6"><ErrorState error={projectsQuery.error} /></div> : projectsQuery.data?.projects.length ? <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{projectsQuery.data.projects.map((project) => <Link key={project.id} to="/projects/$projectId" params={{ projectId: project.id }} className="rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-5 transition-colors hover:border-[var(--projects-border-hover)]"><div className="flex items-center gap-3"><span className="inline-flex size-10 items-center justify-center rounded-lg border border-[var(--projects-border-hover)] bg-[var(--projects-control)] text-[var(--projects-accent)]"><Server size={18} aria-hidden="true" /></span><span className="min-w-0"><span className="block truncate font-semibold">{project.name}</span><span className="mt-1 block truncate text-xs text-[var(--projects-muted)]">{project.id}</span></span></div><p className="m-0 mt-5 text-xs text-[var(--projects-muted)]">Created {new Date(project.created_at).toLocaleDateString()}</p></Link>)}</div> : <EmptyState title="No projects in this organization" detail="Use the form above to create your first project." />}
     </section>
   );
