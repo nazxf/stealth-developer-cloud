@@ -142,6 +142,36 @@ const databaseTableSchema = z.object({
   created_at: z.string(),
   updated_at: z.string(),
 });
+const storageBucketSchema = z.object({
+  id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  file_security: z.boolean(),
+  create_permissions: z.array(z.string()),
+  read_permissions: z.array(z.string()),
+  update_permissions: z.array(z.string()),
+  delete_permissions: z.array(z.string()),
+  max_file_size_bytes: z.number(),
+  quota_bytes: z.number(),
+  used_bytes: z.number(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+const storageFileSchema = z.object({
+  id: z.string(),
+  bucket_id: z.string(),
+  project_id: z.string(),
+  name: z.string(),
+  mime_type: z.string(),
+  size_bytes: z.number(),
+  checksum_sha256: z.string(),
+  read_permissions: z.array(z.string()),
+  update_permissions: z.array(z.string()),
+  delete_permissions: z.array(z.string()),
+  creator_project_user_id: z.string().nullable().optional(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
 const functionSchema = z.object({
   id: z.string(),
   project_id: z.string(),
@@ -300,6 +330,8 @@ export type BrowserProjectWebhook = z.infer<typeof projectWebhookSchema>;
 export type BrowserProjectWebhookDelivery = z.infer<typeof projectWebhookDeliverySchema>;
 export type BrowserProjectDatabase = z.infer<typeof projectDatabaseSchema>;
 export type BrowserDatabaseTable = z.infer<typeof databaseTableSchema>;
+export type BrowserStorageBucket = z.infer<typeof storageBucketSchema>;
+export type BrowserStorageFile = z.infer<typeof storageFileSchema>;
 
 export class BrowserAPIError extends Error {
   constructor(
@@ -321,7 +353,7 @@ function apiURL(path: string) {
 
 async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  if (init.body !== undefined && !headers.has("content-type")) {
+  if (init.body !== undefined && !(typeof FormData !== "undefined" && init.body instanceof FormData) && !headers.has("content-type")) {
     headers.set("content-type", "application/json");
   }
   const response = await fetch(apiURL(path), {
@@ -341,6 +373,22 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
   if (response.status === 204) return undefined as T;
   const payload: unknown = await response.json();
   return schema.parse(payload);
+}
+
+async function download(path: string) {
+  const response = await fetch(apiURL(path), {
+    credentials: "include",
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { error?: { code?: string; message?: string } } | null;
+    throw new BrowserAPIError(
+      response.status,
+      payload?.error?.code ?? "upstream_error",
+      payload?.error?.message ?? "Stealth API request failed",
+    );
+  }
+  return response.blob();
 }
 
 export const browserAPI = {
@@ -468,6 +516,32 @@ export const browserAPI = {
     request(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables`, z.object({ table: databaseTableSchema }), { method: "POST", body: JSON.stringify(input) }),
   deleteProjectDatabaseTable: (projectID: string, databaseID: string, tableID: string) =>
     request<void>(`/v1/projects/${encodeURIComponent(projectID)}/databases/${encodeURIComponent(databaseID)}/tables/${encodeURIComponent(tableID)}`, z.undefined(), { method: "DELETE" }),
+  projectStorageBuckets: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets${query ? `?${query}` : ""}`, z.object({ buckets: z.array(storageBucketSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createProjectStorageBucket: (projectID: string, input: { name: string; file_security?: boolean; create_permissions?: string[]; read_permissions?: string[]; update_permissions?: string[]; delete_permissions?: string[]; max_file_size_bytes?: number; quota_bytes?: number }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets`, z.object({ bucket: storageBucketSchema }), { method: "POST", body: JSON.stringify(input) }),
+  updateProjectStorageBucket: (projectID: string, bucketID: string, input: Partial<{ name: string; file_security: boolean; create_permissions: string[]; read_permissions: string[]; update_permissions: string[]; delete_permissions: string[]; max_file_size_bytes: number; quota_bytes: number }>) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets/${encodeURIComponent(bucketID)}`, z.object({ bucket: storageBucketSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  deleteProjectStorageBucket: (projectID: string, bucketID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets/${encodeURIComponent(bucketID)}`, z.undefined(), { method: "DELETE" }),
+  projectStorageFiles: (projectID: string, bucketID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets/${encodeURIComponent(bucketID)}/files${query ? `?${query}` : ""}`, z.object({ files: z.array(storageFileSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  uploadProjectStorageFile: (projectID: string, bucketID: string, form: FormData) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets/${encodeURIComponent(bucketID)}/files`, z.object({ file: storageFileSchema }), { method: "POST", body: form }),
+  deleteProjectStorageFile: (projectID: string, bucketID: string, fileID: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets/${encodeURIComponent(bucketID)}/files/${encodeURIComponent(fileID)}`, z.undefined(), { method: "DELETE" }),
+  downloadProjectStorageFile: (projectID: string, bucketID: string, fileID: string) =>
+    download(`/v1/projects/${encodeURIComponent(projectID)}/storage/buckets/${encodeURIComponent(bucketID)}/files/${encodeURIComponent(fileID)}/download`),
   health: () => request("/healthz", z.object({ status: z.string() })),
   readiness: () => request("/readyz", z.object({ status: z.string() })),
   organizationIncidents: (organizationID: string) =>
