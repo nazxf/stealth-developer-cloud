@@ -68,10 +68,12 @@ simulated async behavior (timers standing in for network calls).
   atomic activation, asynchronous execution, bounded results, and redacted
   logs; the Functions Deployments and Executions tabs now read bounded,
   secret-redacted build and execution log streams from the worker. The Vite
-  Sites control plane is now connected for pre-built static archive upload, bounded
-  safe extraction, immutable deployments, atomic activation, quota accounting,
-  and public serving of only the active publication. Webhooks are now connected
-  end to end: signed transactional outbox events, leased delivery retries,
+  Sites control plane is now connected for pre-built static archive and public
+  Git source deployments, bounded safe extraction, isolated builds, immutable
+  deployments, atomic activation, quota accounting, per-deployment redacted
+  build logs, and public serving of only the active publication. Webhooks are
+  now connected end to end: signed transactional outbox events, leased delivery
+  retries,
   project-scoped API/Console controls, and the Webhooks Console page. Realtime
   is now available as a permission-filtered, cursor-aware SSE stream backed by
   the same seven-day event outbox. Relationships, transactions, backups,
@@ -240,10 +242,9 @@ simulated async behavior (timers standing in for network calls).
 - `/projects/[projectId]/api-keys` is backed by the project API-key management
   endpoints. It lists safe metadata, creates one-time `stl_key_...` secrets,
   and revokes keys with owner/admin permission checks; viewers remain
-  read-only. Keys currently authorize only project Auth user list/get/create
-  and status operations through `X-Stealth-Key`; the canonical scope set now
-  also includes independent Database, Storage, Functions, and Sites read/write
-  pairs.
+  read-only. Keys authorize the project Auth, Database, Storage, Functions, and
+  Sites operations through `X-Stealth-Key`; each module has independent
+  read/write scopes, including `sites.read` for deployment build logs.
 - `packages/sdk-js/server.ts` is a separate dependency-free server-oriented
   client. It never persists or logs a key and must not be bundled into browser
   code. It now exposes the database/table/column/index/row methods with
