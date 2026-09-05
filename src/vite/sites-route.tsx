@@ -1148,6 +1148,21 @@ function SiteWorkspace({
                       {formatDate(deployment.created_at)}
                     </td>
                     <td className="px-3 py-3 text-right">
+                      {deployment.status === "ready" &&
+                      deployment.build_status === "succeeded" ? (
+                        <a
+                          href={browserAPI.publicSiteDeploymentURL(
+                            selected.id,
+                            deployment.id,
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mr-2 inline-flex items-center gap-1 rounded-lg border border-[var(--projects-border)] px-2 py-1"
+                        >
+                          <ExternalLink size={12} aria-hidden="true" />
+                          Preview
+                        </a>
+                      ) : null}
                       {canManage &&
                       deployment.status === "ready" &&
                       deployment.build_status === "succeeded" ? (

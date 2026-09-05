@@ -52,6 +52,8 @@ credentialed CORS headers only for that exact HTTP(S) origin; wildcard and
 arbitrary cross-origin requests are rejected. Custom Site domains are managed
 from the server client and require a DNS TXT verification record before the
 hostname serves the active release.
+Ready but inactive Site deployments can be opened with `sites.previewURL`;
+the preview remains unavailable after the Site is disabled.
 
 ## Server-side API-key client
 

@@ -188,6 +188,7 @@ export class StealthClient {
   };
   readonly sites: {
     url: (siteID: string, path?: SiteURLPath) => string;
+    previewURL: (siteID: string, deploymentID: string, path?: SiteURLPath) => string;
   };
   /** Application-facing Server-Sent Events stream. The caller owns the
    * EventSource and must call close() when it is no longer needed. */
@@ -244,6 +245,7 @@ export class StealthClient {
     };
     this.sites = {
       url: (siteID, path) => this.siteURL(siteID, path),
+      previewURL: (siteID, deploymentID, path) => this.sitePreviewURL(siteID, deploymentID, path),
     };
     this.realtime = {
       subscribe: (streamOptions) => this.subscribeRealtime(streamOptions),
@@ -401,6 +403,19 @@ export class StealthClient {
     }
     const suffix = parts.length > 0 ? `/${parts.map((part) => encodeURIComponent(part)).join("/")}` : "";
     return `${this.endpoint}/v1/sites/${encodeURIComponent(id)}${suffix}`;
+  }
+
+  private sitePreviewURL(siteID: string, deploymentID: string, requestedPath = ""): string {
+    const id = siteID.trim();
+    const deployment = deploymentID.trim();
+    if (!id) throw new TypeError("Site ID is required");
+    if (!deployment) throw new TypeError("Site deployment ID is required");
+    const parts = requestedPath.split("/").filter(Boolean);
+    if (parts.some((part) => part === "." || part === ".." || part.includes("\\") || part.includes("\0"))) {
+      throw new TypeError("Site path must not contain traversal segments");
+    }
+    const suffix = parts.length > 0 ? `/${parts.map((part) => encodeURIComponent(part)).join("/")}` : "";
+    return `${this.endpoint}/v1/sites/${encodeURIComponent(id)}/deployments/${encodeURIComponent(deployment)}${suffix}`;
   }
 
   private subscribeRealtime(options: RealtimeSubscribeOptions = {}): EventSource {

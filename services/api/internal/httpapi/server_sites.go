@@ -873,6 +873,37 @@ func (s *Server) serveSiteFile(w http.ResponseWriter, r *http.Request) {
 	s.servePublishedSiteFile(w, r, artifact)
 }
 
+// serveSiteDeploymentFile exposes a ready immutable release at a preview URL.
+// It is public by design: the deployment UUID is the capability-like URL and
+// the Site must still be enabled. The route never accepts a filesystem path
+// from the client as an artifact locator.
+func (s *Server) serveSiteDeploymentFile(w http.ResponseWriter, r *http.Request) {
+	siteID, err := repository.ParseUUID(chi.URLParam(r, "siteID"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "site was not found")
+		return
+	}
+	deploymentID, err := repository.ParseUUID(chi.URLParam(r, "deploymentID"))
+	if err != nil {
+		writeError(w, http.StatusNotFound, "not_found", "site deployment was not found")
+		return
+	}
+	if s.sites == nil {
+		writeError(w, http.StatusServiceUnavailable, "not_ready", "site artifact storage is not ready")
+		return
+	}
+	artifact, err := s.repo.GetSiteDeploymentArtifact(r.Context(), siteID, deploymentID)
+	if errors.Is(err, repository.ErrNotFound) {
+		writeError(w, http.StatusNotFound, "not_found", "site deployment was not found")
+		return
+	}
+	if err != nil {
+		internalError(s, w, err)
+		return
+	}
+	s.servePublishedSiteFile(w, r, artifact)
+}
+
 func (s *Server) servePublishedSiteFile(w http.ResponseWriter, r *http.Request, artifact repository.SitePublicArtifact) {
 	requested := chi.URLParam(r, "*")
 	if requested == "" {

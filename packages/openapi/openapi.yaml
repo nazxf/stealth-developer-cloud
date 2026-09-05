@@ -1827,6 +1827,18 @@ paths:
       description: Public static file from the active Site deployment. Path traversal and links are rejected.
       parameters: [{ $ref: '#/components/parameters/SiteID' }, { name: path, in: path, required: true, schema: { type: string } }]
       responses: { '200': { description: Published static file }, '404': { $ref: '#/components/responses/NotFound' } }
+  /v1/sites/{siteID}/deployments/{deploymentID}:
+    get:
+      operationId: serveSiteDeploymentIndex
+      description: Public index.html preview for a ready or active immutable Site deployment. The Site must remain enabled.
+      parameters: [{ $ref: '#/components/parameters/SiteID' }, { $ref: '#/components/parameters/DeploymentID' }]
+      responses: { '200': { description: Preview static file, content: { text/html: { schema: { type: string } } } }, '404': { $ref: '#/components/responses/NotFound' } }
+  /v1/sites/{siteID}/deployments/{deploymentID}/{path}:
+    get:
+      operationId: serveSiteDeploymentFile
+      description: Public static preview file from a ready or active immutable Site deployment. Path traversal and links are rejected.
+      parameters: [{ $ref: '#/components/parameters/SiteID' }, { $ref: '#/components/parameters/DeploymentID' }, { name: path, in: path, required: true, schema: { type: string } }]
+      responses: { '200': { description: Preview static file }, '404': { $ref: '#/components/responses/NotFound' } }
   /v1/projects/{projectID}/functions:
     get:
       operationId: listFunctions

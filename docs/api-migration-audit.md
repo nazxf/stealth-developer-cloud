@@ -73,7 +73,7 @@ simulated async behavior (timers standing in for network calls).
   secret-redacted build and execution log streams from the worker. The Vite
   Sites control plane is now connected for pre-built static archive and public
   Git source deployments, bounded safe extraction, isolated builds, immutable
-  deployments, atomic activation, quota accounting, per-deployment redacted
+  deployments, public immutable previews before activation, atomic activation, quota accounting, per-deployment redacted
   build logs, and public serving of only the active publication. Webhooks are
   now connected end to end: signed transactional outbox events, leased delivery
   retries,

@@ -370,6 +370,8 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireProjectManagement).Delete("/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}", s.deleteSiteDeployment)
 		r.With(s.requireProjectManagement).Post("/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}/activate", s.activateSiteDeployment)
 		r.With(s.requireProjectManagement).Get("/projects/{projectID}/sites/{siteID}/deployments/{deploymentID}/logs", s.listSiteBuildLogs)
+		r.Get("/sites/{siteID}/deployments/{deploymentID}", s.serveSiteDeploymentFile)
+		r.Get("/sites/{siteID}/deployments/{deploymentID}/*", s.serveSiteDeploymentFile)
 		r.Get("/sites/{siteID}", s.serveSiteFile)
 		r.Get("/sites/{siteID}/*", s.serveSiteFile)
 		r.Post("/projects/{projectID}/account/registrations", s.registerProjectUser)

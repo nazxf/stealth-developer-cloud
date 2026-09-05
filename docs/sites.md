@@ -29,6 +29,13 @@ bounded lifecycle messages from
 The `after` query parameter is the last sequence received; messages are
 ordered, capped, and secret-redacted before they are persisted.
 
+Ready releases that were created with `activate=false` can be inspected before
+cutover through the public preview URL
+`/v1/sites/{siteID}/deployments/{deploymentID}` (and its wildcard asset path).
+The deployment UUID addresses an immutable artifact; the Site must remain
+enabled and active for the preview to resolve. Disabling the Site immediately
+returns `404` for both previews and the active URL.
+
 ## Git deployments
 
 Use `POST /v1/projects/{projectID}/sites/{siteID}/deployments/git` with a JSON
@@ -103,7 +110,7 @@ independent `sites.read` and `sites.write` scopes; `sites.write` does not imply
 `sites.read`. Public serving requires no project session, but a disabled Site,
 missing active deployment, or deleted Site returns `404`.
 
-Framework presets, edge/CDN caching, previews, and redirects remain separate
-follow-up milestones. Custom domain resolution and certificate issuance are
+Framework presets, edge/CDN caching, and redirects remain separate follow-up
+milestones. Custom domain resolution and certificate issuance are
 layered on the immutable deployment contract without allowing arbitrary code
 to run in the API process.

@@ -1168,6 +1168,8 @@ export const browserAPI = {
     });
   },
   publicSiteURL: (siteID: string) => apiURL(`/v1/sites/${encodeURIComponent(siteID)}`),
+  publicSiteDeploymentURL: (siteID: string, deploymentID: string) =>
+    apiURL(`/v1/sites/${encodeURIComponent(siteID)}/deployments/${encodeURIComponent(deploymentID)}`),
   projectMessagingProviders: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/messaging/providers`, z.object({ providers: z.array(messagingProviderSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough()),
   projectMessagingTopics: (projectID: string) =>

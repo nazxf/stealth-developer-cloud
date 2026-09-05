@@ -64,6 +64,12 @@ describe("browser API boundary", () => {
     );
   });
 
+  it("builds immutable Site preview URLs without leaking raw path segments", () => {
+    expect(browserAPI.publicSiteDeploymentURL("site one", "deployment/one")).toBe(
+      "/v1/sites/site%20one/deployments/deployment%2Fone",
+    );
+  });
+
   it("maps structured API failures to BrowserAPIError", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
