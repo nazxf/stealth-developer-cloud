@@ -248,6 +248,13 @@ func (r *Repository) CreateSite(ctx context.Context, id, projectID uuid.UUID, ac
 	if err := r.requireSiteWriteTx(ctx, tx, projectID, actor); err != nil {
 		return domain.Site{}, err
 	}
+	organizationID, err := projectOrganizationIDValue(ctx, tx, projectID)
+	if err != nil {
+		return domain.Site{}, err
+	}
+	if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "sites"); err != nil {
+		return domain.Site{}, err
+	}
 	if input.Framework == "" {
 		input.Framework = "static"
 	}

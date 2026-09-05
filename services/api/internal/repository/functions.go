@@ -334,6 +334,13 @@ func (r *Repository) CreateFunction(ctx context.Context, id, projectID uuid.UUID
 	if err := r.requireFunctionWriteTx(ctx, tx, projectID, actor); err != nil {
 		return domain.Function{}, err
 	}
+	organizationID, err := projectOrganizationIDValue(ctx, tx, projectID)
+	if err != nil {
+		return domain.Function{}, err
+	}
+	if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "functions"); err != nil {
+		return domain.Function{}, err
+	}
 	item, err := scanFunction(tx.QueryRow(ctx, `INSERT INTO project_functions (id,project_id,name,runtime,entrypoint,commands,timeout_seconds,enabled,logging,execute_permissions,description,status,artifact_quota_bytes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING `+functionProjection, id, projectID, input.Name, input.Runtime, input.Entrypoint, input.Commands, input.TimeoutSeconds, input.Enabled, input.Logging, permissions, input.Description, input.Status, input.ArtifactQuotaBytes))
 	if err != nil {
 		return domain.Function{}, mapError(err)

@@ -10,6 +10,7 @@ export const queryKeys = {
   account: () => ["account"] as const,
   accountSessions: () => ["account-sessions"] as const,
   organizations: () => ["organizations"] as const,
+  organizationPlan: (organizationID: string) => ["organization-plan", organizationID] as const,
   projects: (organizationID?: string) => organizationID ? ["projects", organizationID] as const : ["projects"] as const,
   project: (projectID: string) => ["project", projectID] as const,
   projectUsage: (projectID: string) => ["project-usage", projectID] as const,

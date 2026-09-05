@@ -297,6 +297,13 @@ func (r *Repository) CreateProjectDatabase(ctx context.Context, id, projectID uu
 	if err := r.requireDatabaseWriteTx(ctx, tx, projectID, actor, "databases.write"); err != nil {
 		return domain.ProjectDatabase{}, err
 	}
+	organizationID, err := projectOrganizationIDValue(ctx, tx, projectID)
+	if err != nil {
+		return domain.ProjectDatabase{}, err
+	}
+	if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "databases"); err != nil {
+		return domain.ProjectDatabase{}, err
+	}
 	if err := lockDatabaseNamespace(ctx, tx, projectID); err != nil {
 		return domain.ProjectDatabase{}, err
 	}

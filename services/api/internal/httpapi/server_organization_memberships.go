@@ -97,6 +97,9 @@ func (s *Server) removeMembership(w http.ResponseWriter, r *http.Request) {
 }
 
 func organizationMembershipMutationError(w http.ResponseWriter, err error) bool {
+	if planLimitError(w, err) {
+		return true
+	}
 	if errors.Is(err, repository.ErrNotFound) {
 		writeError(w, http.StatusNotFound, "not_found", "organization or account membership was not found")
 		return true

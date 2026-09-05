@@ -131,6 +131,31 @@ describe("browser API boundary", () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/organizations/org%2Fone/projects?limit=20&cursor=cursor+one");
   });
 
+  it("reads the organization plan and resource limits through the session API", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          plan: {
+            organization_id: "org-1",
+            plan_key: "free",
+            status: "active",
+            current_period_start: "2026-09-01",
+            current_period_end: "2026-09-30",
+            limits: { projects: 3, members: 5, databases: 5, storage_buckets: 10, functions: 10, sites: 10 },
+            usage: { projects: 1, members: 1, databases: 2, storage_buckets: 1, functions: 0, sites: 0 },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await browserAPI.organizationPlan("org/one");
+
+    expect(result.plan.limits.projects).toBe(3);
+    expect(result.plan.usage.databases).toBe(2);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/organizations/org%2Fone/plan");
+  });
+
   it("posts a project to the selected organization with JSON headers", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(

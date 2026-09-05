@@ -352,6 +352,9 @@ func (s *Server) createFunction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := s.repo.CreateFunction(r.Context(), uuid.Must(uuid.NewV7()), projectID, functionActorFrom(r), input)
+	if planLimitError(w, err) {
+		return
+	}
 	if functionResourceError(w, err) {
 		return
 	}

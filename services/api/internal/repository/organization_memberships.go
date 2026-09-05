@@ -74,6 +74,9 @@ func (r *Repository) AddOrganizationMembership(ctx context.Context, organization
 	if !canManageOrganizationMembership(actorRole, "viewer", role) {
 		return domain.Membership{}, ErrForbidden
 	}
+	if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "members"); err != nil {
+		return domain.Membership{}, err
+	}
 	var item domain.Membership
 	err = tx.QueryRow(ctx, `
 		SELECT id,email

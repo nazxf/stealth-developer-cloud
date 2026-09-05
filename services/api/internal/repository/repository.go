@@ -71,6 +71,9 @@ func (r *Repository) Signup(ctx context.Context, input SignupInput) (domain.Acco
 	if err := tx.QueryRow(ctx, `INSERT INTO organizations (id,name,slug) VALUES ($1,$2,$3) RETURNING created_at`, input.OrganizationID, input.OrganizationName, input.OrganizationSlug).Scan(&organization.CreatedAt); err != nil {
 		return domain.Account{}, domain.Organization{}, mapError(err)
 	}
+	if _, err := tx.Exec(ctx, `INSERT INTO organization_plans (organization_id) VALUES ($1)`, input.OrganizationID); err != nil {
+		return domain.Account{}, domain.Organization{}, err
+	}
 	if _, err := tx.Exec(ctx, `INSERT INTO organization_memberships (organization_id,account_id,role) VALUES ($1,$2,'owner')`, input.OrganizationID, input.AccountID); err != nil {
 		return domain.Account{}, domain.Organization{}, err
 	}
@@ -269,6 +272,9 @@ func (r *Repository) CreateOrganization(ctx context.Context, id, accountID uuid.
 	if err = tx.QueryRow(ctx, `INSERT INTO organizations (id,name,slug) VALUES ($1,$2,$3) RETURNING created_at`, id, name, slug).Scan(&item.CreatedAt); err != nil {
 		return domain.Organization{}, mapError(err)
 	}
+	if _, err = tx.Exec(ctx, `INSERT INTO organization_plans (organization_id) VALUES ($1)`, id); err != nil {
+		return domain.Organization{}, err
+	}
 	if _, err = tx.Exec(ctx, `INSERT INTO organization_memberships (organization_id,account_id,role) VALUES ($1,$2,'owner')`, id, accountID); err != nil {
 		return domain.Organization{}, err
 	}
@@ -388,6 +394,9 @@ func (r *Repository) CreateProject(ctx context.Context, id, organizationID, acco
 	}
 	defer tx.Rollback(ctx)
 	if err := requireRoleTx(ctx, tx, organizationID, accountID, "owner", "admin", "developer"); err != nil {
+		return domain.Project{}, err
+	}
+	if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "projects"); err != nil {
 		return domain.Project{}, err
 	}
 	item := domain.Project{ID: id.String(), OrganizationID: organizationID.String(), Name: name}

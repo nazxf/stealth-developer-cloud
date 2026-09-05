@@ -93,7 +93,9 @@ simulated async behavior (timers standing in for network calls).
   Project Settings now updates the
   project slug through an owner/admin API mutation and exposes stable project
   and organization identifiers. Destructive project deletion is available
-  through the owner-only API; billing remains out of scope.
+  through the owner-only API; organization plan state and resource-count
+  enforcement now come from the durable plan contract, while payment checkout
+  and invoice calculation remain separate billing-adapter work.
   Organization identity settings (name and slug) now use
   the owner/admin organization API, while Console account session
   listing/revocation and current-password-verified password changes are
@@ -104,7 +106,9 @@ simulated async behavior (timers standing in for network calls).
   audit Logs now read durable events; request/trace telemetry remains separate.
   Usage now reads live resource aggregates and rolling API/Function counters from
   PostgreSQL; the daily metering API records request egress and Function compute
-  time durably. Invoice calculation and plan enforcement remain future work.
+  time durably. Resource-count plan enforcement is now transactional through the
+  organization plan contract; invoice calculation and payment-provider
+  integration remain future work.
 
 ### Deployment overview — migrated
 - `/projects/[projectId]/deployments` now aggregates the real Site and Function
@@ -470,8 +474,10 @@ index are query-backed by the Vite route tree.
 - The shared Vite shell fetches the authenticated Console account, renders the
   project navigation rail, and logs out through the HttpOnly session. No fake
   plan-loading timer or avatar data is shipped.
-- Provider/billing plan data is intentionally not displayed until a durable
-  account-plan contract exists.
+- Organization plan state and enforced resource limits are displayed in Admin
+  Settings from the durable organization-plan contract. Payment-provider
+  checkout, invoices, and account-level billing identifiers remain absent
+  until a billing adapter is implemented.
 
 ## Dev tooling (not product UI)
 

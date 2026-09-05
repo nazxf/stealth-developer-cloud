@@ -196,6 +196,9 @@ func (s *Server) createStorageBucket(w http.ResponseWriter, r *http.Request) {
 	item, err := s.repo.CreateStorageBucket(r.Context(), uuid.Must(uuid.NewV7()), projectID, managementStorageActorFrom(r), repository.StorageBucketInput{
 		Name: name, FileSecurity: fileSecurity, CreatePermissions: createPermissions, ReadPermissions: readPermissions, UpdatePermissions: updatePermissions, DeletePermissions: deletePermissions, MaxFileSizeBytes: maxFileSize, QuotaBytes: quota,
 	})
+	if planLimitError(w, err) {
+		return
+	}
 	if storageResourceError(w, err) {
 		return
 	}

@@ -28,6 +28,38 @@ type Organization struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+// OrganizationPlan is the safe billing projection exposed to Console
+// operators. Commercial plan definitions are server-owned; tenant responses
+// contain the effective limits and current counts but never provider secrets
+// or payment identifiers.
+type OrganizationPlan struct {
+	OrganizationID     string                 `json:"organization_id"`
+	PlanKey            string                 `json:"plan_key"`
+	Status             string                 `json:"status"`
+	CurrentPeriodStart string                 `json:"current_period_start"`
+	CurrentPeriodEnd   string                 `json:"current_period_end"`
+	Limits             OrganizationPlanLimits `json:"limits"`
+	Usage              OrganizationPlanUsage  `json:"usage"`
+}
+
+type OrganizationPlanLimits struct {
+	Projects       int64 `json:"projects"`
+	Members        int64 `json:"members"`
+	Databases      int64 `json:"databases"`
+	StorageBuckets int64 `json:"storage_buckets"`
+	Functions      int64 `json:"functions"`
+	Sites          int64 `json:"sites"`
+}
+
+type OrganizationPlanUsage struct {
+	Projects       int64 `json:"projects"`
+	Members        int64 `json:"members"`
+	Databases      int64 `json:"databases"`
+	StorageBuckets int64 `json:"storage_buckets"`
+	Functions      int64 `json:"functions"`
+	Sites          int64 `json:"sites"`
+}
+
 type Membership struct {
 	OrganizationID string    `json:"organization_id"`
 	AccountID      string    `json:"account_id"`

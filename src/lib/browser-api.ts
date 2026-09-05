@@ -66,6 +66,31 @@ const organizationSchema = z.object({
   slug: z.string(),
   created_at: z.string(),
 });
+const organizationPlanLimitsSchema = z.object({
+  projects: z.number(),
+  members: z.number(),
+  databases: z.number(),
+  storage_buckets: z.number(),
+  functions: z.number(),
+  sites: z.number(),
+});
+const organizationPlanUsageSchema = z.object({
+  projects: z.number(),
+  members: z.number(),
+  databases: z.number(),
+  storage_buckets: z.number(),
+  functions: z.number(),
+  sites: z.number(),
+});
+const organizationPlanSchema = z.object({
+  organization_id: z.string(),
+  plan_key: z.enum(["free", "pro", "enterprise"]),
+  status: z.enum(["active", "past_due", "canceled"]),
+  current_period_start: z.string(),
+  current_period_end: z.string(),
+  limits: organizationPlanLimitsSchema,
+  usage: organizationPlanUsageSchema,
+});
 
 const projectSchema = z.object({
   id: z.string(),
@@ -564,6 +589,7 @@ export type BrowserOrganizationMembershipManageRole = z.infer<typeof organizatio
 export type BrowserOrganizationInvitation = z.infer<typeof organizationInvitationSchema>;
 export type BrowserOrganizationAuditEvent = z.infer<typeof organizationAuditEventSchema>;
 export type BrowserOrganization = z.infer<typeof organizationSchema>;
+export type BrowserOrganizationPlan = z.infer<typeof organizationPlanSchema>;
 export type BrowserProject = z.infer<typeof projectSchema>;
 export type BrowserProjectServiceLayout = z.infer<typeof projectServiceLayoutSchema>;
 export type BrowserOrganizationsResponse = z.infer<typeof organizationsResponseSchema>;
@@ -626,6 +652,8 @@ export const browserAPI = {
   },
   updateOrganization: (organizationID: string, input: { name: string; slug: string }) =>
     request(`/v1/organizations/${encodeURIComponent(organizationID)}`, z.object({ organization: organizationSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  organizationPlan: (organizationID: string) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}/plan`, z.object({ plan: organizationPlanSchema })),
   organizationMemberships: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));

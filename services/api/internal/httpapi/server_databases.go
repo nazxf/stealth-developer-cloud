@@ -191,6 +191,9 @@ func (s *Server) createProjectDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := s.repo.CreateProjectDatabase(r.Context(), uuid.Must(uuid.NewV7()), projectID, databaseActorFrom(r), name)
+	if planLimitError(w, err) {
+		return
+	}
 	if databaseResourceError(w, err) {
 		return
 	}

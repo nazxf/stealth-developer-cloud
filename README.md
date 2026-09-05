@@ -72,6 +72,7 @@ authenticated query contracts are implemented.
 - `docs/cors.md` — per-project browser origin allowlists and credential rules
 - `docs/frontend-vite.md` — Vite deployment, proxy, and migration contract
 - `docs/usage.md` — live project resource aggregates and metering boundary
+- `docs/plans.md` — organization plan limits, enforcement, and billing boundary
 - `docs/auth.md` — one-time verification, recovery, organization invitations, and SMTP delivery
 - `docs/agents.md` — project-scoped Agent configuration, run queue, and execution boundary
 - `docs/deployment.md` — production Compose rollout, security checklist, smoke tests, and rollback

@@ -135,6 +135,9 @@ func (s *Server) acceptOrganizationInvitation(w http.ResponseWriter, r *http.Req
 		writeError(w, http.StatusForbidden, "invitation_email_mismatch", "sign in with the email address that received this invitation")
 		return
 	}
+	if planLimitError(w, err) {
+		return
+	}
 	if err != nil {
 		internalError(s, w, err)
 		return
@@ -143,6 +146,9 @@ func (s *Server) acceptOrganizationInvitation(w http.ResponseWriter, r *http.Req
 }
 
 func organizationInvitationError(w http.ResponseWriter, err error) bool {
+	if planLimitError(w, err) {
+		return true
+	}
 	if errors.Is(err, repository.ErrForbidden) {
 		writeError(w, http.StatusForbidden, "forbidden", "only organization owners and admins can manage invitations")
 		return true

@@ -255,6 +255,9 @@ func (s *Server) createSite(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := s.repo.CreateSite(r.Context(), uuid.Must(uuid.NewV7()), projectID, siteActorFrom(r), input)
+	if planLimitError(w, err) {
+		return
+	}
 	if siteResourceError(w, err) {
 		return
 	}

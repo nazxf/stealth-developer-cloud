@@ -294,6 +294,13 @@ func (r *Repository) CreateStorageBucket(ctx context.Context, id, projectID uuid
 	if err := r.requireStorageWriteTx(ctx, tx, projectID, actor); err != nil {
 		return domain.StorageBucket{}, err
 	}
+	organizationID, err := projectOrganizationIDValue(ctx, tx, projectID)
+	if err != nil {
+		return domain.StorageBucket{}, err
+	}
+	if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "storage_buckets"); err != nil {
+		return domain.StorageBucket{}, err
+	}
 	if err := lockStorageNamespace(ctx, tx, projectID); err != nil {
 		return domain.StorageBucket{}, err
 	}

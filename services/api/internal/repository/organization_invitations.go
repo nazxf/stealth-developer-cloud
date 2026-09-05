@@ -277,6 +277,9 @@ func (r *Repository) AcceptOrganizationInvitation(ctx context.Context, tokenHash
 	}
 	var item domain.Membership
 	if err := tx.QueryRow(ctx, `SELECT m.organization_id,m.account_id,a.email,m.role,m.created_at FROM organization_memberships m JOIN accounts a ON a.id=m.account_id WHERE m.organization_id=$1 AND m.account_id=$2 FOR UPDATE`, organizationID, accountID).Scan(&item.OrganizationID, &item.AccountID, &item.Email, &item.Role, &item.CreatedAt); errors.Is(err, pgx.ErrNoRows) {
+		if err := r.enforceOrganizationLimitTx(ctx, tx, organizationID, "members"); err != nil {
+			return domain.Membership{}, err
+		}
 		if err := tx.QueryRow(ctx, `INSERT INTO organization_memberships (organization_id,account_id,role) VALUES ($1,$2,$3) RETURNING created_at`, organizationID, accountID, role).Scan(&item.CreatedAt); err != nil {
 			return domain.Membership{}, mapError(err)
 		}

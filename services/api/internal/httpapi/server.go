@@ -225,6 +225,7 @@ func NewWithLimiterAndGitFetcherAndMailer(cfg config.Config, repo *repository.Re
 		r.With(s.requireSession).Get("/organizations", s.listOrganizations)
 		r.With(s.requireSession).Post("/organizations", s.createOrganization)
 		r.With(s.requireSession).Patch("/organizations/{organizationID}", s.updateOrganization)
+		r.With(s.requireSession).Get("/organizations/{organizationID}/plan", s.getOrganizationPlan)
 		r.With(s.requireSession).Get("/organizations/{organizationID}/memberships", s.listMemberships)
 		r.With(s.requireSession).Post("/organizations/{organizationID}/memberships", s.createMembership)
 		r.With(s.requireSession).Patch("/organizations/{organizationID}/memberships/{accountID}", s.updateMembership)
@@ -846,6 +847,9 @@ func (s *Server) createProject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	item, err := s.repo.CreateProject(r.Context(), uuid.Must(uuid.NewV7()), orgID, uuid.Must(uuid.Parse(accountFrom(r).ID)), name)
+	if planLimitError(w, err) {
+		return
+	}
 	if authzError(w, err) {
 		return
 	}
@@ -1993,6 +1997,15 @@ func authzError(w http.ResponseWriter, err error) bool {
 		return true
 	}
 	return false
+}
+
+func planLimitError(w http.ResponseWriter, err error) bool {
+	var limitErr *repository.PlanLimitError
+	if !errors.As(err, &limitErr) {
+		return false
+	}
+	writeError(w, http.StatusConflict, "plan_limit_exceeded", limitErr.Error())
+	return true
 }
 
 func projectResourceError(w http.ResponseWriter, err error) bool {
