@@ -1,10 +1,29 @@
 import { Link } from "@tanstack/react-router";
-import { Activity, Boxes, Database, Gauge, KeyRound, LayoutDashboard, Mail, Settings2, ShieldCheck, Sparkles, Webhook, Workflow } from "lucide-react";
+import {
+  Activity,
+  Boxes,
+  Database,
+  Gauge,
+  KeyRound,
+  LayoutDashboard,
+  Mail,
+  Server,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  Webhook,
+  Workflow,
+} from "lucide-react";
 
-type NavigationItem = { label: string; resource: string; icon: typeof LayoutDashboard };
+type NavigationItem = {
+  label: string;
+  resource: string;
+  icon: typeof LayoutDashboard;
+};
 
 const navigationItems: NavigationItem[] = [
   { label: "Overview", resource: "__overview__", icon: LayoutDashboard },
+  { label: "Services", resource: "services", icon: Server },
   { label: "Deployments", resource: "deployments", icon: Workflow },
   { label: "Auth", resource: "auth", icon: ShieldCheck },
   { label: "Databases", resource: "databases", icon: Database },
@@ -18,6 +37,110 @@ const navigationItems: NavigationItem[] = [
   { label: "Settings", resource: "settings", icon: Settings2 },
 ];
 
+const linkClass =
+  "inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex";
+const activeClass =
+  "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]";
+
 export function ProjectShellNavigation({ projectId }: { projectId: string }) {
-  return <aside className="mb-6 lg:mb-0"><div className="rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3 lg:sticky lg:top-20"><p className="m-0 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--projects-muted)]">Project</p><p className="m-0 truncate px-2 pb-3 font-mono text-xs text-[var(--projects-text)]" title={projectId}>{projectId}</p><nav className="flex gap-1 overflow-x-auto lg:block lg:overflow-visible" aria-label="Project navigation">{navigationItems.map(({ label, resource, icon: Icon }) => resource === "__overview__" ? <Link key={resource} to="/projects/$projectId" params={{ projectId }} activeOptions={{ exact: true }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "deployments" ? <Link key={resource} to="/projects/$projectId/deployments" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "messaging" ? <Link key={resource} to="/projects/$projectId/messaging" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "api-keys" ? <Link key={resource} to="/projects/$projectId/api-keys" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "auth" ? <Link key={resource} to="/projects/$projectId/auth" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "webhooks" ? <Link key={resource} to="/projects/$projectId/webhooks" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "realtime" ? <Link key={resource} to="/projects/$projectId/realtime" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "settings" ? <Link key={resource} to="/projects/$projectId/settings" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "databases" ? <Link key={resource} to="/projects/$projectId/databases" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "storage" ? <Link key={resource} to="/projects/$projectId/storage" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "functions" ? <Link key={resource} to="/projects/$projectId/functions" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] hover:bg-[var(--projects-control)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : resource === "sites" ? <Link key={resource} to="/projects/$projectId/sites" params={{ projectId }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] hover:bg-[var(--projects-control)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link> : <Link key={resource} to="/projects/$projectId/$resource" params={{ projectId, resource }} activeProps={{ className: "bg-[color-mix(in_srgb,var(--projects-accent)_12%,transparent)] text-[var(--projects-text)]" }} className="inline-flex shrink-0 items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-[var(--projects-muted)] transition-colors hover:bg-[var(--projects-control)] hover:text-[var(--projects-text)] lg:flex"><Icon size={15} aria-hidden="true" />{label}</Link>)}</nav></div></aside>;
+  return (
+    <aside className="mb-6 lg:mb-0">
+      <div className="rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-3 lg:sticky lg:top-20">
+        <p className="m-0 px-2 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--projects-muted)]">
+          Project
+        </p>
+        <p
+          className="m-0 truncate px-2 pb-3 font-mono text-xs text-[var(--projects-text)]"
+          title={projectId}
+        >
+          {projectId}
+        </p>
+        <nav
+          className="flex gap-1 overflow-x-auto lg:block lg:overflow-visible"
+          aria-label="Project navigation"
+        >
+          {navigationItems.map((item) => (
+            <ProjectNavLink key={item.resource} item={item} projectId={projectId} />
+          ))}
+        </nav>
+      </div>
+    </aside>
+  );
+}
+
+function ProjectNavLink({
+  item,
+  projectId,
+}: {
+  item: NavigationItem;
+  projectId: string;
+}) {
+  const Icon = item.icon;
+  if (item.resource === "__overview__") {
+    return (
+      <Link
+        to="/projects/$projectId"
+        params={{ projectId }}
+        activeOptions={{ exact: true }}
+        activeProps={{ className: activeClass }}
+        className={linkClass}
+      >
+        <Icon size={15} aria-hidden="true" />
+        {item.label}
+      </Link>
+    );
+  }
+
+  if (item.resource === "services") {
+    return (
+      <Link
+        to="/projects/$projectId/services"
+        params={{ projectId }}
+        activeProps={{ className: activeClass }}
+        className={linkClass}
+      >
+        <Icon size={15} aria-hidden="true" />
+        {item.label}
+      </Link>
+    );
+  }
+
+  const explicitResources = new Set([
+    "deployments",
+    "auth",
+    "databases",
+    "storage",
+    "functions",
+    "sites",
+    "realtime",
+    "webhooks",
+    "messaging",
+    "api-keys",
+    "settings",
+  ]);
+  if (explicitResources.has(item.resource)) {
+    return (
+      <Link
+        to={`/projects/$projectId/${item.resource}` as never}
+        params={{ projectId } as never}
+        activeProps={{ className: activeClass }}
+        className={linkClass}
+      >
+        <Icon size={15} aria-hidden="true" />
+        {item.label}
+      </Link>
+    );
+  }
+
+  return (
+    <Link
+      to="/projects/$projectId/$resource"
+      params={{ projectId, resource: item.resource }}
+      activeProps={{ className: activeClass }}
+      className={linkClass}
+    >
+      <Icon size={15} aria-hidden="true" />
+      {item.label}
+    </Link>
+  );
 }

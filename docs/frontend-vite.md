@@ -32,10 +32,9 @@ Publish `dist/` behind a static host or reverse proxy with SPA fallback to
 use an explicit exact-origin `CONSOLE_CORS_ORIGINS` list and HTTPS with
 `COOKIE_SECURE=true`. Never use `*` with credentialed requests.
 
-The migration is incremental. Project overview, deployments, Auth, Databases,
-Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings,
-Agents, and the API-backed Admin overview now use the feature-oriented Vite
-tree. `dev:next` and `build:next` remain available only as a compatibility
-path for legacy pages while the remaining admin detail panels and service
-canvas are migrated. New routes must use the browser API client, runtime Zod
-schemas, and TanStack Query keys rather than adding another Next server proxy.
+Project overview, the API-backed Services workspace, deployments, Auth,
+Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys,
+Settings, Agents, and every Admin section use the feature-oriented Vite tree.
+Next.js and the server-only bridge are removed from the frontend runtime. New
+routes must use the browser API client, runtime Zod schemas, and TanStack Query
+keys rather than adding a server proxy.

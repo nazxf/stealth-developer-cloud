@@ -354,6 +354,7 @@ const adminSectionRoute = createRoute({ getParentRoute: () => rootRoute, path: "
 const projectsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects", component: ProjectsRoute });
 const projectRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId", component: ProjectRoute });
 const projectDeploymentsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/deployments", component: lazyRouteComponent(() => import("./deployments-route")) });
+const projectServicesRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/services", component: lazyRouteComponent(() => import("./services-route")) });
 const projectMessagingRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/messaging", component: lazyRouteComponent(() => import("./messaging-route")) });
 const projectAPIKeysRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/api-keys", component: lazyRouteComponent(() => import("./api-keys-route")) });
 const projectAuthRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/auth", component: lazyRouteComponent(() => import("./auth-route")) });
@@ -365,7 +366,7 @@ const projectStorageRoute = createRoute({ getParentRoute: () => rootRoute, path:
 const projectFunctionsRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/functions", component: lazyRouteComponent(() => import("./functions-route")) });
 const projectSitesRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/sites", component: lazyRouteComponent(() => import("./sites-route")) });
 const projectResourceRoute = createRoute({ getParentRoute: () => rootRoute, path: "/projects/$projectId/$resource", component: ProjectResourceRoute });
-const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, agentRoute, agentDetailRoute, adminRoute, adminSectionRoute, projectsRoute, projectRoute, projectDeploymentsRoute, projectMessagingRoute, projectAPIKeysRoute, projectAuthRoute, projectWebhooksRoute, projectRealtimeRoute, projectSettingsRoute, projectDatabasesRoute, projectStorageRoute, projectFunctionsRoute, projectSitesRoute, projectResourceRoute]);
+const routeTree = rootRoute.addChildren([indexRoute, loginRoute, signupRoute, forgotPasswordRoute, resetPasswordRoute, verifyEmailRoute, acceptInvitationRoute, agentRoute, agentDetailRoute, adminRoute, adminSectionRoute, projectsRoute, projectRoute, projectDeploymentsRoute, projectServicesRoute, projectMessagingRoute, projectAPIKeysRoute, projectAuthRoute, projectWebhooksRoute, projectRealtimeRoute, projectSettingsRoute, projectDatabasesRoute, projectStorageRoute, projectFunctionsRoute, projectSitesRoute, projectResourceRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 

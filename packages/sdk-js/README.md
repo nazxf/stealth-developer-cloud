@@ -9,8 +9,8 @@ sessionStorage, or accept a session secret.
 import { StealthClient } from "./index";
 
 // The same-origin host must expose the API's /v1 paths directly (for example,
-// through a reverse proxy). The Console /api/stealth bridge does not proxy
-// public project Auth routes.
+// through a reverse proxy). Project application Auth uses its own cookie
+// boundary and is never mixed with the Console session.
 const client = new StealthClient({ endpoint: window.location.origin, projectID });
 await client.account.create({ email, password, name });
 await client.account.createEmailPasswordSession({ email, password });

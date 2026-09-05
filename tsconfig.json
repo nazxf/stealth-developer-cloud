@@ -20,18 +20,14 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ]
+    "types": ["vite/client"]
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    "src/main.tsx",
+    "src/vite-env.d.ts",
+    "src/vite/**/*.ts",
+    "src/vite/**/*.tsx",
+    "src/lib/browser-api.ts"
   ],
   "exclude": [
     "node_modules"

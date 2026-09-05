@@ -1,13 +1,12 @@
 # Stealth Console and API
 
 The web console for **Stealth**, a developer cloud platform. Deploy services,
-watch them on a live service canvas, follow pre-deploy flows, inspect usage
-and requests, and run AI agents against your projects.
+inspect a live service workspace, follow deployment state, inspect usage and
+requests, and run AI agents against your projects.
 
 ## Stack
 
-- React + TypeScript + Vite (TanStack Router/Query); the legacy Next App
-  Router remains available through `dev:next`/`build:next` during migration
+- React + TypeScript + Vite (TanStack Router/Query) as the only frontend runtime
 - Tailwind CSS 4 with a token-based theme in `src/styles/`
 - motion/react for interaction animation, recharts for admin telemetry charts
 - Geist, Inter Variable, and Source Code Pro as the font stack
@@ -26,21 +25,22 @@ Go API (cookie session, CORS, OpenAPI)
         ↓
 ```
 
-The Vite entry point is the default `dev`, `build`, and `start` path. It uses
+The Vite entry point is the `dev`, `build`, and `start` path. It uses
 TanStack Router for route state, TanStack Query for server state, and Zod at
 the API boundary. Set `VITE_API_URL` when the static console is hosted on a
 different origin; configure the API's exact `CONSOLE_CORS_ORIGINS` allowlist in
-that deployment. Next remains an explicit compatibility path while the
-feature-first console pages are moved route by route.
+that deployment. The browser calls Go directly with the HttpOnly session
+cookie; there is no Next server proxy or server-only API bridge.
 
 The connected identity, project console, deployment timeline, and Agent
-configuration/run surfaces use the Stealth API. The shared Agent sidebar also
+configuration/run surfaces use the Stealth API. The shared Vite shell also
 uses the authenticated account identity and logout session. Site and Function
 releases are shown from durable deployment records, and owners/admins can start
 a Git deployment from the project timeline. Agent prompts are persisted in a durable queue; provider
 connections and the trusted execution worker are intentionally separate, so a
-queued run is never shown as completed without real worker output. Remaining
-legacy surfaces are inventoried in [docs/api-migration-audit.md](docs/api-migration-audit.md).
+queued run is never shown as completed without real worker output. The
+historical migration inventory is kept in
+[docs/api-migration-audit.md](docs/api-migration-audit.md).
 The admin Overview is session-protected and reads workspace usage aggregates;
 the Agent Runs, Usage, Users, and audit Logs pages read durable
 records/aggregates from the same workspace APIs. Users are organization
@@ -55,12 +55,9 @@ authenticated query contracts are implemented.
 
 ## Structure
 
-- `src/vite/` — default React + Vite route tree (`/`, auth flows, projects, deployments, Auth, Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents, and Admin)
-- `src/app/` — legacy Next compatibility routes retained only while the remaining admin detail panels and service canvas migrate
-- `src/components/` — cross-feature shell (`application-shell.tsx`, `top-bar.tsx`) and primitives
-- `src/features/` — feature-first modules: `projects/` (list, detail, service-overview, pre-deploy), `console/` (project Auth, Databases, Storage, Functions, Sites, Messaging, and Webhooks control planes), `agents/` (API-backed configuration plus staged run workspace), `navigation/`, `auth/`, `admin/`
-- `src/lib/`, `src/styles/` — shared utilities and stylesheets
-- `src/vite/`, `src/main.tsx` — Vite entry, TanStack Router route tree, Query client, and migrated shell
+- `src/vite/` — React + Vite route tree (`/`, auth flows, projects, Services, deployments, Auth, Databases, Storage, Functions, Sites, Webhooks, Messaging, Realtime, API keys, Settings, Agents, and Admin)
+- `src/lib/browser-api.ts` — the browser-safe, Zod-validated Go API client
+- `src/styles/`, `src/main.tsx` — global tokens, Vite entry, TanStack Router route tree, Query client, and shell
 - `services/api/cmd/api` — API process entry point and graceful shutdown
 - `services/api/internal/auth` — Argon2id password and opaque session helpers
 - `services/api/internal/apikey` — high-entropy project API key generation, hashing, scope, and expiry validation
@@ -257,9 +254,7 @@ relative `/v1` requests in a same-origin deployment) and the central
 `src/lib/browser-api.ts` client. Its authenticated browser integration uses
 `credentials: "include"` and the endpoints in
 `packages/openapi/openapi.yaml`. Session tokens and password hashes are never
-returned to JavaScript. The legacy Next compatibility path uses the private
-`STEALTH_API_URL` server variable and fixed `/api/stealth/*` bridge. The
-connected Console path is: register/login → `GET
+returned to JavaScript. The connected Console path is: register/login → `GET
 /v1/account` → `GET /v1/organizations` → organization-scoped projects →
 project Auth identity management, owner/admin-only Auth settings, owner/admin
 project API-key management, and the Agent configuration control plane. Project
@@ -272,15 +267,13 @@ Verification, recovery, and organization invitation links are one-time,
 expiring secrets; configure the
 SMTP delivery settings described in [`docs/auth.md`](docs/auth.md) before
 enabling them in production. Password recovery revokes all existing sessions.
-The bridge accepts only a fixed endpoint/method allowlist and canonical UUID
-resource paths, relays only the Console session cookie, applies bounded request
-timeouts (five minutes for streamed uploads and five minutes plus 30 seconds for
-Realtime), and relays upstream `Set-Cookie` headers. Public project application
-Auth is intentionally not proxied through the Console bridge. The bridge also
-supports the long-lived project Realtime SSE stream and forwards reconnect
-cursor headers. The SDK can use a same-origin browser endpoint or a configured
-project CORS origin; wildcard and arbitrary cross-origin origins remain
-disabled. Sites support verified
+The browser client sends the HttpOnly Console cookie with `credentials:
+include`, validates response envelopes with Zod, and uses the Go API's exact
+CORS allowlist when deployed cross-origin. Public project application Auth is
+intentionally a separate cookie boundary. The client also supports the
+long-lived project Realtime SSE stream and forwards reconnect cursors. The SDK
+can use a same-origin browser endpoint or a configured project CORS origin;
+wildcard and arbitrary cross-origin origins remain disabled. Sites support verified
 custom hostnames through the server API. Optional in-process ACME termination
 can issue and renew certificates automatically for those verified names; leave
 `ACME_ENABLED=false` when TLS is handled by a reverse proxy.
@@ -429,9 +422,7 @@ Stderr is retained only as redacted, bounded execution logs.
 ```bash
 npm install
 npm run dev          # Vite dev server
-npm run typecheck    # full compatibility typecheck
+npm run typecheck    # TypeScript check for the Vite application
 npm run build        # Vite production build
 npm run check        # typecheck + Vite build
-npm run dev:next     # legacy Next compatibility server
-npm run build:next   # legacy Next compatibility build
 ```

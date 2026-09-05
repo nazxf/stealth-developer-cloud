@@ -14,10 +14,9 @@ Stealth backend
 
 The Vite browser must **not** use `localStorage` as the source of truth
 for projects, deployments, agents, usage, or any other product data. This
-document inventories every location where the current UI still runs on
-in-browser data so each can be migrated to the Stealth API when its surface is
-ready. The connected Console identity and project list/create routes are now
-migrated; the remaining entries below are intentionally not yet connected.
+document retains the historical inventory from the Next migration; the files
+listed as legacy are no longer imported by the Vite application. Active
+screens use `src/lib/browser-api.ts`, runtime Zod schemas, and TanStack Query.
 
 Legend: **[LS]** = localStorage is the authoritative datastore, **[H]** =
 hardcoded constant data, **[M]** = generated/simulated mock data, **[S]** =
@@ -28,10 +27,10 @@ simulated async behavior (timers standing in for network calls).
 ## Projects & deployments
 
 ### Connected project list/create — migrated
-- `/` now validates the HttpOnly API session server-side, lists organizations
-  and organization-scoped projects, and creates projects via the fixed
-  same-origin API bridge. This path does not use seed projects, timers, or
-  localStorage authority.
+- `/` now validates the HttpOnly API session in the browser through the Go API,
+  lists organizations and organization-scoped projects, and creates projects
+  through the central browser client. This path does not use seed projects,
+  timers, or localStorage authority.
 
 ### `src/features/projects/project-store.ts` — [LS][H] (legacy deployment UI only)
 - Storage key: `"projects-list-v1"`.
@@ -103,9 +102,9 @@ simulated async behavior (timers standing in for network calls).
   the existing Site API.
 - The page refreshes and polls only while a deployment is queued or building;
   it never fabricates progress, versions, or worker output in the browser.
-- The server API client now exposes typed `projectSiteDeployments` and
-  `projectFunctionDeployments` list methods. The browser bridge already
-  enforces the same project-scoped GET boundaries as the resource pages.
+- The browser API client exposes typed `projectSiteDeployments` and
+  `projectFunctionDeployments` list methods and keeps the same project-scoped
+  authorization boundary as the resource pages.
 
 ### Project Logs — migrated
 - `/projects/{projectID}/logs` loads project-scoped audit events through
@@ -129,14 +128,13 @@ simulated async behavior (timers standing in for network calls).
   Organization invitations live in Admin
   Users rather than project settings.
 
-### `src/features/projects/service-overview/use-service-overview.ts` — [LS][M][S]
-- Storage keys: `app-ig-service-canvas-v1` (per-project service canvas: node
-  positions, service definitions, statuses) and the pre-deploy workflow key
-  (see below).
-- Simulated deployment transitions (queued → building → deploying → live),
-  simulated logs, timers for status changes.
-- Migration: service/canvas state from the API; deployment lifecycle via real
-  deployment + streaming log endpoints.
+### Services workspace — migrated in Vite
+- `/projects/{projectID}/services` fans out to the authenticated Function, Site,
+  Database, and Storage bucket APIs and renders a live service inventory.
+- The screen deliberately does not recreate the old localStorage canvas or
+  simulated deployment timers. Deployment state and artifacts remain owned by
+  their durable Go resources; the next canvas iteration can add persisted
+  coordinates without reintroducing browser-only product data.
 
 ### `src/features/projects/pre-deploy/` — [S][LS]
 - `pre-deploy-model.ts` + `pre-deploy-flow.tsx`: simulated source/connect
@@ -151,12 +149,12 @@ simulated async behavior (timers standing in for network calls).
 - Migration: list/delete via API.
 
 ### Project overview and usage panel — migrated
-- `src/app/projects/[projectId]/page.tsx` loads the project identity and live
-  aggregate usage in parallel from `GET /v1/projects/{projectID}` and
+- `/projects/{projectID}` loads the project identity and live aggregate usage
+  in parallel from `GET /v1/projects/{projectID}` and
   `GET /v1/projects/{projectID}/usage`.
-- `src/features/projects/usage-panel.tsx` renders application users, database
-  rows, storage bytes, and function artifact usage from the PostgreSQL snapshot;
-  it no longer imports hardcoded `usageRows` from `data.ts`.
+- The Vite project overview renders application users, database count, storage
+  files, Functions, and Sites from the PostgreSQL snapshot; it has no hardcoded
+  `usageRows` or local project store.
 - The dedicated `/projects/{projectID}/usage` route remains the detailed view;
   rolling counters are now sourced from durable metering, while the daily
   `/usage/metering` endpoint is available for API egress and Function compute.
@@ -173,8 +171,8 @@ simulated async behavior (timers standing in for network calls).
   Console session authentication, project membership isolation, and owner/admin
   writes. Mutations emit audit and transactional webhook events.
 - `/agent` loads the roster and project selector from the API. Create/delete
-  mutations use the same-origin bridge; the workspace Settings tab persists
-  mutable fields through PATCH.
+  mutations use the central browser client; the workspace Settings tab
+  persists mutable fields through PATCH.
 
 ### Agent run queue — migrated for durable state
 - Migration `000022_agent_runs` stores prompts, queue/worker lifecycle, bounded
@@ -187,29 +185,29 @@ simulated async behavior (timers standing in for network calls).
 - The workspace now renders only API-backed runs and polls queued/running state;
   no localStorage seed, timer playback, or fabricated file changes remain.
 
-### `src/features/agents/workspace/agent-workspace-page.tsx` — migrated
-- Fetches an API-authorized agent and its latest run page in parallel on the
-  server. Settings writes and new prompts use the same-origin bridge.
+### Agent workspace — migrated
+- Fetches an API-authorized agent and its latest run page with TanStack Query.
+  Settings writes and new prompts use the central browser client.
 - Provider connections and the trusted execution worker remain a separate
   milestone; until then, accepted prompts honestly remain `queued`.
 
-### `src/features/agents/components/create-agent-dialog.tsx` — partially migrated
+### Agent provider catalog — intentionally bounded
 - Project options now come from the authenticated organization/project API and
   no longer include hardcoded project names.
 - Provider/model options remain a UI catalog placeholder until provider
   connections and model capabilities have a durable API contract.
 
-### `src/features/agents/agent-page.tsx` — migrated
+### Agent roster — migrated
 - The overview list is initialized from `GET /v1/agents`; it does not read or
   write the `stealth-agents-v1` localStorage key. Summary values are derived
   from returned records rather than hardcoded counts.
 
 ## Auth
 
-### `src/features/auth/login-form.tsx` / `signup-form.tsx` — migrated
-- Login and signup call the same-origin bridge and receive only HttpOnly
-  session cookies. The forgot-password, verification, and reset pages use the
-  same bridge and the API's one-time token endpoints.
+### Login, signup, and recovery — migrated
+- Login and signup call the browser API client and receive only HttpOnly
+  session cookies. Forgot-password, verification, and reset pages use the
+  API's one-time token endpoints.
 
 ### Project application Auth boundary — connected core
 - Project identity management and the owner/admin registration setting are
@@ -244,15 +242,14 @@ simulated async behavior (timers standing in for network calls).
   authorization.
   Advanced database features and other modules remain unavailable.
 
-## Admin (`src/features/admin/`)
+## Admin (Vite route tree)
 
 The admin area now requires an authenticated Console session. The Overview
-health strip and Service Health table query a same-origin health proxy backed by
-the API's liveness/readiness probes; raw Prometheus metrics remain private to
-the observability network. Workspace usage, agent runs, members, audit events,
-organization incidents, Function execution failures, and the bounded
-root-request trace index are query-backed; historical charts and provider data
-still use deterministic preview data until authenticated query contracts exist.
+health strip queries the API's liveness/readiness probes directly; raw
+Prometheus metrics remain private to the observability network. Workspace
+usage, agent runs, members, invitations, audit events, organization incidents,
+account sessions, organization settings, and the bounded root-request trace
+index are query-backed by the Vite route tree.
 
 ### `src/features/admin/data/admin-mock-data.ts` — [M][H]
 - Seeded-PRNG generators (mulberry32) remain only for preview telemetry series,
@@ -266,14 +263,9 @@ still use deterministic preview data until authenticated query contracts exist.
   charts/workers. Migration: realtime feed (SSE/WebSocket) from the API.
 
 ### Authenticated health probe — migrated
-- `src/app/admin/layout.tsx` resolves the Console account server-side and
-  redirects unauthenticated visitors to `/login` before mounting the admin
-  shell.
-- `src/app/api/admin/health/route.ts` validates the same HttpOnly session and
-  exposes only API liveness/readiness status. It never proxies `/metrics` or
-  leaks raw Prometheus labels to the browser.
-- `src/features/admin/overview/` polls that probe every 15 seconds and labels
-  the remaining aggregate telemetry as preview data.
+- `/admin` polls `/healthz` and `/readyz` every 15 seconds with the same
+  HttpOnly session boundary. It never proxies `/metrics` or leaks raw
+  Prometheus labels to the browser.
 
 ### Admin Overview workspace aggregates — migrated
 - `/admin` loads the authenticated account's organizations and projects on the
@@ -302,7 +294,7 @@ still use deterministic preview data until authenticated query contracts exist.
   reports the unavailable-agent count instead of substituting fixtures.
 
 ### Admin Usage — migrated
-- `/admin/usage` shares the server-side workspace usage loader with Overview,
+- `/admin/usage` shares the API-backed workspace usage loader with Overview,
   so its users, database, storage, Functions, Sites, and webhook totals come
   from the same PostgreSQL-backed project usage snapshots.
 - Capacity bars use the durable artifact/file quota fields. Token spend,
@@ -311,8 +303,8 @@ still use deterministic preview data until authenticated query contracts exist.
   request/egress and Function compute data.
 
 ### Admin Status Page — migrated
-- `/admin/status` uses the authenticated health proxy for current API
-  liveness/readiness status and clearly reports probe failures.
+- `/admin/status` uses the authenticated API health/readiness endpoints and
+  clearly reports probe failures.
 - Synthetic uptime history is not persisted by the current backend, so the
   page does not manufacture 45-day percentages. Incident records are managed
   separately through the durable organization incident API below.
@@ -366,7 +358,7 @@ still use deterministic preview data until authenticated query contracts exist.
 - `/admin/incidents` loads incidents for every organization visible to the
   authenticated account through `GET /v1/organizations/{organizationID}/incidents`.
 - Owners and admins can create incidents and update metadata/status through the
-  authenticated bridge. Each mutation is transactional, appends a timeline
+  authenticated browser API. Each mutation is transactional, appends a timeline
   update, sets or clears `resolved_at` consistently, and emits a durable
   `organization.incident.*` audit event. Other organization members retain
   read-only access.
@@ -402,9 +394,10 @@ still use deterministic preview data until authenticated query contracts exist.
   and root-span waterfall. Nested spans and full attributes remain in the
   private OpenTelemetry/Tempo backend; the UI does not invent them.
 
-### Other admin pages — [M][S]
-- providers and overview charts still consume the preview generators above.
-- Migration: real telemetry/incident/provider endpoints.
+### Other admin pages — migrated
+- Usage, Users, Runs, Workers, Incidents, Traces, and Settings render durable
+  API data with explicit loading, empty, and error states. Provider-specific
+  metrics remain intentionally out of scope until their backend contract exists.
 
 ### Platform observability — connected foundation
 - API and Functions worker expose bounded Prometheus metrics and emit optional
@@ -417,18 +410,12 @@ still use deterministic preview data until authenticated query contracts exist.
 
 ## Navigation chrome
 
-### `src/features/navigation/sidebar-content.tsx` / `profile-menu.tsx` — migrated
-- Agent routes fetch the authenticated Console account in parallel with their
-  page data and pass the email into the shared sidebar. The identity label,
-  handle, and logout action now reflect the HttpOnly session; the old fake
-  plan-loading timer and GitHub avatar have been removed.
+### Vite application shell — migrated
+- The shared Vite shell fetches the authenticated Console account, renders the
+  project navigation rail, and logs out through the HttpOnly session. No fake
+  plan-loading timer or avatar data is shipped.
 - Provider/billing plan data is intentionally not displayed until a durable
   account-plan contract exists.
-
-### `src/components/top-bar.tsx` — legacy-only
-- The top bar is retained for the unused canvas prototype and now uses the
-  local Stealth mark instead of a third-party avatar. Active App Router pages
-  use the project shell or account-backed ApplicationShell.
 
 ## Dev tooling (not product UI)
 
@@ -436,4 +423,4 @@ still use deterministic preview data until authenticated query contracts exist.
 - Standalone AI token-usage tracker used during development of this repo.
   Seed entries are estimates; its own storage keys (`ai-token-usage-*-v1`).
   Not part of the Stealth product — candidate for extraction from the repo,
-  but harmless (not shipped by Next.js).
+  but harmless (not shipped by Vite).

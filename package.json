@@ -8,9 +8,6 @@
     "dev": "vite",
     "build": "vite build",
     "start": "vite preview",
-    "dev:next": "next dev",
-    "build:next": "next build",
-    "start:next": "next start",
     "typecheck": "tsc --noEmit",
     "typecheck:vite": "tsc --project tsconfig.vite.json --noEmit",
     "check": "npm run typecheck && npm run build"
@@ -26,7 +23,6 @@
     "clsx": "^2.1.1",
     "lucide-react": "latest",
     "motion": "^13.1.1",
-    "next": "latest",
     "react": "latest",
     "react-dom": "latest",
     "recharts": "^3.10.1",

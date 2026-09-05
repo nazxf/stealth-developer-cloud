@@ -3,17 +3,57 @@ import { z } from "zod";
 /**
  * Browser-side management API client.
  *
- * The old Next entry point still has a server-only client in `stealth-api.ts`.
- * Vite cannot read Next cookies or server environment variables, so the new
- * entry point uses relative `/v1` requests by default and sends the HttpOnly
- * Console session cookie with `credentials: include`. `VITE_API_URL` is only
- * needed when the static console is hosted on a different origin from Go.
+ * The Vite console uses relative `/v1` requests by default and sends the
+ * HttpOnly Console session cookie with `credentials: include`. `VITE_API_URL`
+ * is only needed when the static console is hosted on a different origin from
+ * Go.
  */
 
 const accountSchema = z.object({
   id: z.string(),
   email: z.string().email(),
   email_verified: z.boolean(),
+  created_at: z.string(),
+});
+
+const consoleSessionSchema = z.object({
+  id: z.string(),
+  is_current: z.boolean(),
+  expires_at: z.string(),
+  created_at: z.string(),
+});
+
+const organizationMembershipRoleSchema = z.enum(["owner", "admin", "developer", "viewer", "billing"]);
+const organizationMembershipManageRoleSchema = z.enum(["admin", "developer", "viewer", "billing"]);
+const organizationMembershipSchema = z.object({
+  organization_id: z.string(),
+  account_id: z.string(),
+  email: z.string().email(),
+  role: organizationMembershipRoleSchema,
+  created_at: z.string(),
+});
+const organizationInvitationSchema = z.object({
+  id: z.string(),
+  organization_id: z.string(),
+  email: z.string().email(),
+  role: organizationMembershipManageRoleSchema,
+  invited_by_account_id: z.string().optional(),
+  invited_by_email: z.string().email().optional(),
+  status: z.enum(["pending", "expired", "accepted", "revoked"]),
+  expires_at: z.string(),
+  accepted_at: z.string().optional(),
+  revoked_at: z.string().optional(),
+  created_at: z.string(),
+});
+const organizationAuditEventSchema = z.object({
+  id: z.string(),
+  organization_id: z.string(),
+  actor_account_id: z.string().optional(),
+  actor_email: z.string().email().optional(),
+  action: z.string(),
+  target_type: z.string(),
+  target_id: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()),
   created_at: z.string(),
 });
 
@@ -376,6 +416,12 @@ const messagingDeliverySchema = z.object({
 }).passthrough();
 
 export type BrowserAccount = z.infer<typeof accountSchema>;
+export type BrowserConsoleSession = z.infer<typeof consoleSessionSchema>;
+export type BrowserOrganizationMembership = z.infer<typeof organizationMembershipSchema>;
+export type BrowserOrganizationMembershipRole = z.infer<typeof organizationMembershipRoleSchema>;
+export type BrowserOrganizationMembershipManageRole = z.infer<typeof organizationMembershipManageRoleSchema>;
+export type BrowserOrganizationInvitation = z.infer<typeof organizationInvitationSchema>;
+export type BrowserOrganizationAuditEvent = z.infer<typeof organizationAuditEventSchema>;
 export type BrowserOrganization = z.infer<typeof organizationSchema>;
 export type BrowserProject = z.infer<typeof projectSchema>;
 export type BrowserOrganizationsResponse = z.infer<typeof organizationsResponseSchema>;
@@ -461,6 +507,10 @@ async function download(path: string) {
 
 export const browserAPI = {
   currentAccount: () => request("/v1/account", accountResponseSchema),
+  accountSessions: () => request("/v1/account/sessions", z.object({ sessions: z.array(consoleSessionSchema) })),
+  revokeAccountSession: (sessionID: string) => request<void>(`/v1/account/sessions/${encodeURIComponent(sessionID)}`, z.undefined(), { method: "DELETE" }),
+  revokeOtherAccountSessions: () => request("/v1/account/sessions", z.object({ revoked: z.number() }), { method: "DELETE" }),
+  updateAccountPassword: (input: { current_password: string; password: string }) => request("/v1/account/password", z.object({ sessions_revoked: z.number() }), { method: "PATCH", body: JSON.stringify(input) }),
   organizations: (options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
     if (options.limit !== undefined) params.set("limit", String(options.limit));
@@ -470,6 +520,37 @@ export const browserAPI = {
       `/v1/organizations${query ? `?${query}` : ""}`,
       organizationsResponseSchema,
     );
+  },
+  updateOrganization: (organizationID: string, input: { name: string; slug: string }) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}`, z.object({ organization: organizationSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  organizationMemberships: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/organizations/${encodeURIComponent(organizationID)}/memberships${query ? `?${query}` : ""}`, z.object({ memberships: z.array(organizationMembershipSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createOrganizationMembership: (organizationID: string, input: { email: string; role: BrowserOrganizationMembershipManageRole }) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}/memberships`, z.object({ membership: organizationMembershipSchema }), { method: "POST", body: JSON.stringify(input) }),
+  updateOrganizationMembership: (organizationID: string, accountID: string, role: BrowserOrganizationMembershipManageRole) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}/memberships/${encodeURIComponent(accountID)}`, z.object({ membership: organizationMembershipSchema }), { method: "PATCH", body: JSON.stringify({ role }) }),
+  removeOrganizationMembership: (organizationID: string, accountID: string) => request<void>(`/v1/organizations/${encodeURIComponent(organizationID)}/memberships/${encodeURIComponent(accountID)}`, z.undefined(), { method: "DELETE" }),
+  organizationInvitations: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/organizations/${encodeURIComponent(organizationID)}/invitations${query ? `?${query}` : ""}`, z.object({ invitations: z.array(organizationInvitationSchema), pagination: paginationSchema, can_manage: z.boolean() }).passthrough());
+  },
+  createOrganizationInvitation: (organizationID: string, input: { email: string; role: BrowserOrganizationMembershipManageRole }) =>
+    request(`/v1/organizations/${encodeURIComponent(organizationID)}/invitations`, z.object({ invitation: organizationInvitationSchema, delivery: z.enum(["sent", "failed"]) }), { method: "POST", body: JSON.stringify(input) }),
+  revokeOrganizationInvitation: (organizationID: string, invitationID: string) => request<void>(`/v1/organizations/${encodeURIComponent(organizationID)}/invitations/${encodeURIComponent(invitationID)}`, z.undefined(), { method: "DELETE" }),
+  organizationAuditEvents: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
+    const params = new URLSearchParams();
+    if (options.limit !== undefined) params.set("limit", String(options.limit));
+    if (options.cursor) params.set("cursor", options.cursor);
+    const query = params.toString();
+    return request(`/v1/organizations/${encodeURIComponent(organizationID)}/audit-events${query ? `?${query}` : ""}`, z.object({ events: z.array(organizationAuditEventSchema), pagination: paginationSchema }).passthrough());
   },
   projects: (organizationID: string, options: { limit?: number; cursor?: string } = {}) => {
     const params = new URLSearchParams();
