@@ -7,6 +7,7 @@ import DatabaseTableWorkspace from "./database-table-workspace";
 import { queryClient } from "./query-client";
 import { ErrorState as AsyncErrorState } from "./error-state";
 import { queryKeys } from "./query-keys";
+import DatabaseBackupsPanel from "./database-backups-panel";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
@@ -164,6 +165,7 @@ export default function DatabasesRoute() {
             {tablesQuery.isPending ? <p className="m-0 mt-4 text-sm text-[var(--projects-muted)]">Loading tables…</p> : tables.length ? <div className="mt-3 divide-y divide-[var(--projects-divider)] rounded-lg border border-[var(--projects-border)]">{tables.map((table) => <div key={table.id} className={`flex flex-wrap items-center justify-between gap-3 px-4 py-3 ${table.id === selectedTableID ? "bg-[var(--projects-control)]" : ""}`}><button type="button" onClick={() => setSelectedTableID(table.id)} className="min-w-0 flex-1 text-left"><p className="m-0 font-medium hover:text-[var(--projects-accent)]">{table.name}</p><p className="m-0 mt-1 text-xs text-[var(--projects-muted)]">{table.row_security ? "Row security enabled" : "Row security disabled"} · created {formatDate(table.created_at)}</p></button>{canManage ? <button type="button" onClick={() => void deleteTable(table)} disabled={busyTableID !== null} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-rose-500/30 px-2.5 text-xs text-rose-200 disabled:opacity-50">{busyTableID === table.id ? <LoaderCircle size={13} className="animate-spin" aria-hidden="true" /> : <Trash2 size={13} aria-hidden="true" />}Delete</button> : null}</div>)}</div> : <div className="mt-3 rounded-lg border border-dashed border-[var(--projects-border)] p-8 text-center text-sm text-[var(--projects-muted)]">No tables yet. Create a table to define your schema.</div>}
           </div>
         </div> : <div className="grid min-h-[320px] place-items-center rounded-xl border border-dashed border-[var(--projects-border)] bg-[var(--projects-card-bg)] p-8 text-center"><div><Database size={30} className="mx-auto text-[var(--projects-muted)]" aria-hidden="true" /><h2 className="m-0 mt-4 text-lg font-semibold">Create a database to begin</h2><p className="m-0 mt-2 text-sm text-[var(--projects-muted)]">The Database core stores schemas and rows in PostgreSQL.</p></div></div>}
+        {selected ? <DatabaseBackupsPanel projectID={projectId} databaseID={selectedDatabaseID} canManage={canManage} /> : null}
         {selectedTable ? <DatabaseTableWorkspace key={selectedTable.id} projectID={projectId} databaseID={selectedDatabaseID} table={selectedTable} canManage={canManage} /> : null}
       </div>
     </div>

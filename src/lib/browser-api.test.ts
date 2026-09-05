@@ -285,6 +285,38 @@ describe("browser API boundary", () => {
     expect(fetchMock.mock.calls[2]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/relationships/relationship%2Fone");
   });
 
+  it("keeps logical database backup actions typed and encoded", async () => {
+    const backup = {
+      id: "backup-1",
+      project_id: "project-1",
+      database_id: "database-1",
+      size_bytes: 2048,
+      checksum_sha256: "a".repeat(64),
+      created_at: "2026-09-05T00:00:00Z",
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ backups: [backup], pagination: { limit: 20, next_cursor: null } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ backup }), { status: 201 }))
+      .mockResolvedValueOnce(new Response("{\"version\":1}", { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ backup_id: backup.id, result: { tables: 1, columns: 1, indexes: 0, rows: 1, relationships: 0 } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    const listed = await browserAPI.projectDatabaseBackups("project/one", "database one", { limit: 20 });
+    expect(listed.backups[0]?.checksum_sha256).toHaveLength(64);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/backups?limit=20");
+    await browserAPI.createProjectDatabaseBackup("project/one", "database one", { max_rows: 500 });
+    expect(fetchMock.mock.calls[1]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/backups?max_rows=500");
+    expect(fetchMock.mock.calls[1]?.[1]?.method).toBe("POST");
+    const downloaded = await browserAPI.downloadProjectDatabaseBackup("project/one", "database one", "backup/one");
+    expect(await downloaded.text()).toContain("version");
+    expect(fetchMock.mock.calls[2]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/backups/backup%2Fone/download");
+    const restored = await browserAPI.restoreProjectDatabaseBackup("project/one", "database one", "backup/one");
+    expect(restored.result.rows).toBe(1);
+    expect(fetchMock.mock.calls[3]?.[1]?.method).toBe("POST");
+    await browserAPI.deleteProjectDatabaseBackup("project/one", "database one", "backup/one");
+    expect(fetchMock.mock.calls[4]?.[0]).toBe("/v1/projects/project%2Fone/databases/database%20one/backups/backup%2Fone");
+  });
+
   it("keeps atomic row transaction payloads on the transaction endpoint", async () => {
     const row = {
       id: "row-transaction",

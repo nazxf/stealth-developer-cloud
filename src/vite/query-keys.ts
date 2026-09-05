@@ -31,6 +31,7 @@ export const queryKeys = {
   databaseTables: (projectID: string, databaseID: string) => ["database-tables", projectID, databaseID] as const,
   databaseColumns: (projectID: string, databaseID: string, tableID: string) => ["database-columns", projectID, databaseID, tableID] as const,
   databaseIndexes: (projectID: string, databaseID: string, tableID: string) => ["database-indexes", projectID, databaseID, tableID] as const,
+  databaseBackups: (projectID: string, databaseID: string) => ["database-backups", projectID, databaseID] as const,
   databaseRows: (projectID: string, databaseID: string, tableID: string, search = "", searchColumn = "") => search || searchColumn ? ["database-rows", projectID, databaseID, tableID, searchColumn, search] as const : ["database-rows", projectID, databaseID, tableID] as const,
   projectStorageBuckets: (projectID: string) => ["project-storage-buckets", projectID] as const,
   storageFiles: (projectID: string, bucketID: string) => ["storage-files", projectID, bucketID] as const,

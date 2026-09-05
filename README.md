@@ -316,7 +316,7 @@ available as an authenticated, cursor-aware Server-Sent Events stream; see
   create/update/delete row transactions are atomic. Logical database backups
   are stored as checksummed, bounded JSON blobs in the configured local or
   S3-compatible BlobStore and can be downloaded, restored atomically, listed,
-  and deleted through the management API.
+  and deleted through both the Databases Console panel and management API.
 
 ### Webhooks contract
 

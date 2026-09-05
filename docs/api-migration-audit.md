@@ -86,7 +86,8 @@ simulated async behavior (timers standing in for network calls).
   search, enforced many-to-one relationships, and bounded atomic row
   transactions are now available. Logical database backup metadata, verified
   downloads, and atomic schema/row/index/relationship restore are now
-  available through the management API. Messaging provider/topic/subscriber
+  available through the management API and the Databases Console panel.
+  Messaging provider/topic/subscriber
   configuration and the trusted delivery worker are connected end to end;
   production push delivery still depends on configuring a real provider.
   Project Settings now updates the
