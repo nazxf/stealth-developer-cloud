@@ -351,6 +351,10 @@ export const browserAPI = {
   },
   project: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema })),
+  updateProject: (projectID: string, input: { name: string }) =>
+    request(`/v1/projects/${encodeURIComponent(projectID)}`, z.object({ project: projectSchema }), { method: "PATCH", body: JSON.stringify(input) }),
+  deleteProject: (projectID: string, confirmName: string) =>
+    request<void>(`/v1/projects/${encodeURIComponent(projectID)}`, z.undefined(), { method: "DELETE", body: JSON.stringify({ confirm_name: confirmName }) }),
   projectUsage: (projectID: string) =>
     request(`/v1/projects/${encodeURIComponent(projectID)}/usage`, z.object({ usage: projectUsageSchema })),
   projectUsers: (projectID: string, options: { limit?: number; cursor?: string } = {}) => {
