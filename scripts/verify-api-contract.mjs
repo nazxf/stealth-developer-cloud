@@ -11,8 +11,11 @@ const httpapiFiles = (await readdir("services/api/internal/httpapi"))
 
 for (const file of httpapiFiles) {
   const source = await readFile(`services/api/internal/httpapi/${file}`, "utf8");
-  // The server constructor owns the /v1 group, while route modules are
-  // registered from inside it. Their declarations therefore inherit /v1.
+  // routes_<domain>.go files register the /v1 resource groups, so their
+  // declarations inherit /v1. routes.go owns root-level endpoints (health,
+  // metrics, custom-domain serving); server.go keeps the group open only
+  // while a literal r.Route("/v1", ...) block is in progress.
+  const v1ScopedFile = /^routes_.+\.go$/.test(file);
   let inV1RouteGroup = false;
   for (const line of source.split("\n")) {
     if (file === "server.go" && line.includes('r.Route("/v1"')) {
@@ -22,7 +25,7 @@ for (const file of httpapiFiles) {
     const match = line.match(methods);
     if (match) {
       const method = match[1].toUpperCase();
-      const path = inV1RouteGroup || file === "routes.go" ? `/v1${match[2]}` : match[2];
+      const path = inV1RouteGroup || v1ScopedFile ? `/v1${match[2]}` : match[2];
       serverOperations.add(`${method} ${normalizePath(path)}`);
     }
     if (file === "server.go" && inV1RouteGroup && /^\s*}\)\s*$/.test(line)) {
