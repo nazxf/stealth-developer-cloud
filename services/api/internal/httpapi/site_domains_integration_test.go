@@ -65,7 +65,7 @@ func TestSiteDomainWriteScopeAndDNSVerificationIntegration(t *testing.T) {
 		AppSessionTTL:      time.Hour,
 		AuthRateLimit:      100,
 		AuthRateWindow:     time.Minute,
-	}, repository.NewWithTXTResolver(pool, resolver), logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter()}))
+	}, repository.NewWithDependencies(pool, repository.Dependencies{TXTResolver: resolver}), logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter()}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)

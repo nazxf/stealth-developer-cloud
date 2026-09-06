@@ -91,7 +91,7 @@ func main() {
 		logger.Error("function secret configuration error", "error", err)
 		os.Exit(1)
 	}
-	repo := repository.NewWithWebhookCipher(pool, cipher)
+	repo := repository.NewWithDependencies(pool, repository.Dependencies{WebhookCipher: cipher})
 	webhookWorker, err := webhookrunner.New(repo, cipher, cfg.FunctionsWorkerID, logger)
 	if err != nil {
 		logger.Error("webhook worker configuration error", "error", err)
