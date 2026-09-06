@@ -44,7 +44,7 @@ func TestProjectMessagingControlPlaneIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := httptest.NewServer(httpapi.New(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour}, repository.NewWithWebhookCipher(pool, cipher), logger))
+	server := httptest.NewServer(httpapi.New(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour}, repository.NewWithDependencies(pool, repository.Dependencies{WebhookCipher: cipher}), logger))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)
@@ -174,7 +174,7 @@ func TestProjectMessagingDeliveryIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	repo := repository.NewWithWebhookCipher(pool, cipher)
+	repo := repository.NewWithDependencies(pool, repository.Dependencies{WebhookCipher: cipher})
 	server := httptest.NewServer(httpapi.New(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour}, repo, logger))
 	defer server.Close()
 

@@ -540,13 +540,13 @@ func TestProjectApplicationAuthSessionsIntegration(t *testing.T) {
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	limiter := integrationLimiter(t, ctx)
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		SessionCookieName: "stealth_session",
 		SessionTTL:        time.Hour,
 		AppSessionTTL:     2 * time.Hour,
 		AuthRateLimit:     100,
 		AuthRateWindow:    time.Minute,
-	}, repository.New(pool), logger, limiter))
+	}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: limiter}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)
@@ -757,13 +757,13 @@ func TestProjectAPIKeysIntegration(t *testing.T) {
 	}
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		SessionCookieName: "stealth_session",
 		SessionTTL:        time.Hour,
 		AppSessionTTL:     2 * time.Hour,
 		AuthRateLimit:     100,
 		AuthRateWindow:    time.Minute,
-	}, repository.New(pool), logger, integrationLimiter(t, ctx)))
+	}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: integrationLimiter(t, ctx)}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)
@@ -976,13 +976,13 @@ func TestProjectAPIKeysIntegration(t *testing.T) {
 	requestJSONWithHeaders(t, keyClient, http.MethodPost, projectURL+"/users", map[string]string{"email": fmt.Sprintf("read-only-write-%s@example.test", ownerID), "password": "application-user-password-2"}, http.StatusForbidden, keyHeaders(secondKey.Secret))
 	requestJSONWithHeaders(t, keyClient, http.MethodGet, projectURL+"/users", nil, http.StatusOK, keyHeaders(secondKey.Secret))
 	requestJSONWithHeaders(t, keyClient, http.MethodPatch, projectURL+"/users/"+createdByKey.User.ID+"/status", map[string]string{"status": "active"}, http.StatusForbidden, keyHeaders(secondKey.Secret))
-	limitedServer := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	limitedServer := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		SessionCookieName: "stealth_session",
 		SessionTTL:        time.Hour,
 		AppSessionTTL:     time.Hour,
 		AuthRateLimit:     1,
 		AuthRateWindow:    time.Minute,
-	}, repository.New(pool), logger, ratelimit.NewMemoryLimiter()))
+	}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter()}))
 	defer limitedServer.Close()
 	limitedClient := newIntegrationClient(t)
 	limitedProjectURL := limitedServer.URL + "/v1/projects/" + projectResponse.Project.ID
@@ -1193,7 +1193,7 @@ func TestProjectDatabasesCoreIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour, AppSessionTTL: time.Hour, StorageRoot: t.TempDir(), StorageMaxFileSize: 50 << 20}, repository.New(pool), logger, integrationLimiter(t, ctx)))
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{SessionCookieName: "stealth_session", SessionTTL: time.Hour, AppSessionTTL: time.Hour, StorageRoot: t.TempDir(), StorageMaxFileSize: 50 << 20}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: integrationLimiter(t, ctx)}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)

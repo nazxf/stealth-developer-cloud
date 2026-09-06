@@ -170,7 +170,7 @@ func TestAuthVerificationAndRecoveryIntegration(t *testing.T) {
 
 func httptestNewAuthServer(t *testing.T, pool *pgxpool.Pool, sender mailer.Sender) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(httpapi.NewWithLimiterAndGitFetcherAndMailer(config.Config{
+	return httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:          t.TempDir(),
 		FunctionsSecretKey:   bytes.Repeat([]byte{0x41}, 32),
 		SessionCookieName:    "stealth_session",
@@ -181,5 +181,5 @@ func httptestNewAuthServer(t *testing.T, pool *pgxpool.Pool, sender mailer.Sende
 		PublicAppURL:         "https://console.example.test",
 		AuthRateLimit:        100,
 		AuthRateWindow:       time.Minute,
-	}, repository.New(pool), slog.New(slog.NewTextHandler(io.Discard, nil)), ratelimit.NoopLimiter{}, nil, sender))
+	}, repository.New(pool), slog.New(slog.NewTextHandler(io.Discard, nil)), httpapi.Dependencies{AuthLimiter: ratelimit.NoopLimiter{}, EmailSender: sender}))
 }

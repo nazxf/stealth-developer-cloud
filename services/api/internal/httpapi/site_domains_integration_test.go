@@ -57,7 +57,7 @@ func TestSiteDomainWriteScopeAndDNSVerificationIntegration(t *testing.T) {
 	}
 	resolver := &integrationTXTResolver{records: make(map[string][]string)}
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:        t.TempDir(),
 		FunctionsSecretKey: bytes.Repeat([]byte{0x2a}, 32),
 		SessionCookieName:  "stealth_session",
@@ -65,7 +65,7 @@ func TestSiteDomainWriteScopeAndDNSVerificationIntegration(t *testing.T) {
 		AppSessionTTL:      time.Hour,
 		AuthRateLimit:      100,
 		AuthRateWindow:     time.Minute,
-	}, repository.NewWithTXTResolver(pool, resolver), logger, ratelimit.NewMemoryLimiter()))
+	}, repository.NewWithDependencies(pool, repository.Dependencies{TXTResolver: resolver}), logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter()}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)

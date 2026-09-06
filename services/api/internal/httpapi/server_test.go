@@ -32,7 +32,7 @@ func TestDecodeJSONRejectsUnsupportedContentType(t *testing.T) {
 
 func TestMetricsEndpointUsesRouteTemplates(t *testing.T) {
 	secret := bytes.Repeat([]byte("m"), 32)
-	handler := NewWithLimiter(config.Config{
+	handler := NewWithDependencies(config.Config{
 		SessionCookieName:          "stealth_session",
 		SessionTTL:                 time.Hour,
 		AppSessionTTL:              time.Hour,
@@ -42,7 +42,7 @@ func TestMetricsEndpointUsesRouteTemplates(t *testing.T) {
 		FunctionsMaxArtifactSize:   1 << 20,
 		FunctionsDefaultQuotaBytes: 2 << 20,
 		FunctionsSecretKey:         secret,
-	}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), ratelimit.NoopLimiter{})
+	}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)), Dependencies{AuthLimiter: ratelimit.NoopLimiter{}})
 	projectID := "018f27e3-5d1a-7c44-ae35-1db4ea12e6d2"
 	protected := httptest.NewRecorder()
 	handler.ServeHTTP(protected, httptest.NewRequest(http.MethodGet, "/v1/projects/"+projectID, nil))

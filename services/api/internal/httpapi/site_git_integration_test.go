@@ -42,7 +42,7 @@ func TestGitSiteDeploymentQueuesValidatedSourceIntegration(t *testing.T) {
 	}
 	root := t.TempDir()
 	fetcher := &fakeGitFetcher{archive: gitArchiveBytes(t)}
-	server := httptest.NewServer(httpapi.NewWithLimiterAndGitFetcher(config.Config{
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:        root,
 		FunctionsSecretKey: bytes.Repeat([]byte{0x3a}, 32),
 		SessionCookieName:  "stealth_session",
@@ -50,7 +50,7 @@ func TestGitSiteDeploymentQueuesValidatedSourceIntegration(t *testing.T) {
 		AppSessionTTL:      time.Hour,
 		AuthRateLimit:      100,
 		AuthRateWindow:     time.Minute,
-	}, repository.New(pool), slog.New(slog.NewTextHandler(io.Discard, nil)), ratelimit.NewMemoryLimiter(), fetcher))
+	}, repository.New(pool), slog.New(slog.NewTextHandler(io.Discard, nil)), httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter(), SiteGitFetcher: fetcher}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)
