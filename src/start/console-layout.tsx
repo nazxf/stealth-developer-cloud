@@ -3,12 +3,12 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect } from "react";
 import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
-import { ErrorState } from "@/vite/error-state";
-import { LoadingState } from "@/vite/async-state";
+import { ErrorState } from "@/components/error-state";
+import { LoadingState } from "@/components/async-state";
 import { LogoutButton } from "@/vite/logout-button";
 import { ProjectShellNavigation } from "@/vite/project-shell";
-import { queryClient } from "@/vite/query-client";
-import { queryKeys } from "@/vite/query-keys";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * The protected document layout for the Start route tree.

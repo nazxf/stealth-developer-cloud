@@ -29,10 +29,10 @@ import {
   type BrowserSiteBuildLog,
   type BrowserSiteDomain,
 } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { deploymentIsInProgress, deploymentPollInterval, operationPollIntervalMs } from "./polling";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { deploymentIsInProgress, deploymentPollInterval, operationPollIntervalMs } from "@/lib/polling";
 
 type Runtime = "node-22" | "python-3.13" | "go-1.24";
 function Field({ label, children }: { label: string; children: ReactNode }) {

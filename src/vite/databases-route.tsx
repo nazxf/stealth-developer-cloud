@@ -4,11 +4,11 @@ import { Database, FolderPlus, LoaderCircle, Plus, Trash2, X } from "lucide-reac
 import { useEffect, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseTable } from "@/lib/browser-api";
 import DatabaseTableWorkspace from "./database-table-workspace";
-import { queryClient } from "./query-client";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { queryKeys } from "./query-keys";
+import { queryClient } from "@/lib/query-client";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { queryKeys } from "@/lib/query-keys";
 import DatabaseBackupsPanel from "./database-backups-panel";
-import { LoadingState } from "./async-state";
+import { LoadingState } from "@/components/async-state";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));

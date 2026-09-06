@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ConsoleLayout } from "@/start/console-layout";
-import { queryClient } from "@/vite/query-client";
-import { queryKeys } from "@/vite/query-keys";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Shared protected boundary for the console. This deliberately runs only in

@@ -31,10 +31,10 @@ import {
   type BrowserFunctionExecutionLog,
   type BrowserFunctionVariable,
 } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "./polling";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "@/lib/polling";
 
 type Tab = "deployments" | "variables" | "executions" | "settings";
 const tabs: Array<{ id: Tab; label: string }> = [

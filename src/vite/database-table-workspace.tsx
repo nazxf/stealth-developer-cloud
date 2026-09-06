@@ -10,8 +10,8 @@ import {
   type BrowserDatabaseRow,
   type BrowserDatabaseTable,
 } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 type DatabaseTableWorkspaceProps = {
   projectID: string;

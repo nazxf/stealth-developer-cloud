@@ -4,8 +4,8 @@ import { Activity, Boxes, Database, ExternalLink, FunctionSquare, Plus, Server }
 import { Link, useParams } from "@tanstack/react-router";
 import { browserAPI } from "@/lib/browser-api";
 import { ServiceCanvas, type ServiceCanvasService } from "./service-canvas";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { queryKeys } from "./query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { queryKeys } from "@/lib/query-keys";
 
 type ServiceCard = ServiceCanvasService & {
   id: string;

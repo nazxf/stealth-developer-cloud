@@ -3,8 +3,8 @@ import { ChevronDown, ListFilter, LoaderCircle, RefreshCcw, ScrollText } from "l
 import { Link, useParams } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserOrganizationAuditEvent, type BrowserTrace } from "@/lib/browser-api";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { queryKeys } from "./query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { queryKeys } from "@/lib/query-keys";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value));

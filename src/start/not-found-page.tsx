@@ -1,4 +1,4 @@
-import { EmptyState } from "@/vite/async-state";
+import { EmptyState } from "@/components/async-state";
 
 /** Protected fallback for legacy URLs that are not part of the current route tree. */
 export function NotFoundPage() {

@@ -2,8 +2,8 @@ import { LoaderCircle, X } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgentCatalog, type BrowserAgentRole, type BrowserAgentTool } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 export type AgentProjectOption = { id: string; name: string };
 

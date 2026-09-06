@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Clipboard, KeyRound, LoaderCircle, Plus, ShieldAlert, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserProjectAPIKey, type BrowserProjectAPIKeyScope } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { LoadingState } from "./async-state";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { LoadingState } from "@/components/async-state";
 
 const scopeOptions: Array<{ value: BrowserProjectAPIKeyScope; label: string; description: string }> = [
   { value: "users.read", label: "Users read", description: "List and fetch project identities." },

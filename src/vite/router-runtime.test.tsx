@@ -3,7 +3,7 @@ import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/browser-api";
 import { routeTree } from "@/routeTree.gen";
-import { queryClient } from "@/vite/query-client";
+import { queryClient } from "@/lib/query-client";
 
 const accountResponse = {
   account: { id: "account-1", email: "owner@example.test", email_verified: true, created_at: "2026-09-05T00:00:00Z" },

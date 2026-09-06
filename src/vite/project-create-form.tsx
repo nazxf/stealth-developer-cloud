@@ -2,8 +2,8 @@ import { Plus } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 const projectNameSchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,62}$/, "Use 2–63 lowercase letters, numbers, or hyphens.");
 

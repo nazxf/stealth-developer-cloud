@@ -2,8 +2,8 @@ import { GitBranch, LoaderCircle, Server } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 export type GitDeploymentRuntime = "node-22" | "python-3.13" | "go-1.24";
 export type GitDeployableResource = { id: string; name: string; type: "function" | "site"; activeDeploymentID: string | null };

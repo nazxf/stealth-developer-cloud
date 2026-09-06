@@ -4,10 +4,10 @@ import { Bot, CheckCircle2, Clock3, GitBranch, LoaderCircle, Square, XCircle } f
 import { useEffect, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgentRun } from "@/lib/browser-api";
 import { AgentRunForm } from "./agent-run-form";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { LoadingState } from "./async-state";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { LoadingState } from "@/components/async-state";
 
 function formatDate(value: string | null | undefined) {
   return value ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) : "—";

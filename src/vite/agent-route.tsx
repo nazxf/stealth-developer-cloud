@@ -4,10 +4,10 @@ import { Bot, Cpu, FolderGit2, GitBranch, Plus, Search, Trash2 } from "lucide-re
 import { useMemo, useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserAgent, type BrowserAgentRole } from "@/lib/browser-api";
 import { AgentCreateForm } from "./agent-create-form";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { LoadingState } from "./async-state";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { LoadingState } from "@/components/async-state";
 
 function formatLastActive(value: string | null | undefined) {
   if (!value) return "No activity";

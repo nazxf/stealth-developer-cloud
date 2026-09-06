@@ -3,10 +3,10 @@ import { Link, useParams } from "@tanstack/react-router";
 import { Server } from "lucide-react";
 import { useState } from "react";
 import { browserAPI } from "@/lib/browser-api";
-import { EmptyState, LoadingState } from "@/vite/async-state";
-import { ErrorState } from "@/vite/error-state";
+import { EmptyState, LoadingState } from "@/components/async-state";
+import { ErrorState } from "@/components/error-state";
 import { ProjectCreateForm } from "@/vite/project-create-form";
-import { queryKeys } from "@/vite/query-keys";
+import { queryKeys } from "@/lib/query-keys";
 
 /** Projects landing screen moved from the legacy manual route tree. */
 export function ProjectsPage() {

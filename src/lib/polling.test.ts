@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "./polling";
+import { deploymentIsInProgress, deploymentPollInterval, executionIsInProgress, executionPollInterval, operationPollIntervalMs } from "@/lib/polling";
 
 describe("operation polling", () => {
   it("polls deployment work until both lifecycle states are terminal", () => {

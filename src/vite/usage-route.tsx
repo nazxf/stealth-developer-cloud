@@ -3,8 +3,8 @@ import { Activity, BarChart3, Download, Gauge, HardDrive, LoaderCircle, RefreshC
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserProjectUsageDay } from "@/lib/browser-api";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { queryKeys } from "./query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { queryKeys } from "@/lib/query-keys";
 
 const rangeOptions = [7, 30, 90, 365] as const;
 type RangeDays = (typeof rangeOptions)[number];

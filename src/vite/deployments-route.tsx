@@ -4,9 +4,9 @@ import { GitBranch, RefreshCcw, Rocket } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { browserAPI } from "@/lib/browser-api";
 import { GitDeploymentForm, type GitDeployableResource } from "./git-deployment-form";
-import { queryClient } from "./query-client";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { queryKeys } from "./query-keys";
+import { queryClient } from "@/lib/query-client";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { queryKeys } from "@/lib/query-keys";
 
 export type DeployableResource = GitDeployableResource;
 export type DeploymentRecord = {

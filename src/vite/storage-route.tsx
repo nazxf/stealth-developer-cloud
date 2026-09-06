@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Download, Files, FolderPlus, LoaderCircle, Save, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserStorageFile } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
 
 function formatDate(value: string) { return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value)); }
 function formatBytes(value: number) { return value === 0 ? "0 B" : `${new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 }).format(value)} B`; }

@@ -3,9 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Clipboard, LoaderCircle, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
 
 function LoadingState() {
   return <div className="grid min-h-[18rem] place-items-center rounded-xl border border-[var(--projects-border)] bg-[var(--projects-card-bg)] text-sm text-[var(--projects-muted)]" aria-live="polite">Loading project settings…</div>;

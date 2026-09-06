@@ -3,10 +3,10 @@ import { useQueries, useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, CheckCircle2, Database, Gauge, HardDrive, KeyRound, LockKeyhole, Mail, RefreshCcw, ServerCog, ShieldCheck, UserMinus, UserPlus, Users, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserOrganization, type BrowserOrganizationMembershipManageRole, type BrowserOrganizationPlan } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { queryKeys } from "./query-keys";
-import { LoadingState } from "./async-state";
+import { queryClient } from "@/lib/query-client";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { queryKeys } from "@/lib/query-keys";
+import { LoadingState } from "@/components/async-state";
 
 const adminSections = ["usage", "incidents", "traces", "users", "runs", "workers", "settings"] as const;
 

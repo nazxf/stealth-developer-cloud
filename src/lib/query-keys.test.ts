@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { queryKeys } from "./query-keys";
+import { queryKeys } from "@/lib/query-keys";
 
 describe("query key factories", () => {
   it("keeps collection prefixes compatible with targeted invalidation", () => {

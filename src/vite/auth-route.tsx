@@ -3,10 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle, Plus, ShieldCheck, UserCheck, UserX, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { browserAPI, browserAPIErrorMessage, type BrowserApplicationUser } from "@/lib/browser-api";
-import { queryClient } from "./query-client";
-import { queryKeys } from "./query-keys";
-import { ErrorState as AsyncErrorState } from "./error-state";
-import { LoadingState } from "./async-state";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
+import { ErrorState as AsyncErrorState } from "@/components/error-state";
+import { LoadingState } from "@/components/async-state";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(value));
