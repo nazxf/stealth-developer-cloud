@@ -42,7 +42,7 @@ func TestFunctionsControlPlaneIntegration(t *testing.T) {
 
 	storageRoot := t.TempDir()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:                storageRoot,
 		StorageMaxFileSize:         64,
 		StorageDefaultQuotaBytes:   128,
@@ -52,7 +52,7 @@ func TestFunctionsControlPlaneIntegration(t *testing.T) {
 		SessionCookieName:          "stealth_session",
 		SessionTTL:                 time.Hour,
 		AppSessionTTL:              time.Hour,
-	}, repository.New(pool), logger, ratelimit.NewMemoryLimiter()))
+	}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter()}))
 	t.Cleanup(server.Close)
 	ownerClient := newIntegrationClient(t)
 	ownerID := uuid.Must(uuid.NewV7())

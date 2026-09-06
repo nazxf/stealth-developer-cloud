@@ -64,13 +64,13 @@ func TestStorageBinaryQuotaPermissionsAndAPIKeyRevocationIntegration(t *testing.
 	if err := os.WriteFile(invalidRoot, []byte("not a directory"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	notReadyServer := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	notReadyServer := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:        invalidRoot,
 		StorageMaxFileSize: 16,
 		SessionCookieName:  "stealth_session",
 		SessionTTL:         time.Hour,
 		AppSessionTTL:      time.Hour,
-	}, repository.New(pool), logger, integrationLimiter(t, ctx)))
+	}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: integrationLimiter(t, ctx)}))
 	readinessResponse, err := notReadyServer.Client().Get(notReadyServer.URL + "/readyz")
 	if err != nil {
 		notReadyServer.Close()
@@ -463,14 +463,14 @@ func TestStorageBinaryQuotaPermissionsAndAPIKeyRevocationIntegration(t *testing.
 // never create /var/lib/stealth/storage as a side effect.
 func httptestNewStorageServer(t *testing.T, root string, pool *pgxpool.Pool, logger *slog.Logger) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	return httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:              root,
 		StorageMaxFileSize:       16,
 		StorageDefaultQuotaBytes: 32,
 		SessionCookieName:        "stealth_session",
 		SessionTTL:               time.Hour,
 		AppSessionTTL:            time.Hour,
-	}, repository.New(pool), logger, integrationLimiter(t, context.Background())))
+	}, repository.New(pool), logger, httpapi.Dependencies{AuthLimiter: integrationLimiter(t, context.Background())}))
 }
 
 func uploadStorageMultipart(t *testing.T, client *http.Client, url, filename string, content []byte, fields map[string]string, expectedStatus int) []byte {

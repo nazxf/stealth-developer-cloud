@@ -88,7 +88,7 @@ func main() {
 		os.Exit(1)
 	}
 	repo := repository.NewWithWebhookCipher(pool, webhookCipher)
-	handler := httpapi.NewWithLimiter(cfg, repo, logger, ratelimit.NewRedisLimiter(redisClient))
+	handler := httpapi.NewWithDependencies(cfg, repo, logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewRedisLimiter(redisClient)})
 	server := &http.Server{Addr: cfg.HTTPAddress, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 5 * time.Minute, WriteTimeout: 5 * time.Minute, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	servers := []*http.Server{server}
 	var tlsServer, challengeServer *http.Server

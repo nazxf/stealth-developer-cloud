@@ -44,7 +44,7 @@ func TestSiteDeploymentPreviewIntegration(t *testing.T) {
 	root := t.TempDir()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	repo := repository.New(pool)
-	server := httptest.NewServer(httpapi.NewWithLimiter(config.Config{
+	server := httptest.NewServer(httpapi.NewWithDependencies(config.Config{
 		StorageRoot:              root,
 		StorageMaxFileSize:       1 << 20,
 		StorageDefaultQuotaBytes: 1 << 20,
@@ -56,7 +56,7 @@ func TestSiteDeploymentPreviewIntegration(t *testing.T) {
 		SessionCookieName:        "stealth_session",
 		SessionTTL:               time.Hour,
 		AppSessionTTL:            time.Hour,
-	}, repo, logger, ratelimit.NewMemoryLimiter()))
+	}, repo, logger, httpapi.Dependencies{AuthLimiter: ratelimit.NewMemoryLimiter()}))
 	defer server.Close()
 
 	ownerClient := newIntegrationClient(t)
