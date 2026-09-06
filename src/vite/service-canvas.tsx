@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
 import { GripVertical, Save, Server } from "lucide-react";
-import type { BrowserProjectServiceLayout } from "@/lib/browser-api";
+import type { BrowserProjectServiceLayout } from "@/lib/api/browser-api";
 import { ServiceDetailPanel } from "./service-detail-panel";
 import { ServiceNode } from "./service-node";
 

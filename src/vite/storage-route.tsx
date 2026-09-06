@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Download, Files, FolderPlus, LoaderCircle, Save, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserStorageFile } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserStorageFile } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";

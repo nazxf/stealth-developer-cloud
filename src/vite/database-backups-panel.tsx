@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Archive, Download, LoaderCircle, RefreshCw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseBackup } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseBackup } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 

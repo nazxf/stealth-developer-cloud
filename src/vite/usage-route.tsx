@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Activity, BarChart3, Download, Gauge, HardDrive, LoaderCircle, RefreshCcw, Users, Workflow } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
 import { useState } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserProjectUsageDay } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserProjectUsageDay } from "@/lib/api/browser-api";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";
 import { queryKeys } from "@/lib/query-keys";
 

@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { Server } from "lucide-react";
 import { useState } from "react";
-import { browserAPI } from "@/lib/browser-api";
+import { browserAPI } from "@/lib/api/browser-api";
 import { EmptyState, LoadingState } from "@/components/async-state";
 import { ErrorState } from "@/components/error-state";
 import { ProjectCreateForm } from "@/vite/project-create-form";

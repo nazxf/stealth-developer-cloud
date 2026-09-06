@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { browserAPI, type BrowserDatabaseBackup } from "@/lib/browser-api";
+import { browserAPI, type BrowserDatabaseBackup } from "@/lib/api/browser-api";
 import DatabaseBackupsPanel from "./database-backups-panel";
 
 const backup: BrowserDatabaseBackup = {

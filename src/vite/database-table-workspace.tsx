@@ -9,7 +9,7 @@ import {
   type BrowserDatabaseIndex,
   type BrowserDatabaseRow,
   type BrowserDatabaseTable,
-} from "@/lib/browser-api";
+} from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 

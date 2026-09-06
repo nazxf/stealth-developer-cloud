@@ -1,7 +1,7 @@
 import { Link, useParams } from "@tanstack/react-router";
 import { Check, Circle, Copy, Pause, Play, Radio, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { BrowserAPIError, browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI, browserAPIErrorMessage } from "@/lib/api/browser-api";
 
 type ConnectionState = "connecting" | "live" | "reconnecting" | "paused" | "error";
 type StreamFrame = { event: string; id: string | null; data: string };

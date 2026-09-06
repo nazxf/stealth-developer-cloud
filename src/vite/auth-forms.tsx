@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/api/browser-api";
 
 const signupInputSchema = z.object({
   email: z.string().trim().email("Enter a valid email address."),

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { LoginForm } from "./login-form";

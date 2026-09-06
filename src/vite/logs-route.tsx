@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronDown, ListFilter, LoaderCircle, RefreshCcw, ScrollText } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserOrganizationAuditEvent, type BrowserTrace } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserOrganizationAuditEvent, type BrowserTrace } from "@/lib/api/browser-api";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";
 import { queryKeys } from "@/lib/query-keys";
 

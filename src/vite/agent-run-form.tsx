@@ -1,7 +1,7 @@
 import { LoaderCircle, Play } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
-import { browserAPI, browserAPIErrorMessage, type BrowserAgentTool } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgentTool } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 

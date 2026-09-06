@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Activity, AlertTriangle, CheckCircle2, Database, Gauge, HardDrive, KeyRound, LockKeyhole, Mail, RefreshCcw, ServerCog, ShieldCheck, UserMinus, UserPlus, Users, Workflow } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserOrganization, type BrowserOrganizationMembershipManageRole, type BrowserOrganizationPlan } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserOrganization, type BrowserOrganizationMembershipManageRole, type BrowserOrganizationPlan } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";
 import { queryKeys } from "@/lib/query-keys";

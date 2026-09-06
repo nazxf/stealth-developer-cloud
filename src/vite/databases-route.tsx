@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
 import { Database, FolderPlus, LoaderCircle, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseTable } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserDatabaseTable } from "@/lib/api/browser-api";
 import DatabaseTableWorkspace from "./database-table-workspace";
 import { queryClient } from "@/lib/query-client";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";

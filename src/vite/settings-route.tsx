@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Check, Clipboard, LoaderCircle, Save, Settings2, Trash2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
-import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";

@@ -2,7 +2,7 @@ import { useQueryClient, useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { Activity, Boxes, Database, ExternalLink, FunctionSquare, Plus, Server } from "lucide-react";
 import { Link, useParams } from "@tanstack/react-router";
-import { browserAPI } from "@/lib/browser-api";
+import { browserAPI } from "@/lib/api/browser-api";
 import { ServiceCanvas, type ServiceCanvasService } from "./service-canvas";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";
 import { queryKeys } from "@/lib/query-keys";

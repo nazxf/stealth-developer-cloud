@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Bot, Cpu, FolderGit2, GitBranch, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserAgent, type BrowserAgentRole } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgent, type BrowserAgentRole } from "@/lib/api/browser-api";
 import { AgentCreateForm } from "./agent-create-form";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";

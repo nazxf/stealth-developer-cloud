@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { browserAPI, browserAPIErrorMessage } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage } from "@/lib/api/browser-api";
 
 export function LogoutButton({ onLoggedOut }: { onLoggedOut: () => Promise<void> | void }) {
   const [pending, setPending] = useState(false);

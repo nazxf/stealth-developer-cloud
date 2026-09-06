@@ -28,7 +28,7 @@ import {
   type BrowserSite,
   type BrowserSiteBuildLog,
   type BrowserSiteDomain,
-} from "@/lib/browser-api";
+} from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";

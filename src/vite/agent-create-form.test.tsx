@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/api/browser-api";
 import { AgentCreateForm } from "./agent-create-form";
 
 const agentResponse = {

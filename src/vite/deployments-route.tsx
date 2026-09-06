@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { GitBranch, RefreshCcw, Rocket } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { browserAPI } from "@/lib/browser-api";
+import { browserAPI } from "@/lib/api/browser-api";
 import { GitDeploymentForm, type GitDeployableResource } from "./git-deployment-form";
 import { queryClient } from "@/lib/query-client";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";

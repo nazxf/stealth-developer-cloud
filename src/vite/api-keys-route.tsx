@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Check, Clipboard, KeyRound, LoaderCircle, Plus, ShieldAlert, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserProjectAPIKey, type BrowserProjectAPIKeyScope } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserProjectAPIKey, type BrowserProjectAPIKeyScope } from "@/lib/api/browser-api";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 import { ErrorState as AsyncErrorState } from "@/components/error-state";

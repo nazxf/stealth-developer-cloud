@@ -1,5 +1,5 @@
 import { RotateCcw } from "lucide-react";
-import { browserAPIErrorMessage } from "@/lib/browser-api";
+import { browserAPIErrorMessage } from "@/lib/api/browser-api";
 
 type ErrorStateProps = {
   error: unknown;

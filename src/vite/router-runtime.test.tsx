@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI, type BrowserAgentCatalog, type BrowserAgentTool } from "@/lib/api/browser-api";
 import { routeTree } from "@/routeTree.gen";
 import { queryClient } from "@/lib/query-client";
 

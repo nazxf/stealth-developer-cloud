@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { m, useReducedMotion } from "motion/react";
 import { useEffect } from "react";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI } from "@/lib/api/browser-api";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/async-state";
 import { LogoutButton } from "@/vite/logout-button";

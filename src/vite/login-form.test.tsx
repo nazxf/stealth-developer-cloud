@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BrowserAPIError, browserAPI } from "@/lib/browser-api";
+import { BrowserAPIError, browserAPI } from "@/lib/api/browser-api";
 import { LoginForm } from "./login-form";
 
 afterEach(() => {

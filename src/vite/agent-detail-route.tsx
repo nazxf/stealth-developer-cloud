@@ -2,7 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Bot, CheckCircle2, Clock3, GitBranch, LoaderCircle, Square, XCircle } from "lucide-react";
 import { useEffect, useState } from "react";
-import { browserAPI, browserAPIErrorMessage, type BrowserAgentRun } from "@/lib/browser-api";
+import { browserAPI, browserAPIErrorMessage, type BrowserAgentRun } from "@/lib/api/browser-api";
 import { AgentRunForm } from "./agent-run-form";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
