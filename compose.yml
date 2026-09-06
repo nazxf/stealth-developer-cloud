@@ -86,7 +86,7 @@ services:
       context: .
       dockerfile: deploy/console/Dockerfile
       args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+        VITE_API_URL: ${VITE_API_URL-http://localhost:8080}
     ports:
       - "${CONSOLE_PORT:-4173}:8080"
     depends_on:
