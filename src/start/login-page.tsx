@@ -7,13 +7,11 @@ import { queryKeys } from "@/vite/query-keys";
 export function LoginPage() {
   const navigate = useNavigate();
   return (
-    <div className="mx-auto flex min-h-[70vh] w-full max-w-md items-center justify-center">
-      <LoginForm
-        onAuthenticated={async () => {
-          await queryClient.invalidateQueries({ queryKey: queryKeys.account() });
-          await navigate({ to: "/" });
-        }}
-      />
-    </div>
+    <LoginForm
+      onAuthenticated={async () => {
+        await queryClient.invalidateQueries({ queryKey: queryKeys.account() });
+        await navigate({ to: "/" });
+      }}
+    />
   );
 }
