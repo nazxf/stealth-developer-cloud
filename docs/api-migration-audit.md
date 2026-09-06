@@ -16,7 +16,7 @@ The Vite browser must **not** use `localStorage` as the source of truth
 for projects, deployments, agents, usage, or any other product data. This
 document retains the historical inventory from the Next migration; the files
 listed as legacy are no longer imported by the Vite application. Active
-screens use `src/lib/browser-api.ts`, runtime Zod schemas, and TanStack Query.
+screens use the per-domain clients under `src/lib/api/` (composed into `src/lib/api/browser-api.ts`), runtime Zod schemas, and TanStack Query.
 
 Legend: **[LS]** = localStorage is the authoritative datastore, **[H]** =
 hardcoded constant data, **[M]** = generated/simulated mock data, **[S]** =
