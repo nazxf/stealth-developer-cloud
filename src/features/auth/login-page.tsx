@@ -1,5 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
-import { LoginForm } from "@/vite/login-form";
+import { LoginForm } from "@/features/auth/login-form";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 

@@ -5,7 +5,7 @@ import { useState } from "react";
 import { browserAPI } from "@/lib/api/browser-api";
 import { EmptyState, LoadingState } from "@/components/async-state";
 import { ErrorState } from "@/components/error-state";
-import { ProjectCreateForm } from "@/vite/project-create-form";
+import { ProjectCreateForm } from "@/features/projects/project-create-form";
 import { queryKeys } from "@/lib/query-keys";
 
 /** Projects landing screen moved from the legacy manual route tree. */

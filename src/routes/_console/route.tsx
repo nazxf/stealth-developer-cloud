@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { ConsoleLayout } from "@/start/console-layout";
+import { ConsoleLayout } from "@/features/console/console-layout";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 

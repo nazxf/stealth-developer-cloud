@@ -5,8 +5,8 @@ import { useEffect } from "react";
 import { BrowserAPIError, browserAPI } from "@/lib/api/browser-api";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/async-state";
-import { LogoutButton } from "@/vite/logout-button";
-import { ProjectShellNavigation } from "@/vite/project-shell";
+import { LogoutButton } from "@/features/auth/logout-button";
+import { ProjectShellNavigation } from "@/features/projects/project-shell";
 import { queryClient } from "@/lib/query-client";
 import { queryKeys } from "@/lib/query-keys";
 
