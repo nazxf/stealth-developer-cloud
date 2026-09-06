@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { ConsoleLayout } from "@/start/console-layout";
-import { queryClient } from "@/vite/query-client";
-import { queryKeys } from "@/vite/query-keys";
+import { ConsoleLayout } from "@/features/console/console-layout";
+import { queryClient } from "@/lib/query-client";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * Shared protected boundary for the console. This deliberately runs only in
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_console")({
 
     // Keep the sizeable Zod/API client out of the Start document entry. It is
     // needed only when a protected route is entered in the browser.
-    const { BrowserAPIError, browserAPI } = await import("@/lib/browser-api");
+    const { BrowserAPIError, browserAPI } = await import("@/lib/api/browser-api");
     try {
       await queryClient.ensureQueryData({
         queryKey: queryKeys.account(),

@@ -57,9 +57,11 @@ authenticated query contracts are implemented.
 
 ## Structure
 
-- `src/routes/` — TanStack Start file-based route tree (`__root`, `_auth`, `_console`, and protected not-found fallback)
-- `src/vite/` — feature-oriented React components reused by the Start routes (the manual router has been removed)
-- `src/lib/browser-api.ts` — the browser-safe, Zod-validated Go API client
+- `src/routes/` — TanStack Start file-based route tree (`__root`, `_auth`, `_console`, and protected not-found fallback); route files stay thin and compose pages from `src/features/`
+- `src/features/` — domain-oriented UI modules (auth, console shell, projects, databases, storage, deployments, sites, logs, usage, agents, messaging, admin, and project settings)
+- `src/lib/api/` — per-domain browser API clients (`account`, `organizations`, `projects`, `databases`, `storage`, `functions`, `deployments`, `sites`, `agents`, `messaging`, `observability`, `realtime`) composed into `browserAPI`; `src/lib/api-core.ts` is the shared transport boundary (credentials, errors, trace IDs, Zod validation)
+- `src/lib/` — QueryClient, stable query-key factories, polling helpers, and other shared utilities
+- `src/components/` — cross-feature presentational components (async loading/error states)
 - `src/styles/`, `src/routes/__root.tsx` — global tokens and the TanStack Start document entry
 - `services/api/cmd/api` — API process entry point and graceful shutdown
 - `services/api/internal/auth` — Argon2id password and opaque session helpers

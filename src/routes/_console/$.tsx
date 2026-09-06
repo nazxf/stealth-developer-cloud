@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { NotFoundPage } from "@/start/not-found-page";
+import { NotFoundPage } from "@/features/console/not-found-page";
 
 /**
  * Keep unknown protected URLs inside the Start hierarchy so the parent auth

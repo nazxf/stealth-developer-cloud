@@ -10,7 +10,7 @@ import "@fontsource-variable/geist";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/source-code-pro";
 import "@/styles/global.css";
-import { queryClient } from "@/vite/query-client";
+import { queryClient } from "@/lib/query-client";
 
 export const Route = createRootRoute({
   head: () => ({
